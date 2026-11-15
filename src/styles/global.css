@@ -143,3 +143,29 @@ textarea,
 select {
   font: inherit;
 }
+
+/* Prevent accidental zooming on phones and tablets, without blocking pinch-zoom
+   (which people with low vision rely on, so never use user-scalable=no):
+   - touch-action: manipulation turns off double-tap-to-zoom (e.g. tapping the
+     servings +/- buttons quickly);
+   - text-size-adjust stops iOS enlarging text when the phone is rotated. */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iOS zooms into any form field whose rendered text is smaller than 16px when
+   it's tapped, in Safari and in sites saved to the Home Screen alike. Keep
+   fields at 16px or more on touch devices (iPads report pointer: coarse too);
+   desktop keeps each component's own size. max() keeps fields larger if the
+   user has raised their default text size. !important because component styles
+   in app.css set smaller sizes with more specific selectors (e.g. .auth-form
+   input). Don't scale fields down with transform: scale(), which iOS counts. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1rem) !important;
+  }
+}
