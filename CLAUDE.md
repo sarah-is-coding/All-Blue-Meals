@@ -181,11 +181,51 @@ to `main`.
 src/features/<feature>/
   types.ts       ← TypeScript types only, no logic
   api.ts         ← All Supabase calls for this feature
+  queries.ts     ← TanStack Query keys, hooks, and cache updates (see Data loading)
   components/    ← UI components
   pages/         ← Route-level page components
   utils/         ← Pure helper functions (easiest to test)
   README.md
 ```
+
+### Data loading (TanStack Query, enforced by ESLint)
+
+Server data is loaded and cached with TanStack Query, always behind our own
+modules. Data flows one way:
+
+```
+component → features/<feature>/queries.ts → features/<feature>/api.ts → Supabase
+```
+
+- `src/lib/query/queryClient.ts` creates the one `QueryClient` and its
+  defaults (data is fresh for 60 s; unused data stays cached for 30 min)
+- Each feature's `queries.ts` is the only place that feature uses TanStack
+  Query. It defines the cache keys (scoped to the signed-in user via
+  `useCurrentUserId()`), the hooks components call (e.g.
+  `useMealPlanWeek`), and actions that save a change through `api.ts` and
+  then update every cached view it affects (e.g. `useMealPlanActions`)
+- Components never import `@tanstack/react-query` or build cache keys;
+  ESLint only allows the library in `src/lib/query`, `queries.ts` files,
+  `src/app/App.tsx`, and `src/app/useSessionCache.ts`
+- `src/app/useSessionCache.ts` prefetches in the background when a user
+  signs in: the week the planner will open on (`getPlannerStartWeek()`)
+  first, then the weeks either side. On sign-out it clears the whole cache
+  and the planner's remembered week
+- Actions write to the cache only after the database confirms the change,
+  and cancel in-flight requests first so a stale response can't overwrite
+  the update (see `settleInFlightRequests` in `meal-plans/queries.ts`)
+- Changes made elsewhere that affect cached data must invalidate it, e.g.
+  deleting a saved plan or editing/deleting a recipe calls
+  `useInvalidateMealPlanWeeks()`
+- Prefetch the week the user is about to see on its own before its
+  neighbours (`prefetchWeekThenNeighbours`, and `useMealPlanWeek` waits for
+  the visible week) so it never shares bandwidth with speculative requests
+- Tests render with `renderWithProviders` / `renderHookWithProviders` from
+  `src/__tests__/utils/renderWithProviders.tsx` (fresh cache + test user)
+- Query modules today: `meal-plans/queries.ts` (weeks, past-week spans,
+  saved plans, previews), `grocery/queries.ts` (saved lists), and
+  `recipes/queries.ts` (list pages, recipe detail). Recipe changes also
+  refresh planner weeks, since the planner shows recipe titles/servings
 
 ### Feature boundaries (enforced by ESLint)
 
@@ -220,3 +260,6 @@ dependency, and never in a way that creates a cycle.
   comment saying why
 - Form state uses string fields for all inputs (numbers are strings
   until parsed on submit)
+- Load data as described in "Data loading" below — never with a
+  hand-written `useEffect` + `mounted` flag. Use `useDebouncedValue` for
+  search-as-you-type

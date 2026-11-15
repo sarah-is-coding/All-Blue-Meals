@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import StarRating from "../components/StarRating";
-import { listRecipes } from "../api";
+import { useRecipeList } from "../queries";
 import { MEAL_TYPE_OPTIONS } from "../../meal-plans/constants";
 import { createDateFromIso } from "../../../lib/utils/dates";
 import type { MealType } from "../../meal-plans/types";
@@ -50,10 +50,6 @@ export default function RecipesPage() {
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -64,55 +60,22 @@ export default function RecipesPage() {
     return () => window.clearTimeout(debounceId);
   }, [searchInput]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const run = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { recipes: nextRecipes, totalCount: nextTotalCount } = await listRecipes(
-          searchTerm,
-          filters,
-          {
-            page: currentPage,
-            pageSize: RECIPES_PER_PAGE,
-          }
-        );
-        if (mounted) {
-          setRecipes(nextRecipes);
-          setTotalCount(nextTotalCount);
-        }
-      } catch (fetchError) {
-        if (mounted) {
-          setError(
-            fetchError instanceof Error
-              ? fetchError.message
-              : "Failed to load recipes."
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
-    return () => {
-      mounted = false;
-    };
-  }, [searchTerm, filters, currentPage]);
+  const { recipes, totalCount, loading, error } = useRecipeList({
+    searchTerm,
+    filters,
+    page: currentPage,
+    pageSize: RECIPES_PER_PAGE,
+  });
 
   const totalPages = Math.max(1, Math.ceil(totalCount / RECIPES_PER_PAGE));
   const pageStartIndex = totalCount === 0 ? 0 : (currentPage - 1) * RECIPES_PER_PAGE + 1;
   const pageEndIndex = Math.min(currentPage * RECIPES_PER_PAGE, totalCount);
 
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  // If filters shrink the results below the current page, go to the last page.
+  // Only once the count has loaded: while a page loads it reads as 0.
+  if (!loading && currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
 
   const persistListState = () => {
     saveRecipeListViewState({

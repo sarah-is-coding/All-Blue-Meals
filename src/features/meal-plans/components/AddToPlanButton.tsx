@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addMealPlanItem } from "../api";
+import { useMealPlanActions } from "../queries";
 import { MEAL_TYPE_OPTIONS } from "../constants";
 import { createDateFromIso, getWeekStartIso } from "../../../lib/utils/dates";
 import type { MealType } from "../types";
@@ -33,6 +33,7 @@ export default function AddToPlanButton({
   initialMealType,
 }: AddToPlanButtonProps) {
   const navigate = useNavigate();
+  const { addItem } = useMealPlanActions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function AddToPlanButton({
     setError(null);
     setAddedTo(null);
     try {
-      await addMealPlanItem({
+      await addItem({
         weekStartIso: getWeekStartIso(createDateFromIso(plannedFor)),
         plannedFor,
         mealType,

@@ -17,8 +17,29 @@ const featureDependencies = {
 
 const features = Object.keys(featureDependencies)
 
-const restrictImports = (patterns) => ({
-  'no-restricted-imports': ['error', { patterns }],
+// TanStack Query is only used behind our own modules: src/lib/query (the
+// client), each feature's queries.ts (keys, hooks, cache updates), and the
+// app shell's provider/session wiring. Everything else uses those hooks.
+const QUERY_LIBRARY = {
+  name: '@tanstack/react-query',
+  message:
+    'Use the hooks in the feature\x27s queries.ts instead of TanStack Query directly (see "Data loading" in CLAUDE.md).',
+}
+const QUERY_ALLOWED_FILES = [
+  'src/lib/query/**',
+  'src/features/*/queries.ts',
+  'src/app/App.tsx',
+  'src/app/useSessionCache.ts',
+]
+
+// Each block below sets the whole no-restricted-imports rule for its files
+// (later blocks replace earlier ones), so every block passes both its import
+// patterns and whether the query library is allowed there.
+const restrictImports = (patterns, { allowQueryLibrary = false } = {}) => ({
+  'no-restricted-imports': [
+    'error',
+    { patterns, paths: allowQueryLibrary ? [] : [QUERY_LIBRARY] },
+  ],
 })
 
 const importsFrom = (dirs, message) => ({
@@ -45,11 +66,21 @@ const featureBoundaries = features.map((feature) => {
       ),
     )
   }
-  return {
-    files: [`src/features/${feature}/**/*.{ts,tsx}`],
-    rules: restrictImports(patterns),
-  }
-})
+  return [
+    {
+      files: [`src/features/${feature}/**/*.{ts,tsx}`],
+      rules: restrictImports(patterns),
+    },
+    {
+      files: [`src/features/${feature}/queries.ts`],
+      rules: restrictImports(patterns, { allowQueryLibrary: true }),
+    },
+  ]
+}).flat()
+
+const sharedCodePatterns = [
+  importsFrom(['features', 'app'], 'Shared code in src/lib and src/components must not depend on features or the app shell.'),
+]
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -67,10 +98,17 @@ export default defineConfig([
     },
   },
   {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/__tests__/**', ...QUERY_ALLOWED_FILES],
+    rules: restrictImports([]),
+  },
+  {
     files: ['src/lib/**/*.{ts,tsx}', 'src/components/**/*.{ts,tsx}'],
-    rules: restrictImports([
-      importsFrom(['features', 'app'], 'Shared code in src/lib and src/components must not depend on features or the app shell.'),
-    ]),
+    rules: restrictImports(sharedCodePatterns),
+  },
+  {
+    files: ['src/lib/query/**/*.{ts,tsx}'],
+    rules: restrictImports(sharedCodePatterns, { allowQueryLibrary: true }),
   },
   ...featureBoundaries,
 ])

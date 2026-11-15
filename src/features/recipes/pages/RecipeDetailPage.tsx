@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import LoadingModal from "../../../components/feedback/LoadingModal";
 import AddToPlanButton from "../../meal-plans/components/AddToPlanButton";
@@ -6,7 +6,7 @@ import type { MealType } from "../../meal-plans/types";
 import RecipeFormFields from "../components/RecipeFormFields";
 import RecipeReadArticle from "../components/RecipeReadArticle";
 import StarRating from "../components/StarRating";
-import { deleteRecipe, getRecipeById, rateRecipe, updateRecipe } from "../api";
+import { useRecipe, useRecipeActions } from "../queries";
 import {
   createEmptyIngredient,
   mapRecipeDetailToFormValues,
@@ -46,11 +46,12 @@ export default function RecipeDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { recipeId } = useParams();
+  const { recipe, loading } = useRecipe(recipeId ?? null);
+  const recipeActions = useRecipeActions();
   const locationState = (location.state ?? null) as RecipeDetailLocationState | null;
   const isFromMealPlanner = locationState?.from === "meal-planner";
   const backTo = isFromMealPlanner ? "/app/meal-plans" : "/app/recipes";
   const backLabel = isFromMealPlanner ? "Back to Meal Planner" : "Back to Recipes";
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,66 +65,33 @@ export default function RecipeDetailPage() {
   const [rating, setRating] = useState<number | null>(null);
   const [savingRating, setSavingRating] = useState(false);
 
-  useEffect(() => {
-    if (!recipeId) {
-      setError("Recipe id is missing.");
-      setLoading(false);
-      return;
+  // Set up the form once per visit to a recipe. A new navigation (e.g. from the
+  // planner with a different serving size) starts fresh; background refreshes
+  // of the cached recipe never overwrite edits in progress.
+  const visitKey = `${recipeId ?? ""}|${location.key}`;
+  const [initializedVisit, setInitializedVisit] = useState<string | null>(null);
+  if (recipe !== undefined && initializedVisit !== visitKey) {
+    setInitializedVisit(visitKey);
+    setError(null);
+    setMessage(null);
+    setEditing(false);
+    if (recipe) {
+      const nextValues = mapRecipeDetailToFormValues(recipe);
+      const recipeBaseServings = parseServingsValue(nextValues.servings);
+      const initialServingsFromMealPlan = parseServingsValue(locationState?.initialServings);
+      setFormValues(nextValues);
+      setSnapshot(nextValues);
+      setViewServings(initialServingsFromMealPlan ?? recipeBaseServings);
+      setEditScaleBaseServings(recipeBaseServings);
+      setRating(recipe.rating);
+    } else {
+      setFormValues(null);
+      setSnapshot(null);
+      setViewServings(null);
+      setEditScaleBaseServings(null);
+      setRating(null);
     }
-
-    let mounted = true;
-
-    const run = async () => {
-      setLoading(true);
-      setError(null);
-      setMessage(null);
-      setEditing(false);
-
-      try {
-        const recipe = await getRecipeById(recipeId);
-        if (!mounted) {
-          return;
-        }
-
-        if (!recipe) {
-          setFormValues(null);
-          setSnapshot(null);
-          setViewServings(null);
-          setEditScaleBaseServings(null);
-          setRating(null);
-          setLoading(false);
-          return;
-        }
-
-        const nextValues = mapRecipeDetailToFormValues(recipe);
-        const recipeBaseServings = parseServingsValue(nextValues.servings);
-        const initialServingsFromMealPlan = parseServingsValue(locationState?.initialServings);
-
-        setFormValues(nextValues);
-        setSnapshot(nextValues);
-        setViewServings(initialServingsFromMealPlan ?? recipeBaseServings);
-        setEditScaleBaseServings(recipeBaseServings);
-        setRating(recipe.rating);
-      } catch (fetchError) {
-        if (mounted) {
-          setError(
-            fetchError instanceof Error
-              ? fetchError.message
-              : "Failed to load recipe."
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
-    return () => {
-      mounted = false;
-    };
-  }, [location.key, locationState?.initialServings, recipeId]);
+  }
 
   const handleFieldChange = (field: RecipeFieldName, value: string) => {
     setFormValues((previousValues) =>
@@ -257,7 +225,8 @@ export default function RecipeDetailPage() {
 
     try {
       const previousSnapshotServings = parseServingsValue(snapshot?.servings ?? null);
-      await updateRecipe(recipeId, mapRecipeFormValuesToInput(formValues));
+      // Also refreshes recipe lists and the planner, which shows titles and servings.
+      await recipeActions.update(recipeId, mapRecipeFormValuesToInput(formValues));
       setSnapshot(formValues);
       setEditing(false);
       const nextRecipeBaseServings = parseServingsValue(formValues.servings);
@@ -290,7 +259,7 @@ export default function RecipeDetailPage() {
     setError(null);
 
     try {
-      await rateRecipe(recipeId, nextRating);
+      await recipeActions.rate(recipeId, nextRating);
       setRating(nextRating);
     } catch (rateError) {
       setError(
@@ -310,7 +279,8 @@ export default function RecipeDetailPage() {
     setError(null);
 
     try {
-      await deleteRecipe(recipeId);
+      // Also refreshes recipe lists and the planner, whose meals lose this recipe.
+      await recipeActions.remove(recipeId);
       navigate("/app/recipes");
     } catch (deleteError) {
       setError(
@@ -320,21 +290,24 @@ export default function RecipeDetailPage() {
     }
   };
 
+  // Rendered as the first child of every branch below so it stays mounted
+  // when loading finishes and LoadingModal can apply its minimum display time.
+  const loadingModal = (
+    <LoadingModal
+      open={loading}
+      title="Loading recipe..."
+      message="Pulling in your recipe details."
+    />
+  );
+
   if (loading) {
-    return (
-      <section className="workspace-route recipe-route">
-        <LoadingModal
-          open
-          title="Loading recipe..."
-          message="Pulling in your recipe details."
-        />
-      </section>
-    );
+    return <section className="workspace-route recipe-route">{loadingModal}</section>;
   }
 
   if (!formValues) {
     return (
       <section className="workspace-route recipe-route">
+        {loadingModal}
         <article className="workspace-card recipe-empty-state">
           <h1>Recipe not found</h1>
           <p>This recipe may have been removed or you might not have access.</p>
@@ -358,6 +331,7 @@ export default function RecipeDetailPage() {
     <section
       className={`workspace-route recipe-route${editing ? " recipe-route--sticky-actions" : ""}`}
     >
+      {loadingModal}
       <article className="workspace-card">
         <div className="recipe-page-header">
           <div className="recipe-page-header__title">

@@ -137,6 +137,7 @@ This codebase follows **modular programming** and **separation of concerns**. Av
   - Avoid inserting ads between form fields or critical action buttons.
 - On mobile, reduce ad density and keep core task flow uninterrupted.
 - Loading states should use a modal component at `src/components/feedback/LoadingModal.tsx` when appropriate.
+- `LoadingModal` owns its timing: it only appears if work takes longer than ~280 ms and, once shown, stays up at least ~480 ms. Pass `open={loading}` and keep it mounted (toggle `open` instead of rendering it only while loading). Do not add per-caller timing.
 - If a loading modal includes an ad slot, prevent accidental clicks:
   - Render the ad slot in non-interactive mode.
   - Keep full-screen overlay blocking background interaction.

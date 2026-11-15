@@ -5,9 +5,16 @@ type UseLoadingGateOptions = {
   minVisibleMs?: number;
 };
 
-const DEFAULT_SHOW_DELAY_MS = 280;
-const DEFAULT_MIN_VISIBLE_MS = 480;
+/** Don't show a loader for work that finishes faster than this. */
+export const DEFAULT_SHOW_DELAY_MS = 280;
+/** Once shown, keep the loader up at least this long so it doesn't flicker. */
+export const DEFAULT_MIN_VISIBLE_MS = 480;
 
+/**
+ * Turns a raw "is loading" flag into "should the loader be visible":
+ * stays hidden for quick work, and doesn't blink off right after appearing.
+ * LoadingModal applies this itself, so callers just pass `open={loading}`.
+ */
 export function useLoadingGate(
   active: boolean,
   options: UseLoadingGateOptions = {}

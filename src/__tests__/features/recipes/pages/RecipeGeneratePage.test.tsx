@@ -1,4 +1,5 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import RecipeGeneratePage from "../../../../features/recipes/pages/RecipeGeneratePage";
@@ -89,7 +90,7 @@ describe("RecipeGeneratePage", () => {
 
   it("generates and creates selected recipes", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <MemoryRouter>
         <RecipeGeneratePage />
       </MemoryRouter>

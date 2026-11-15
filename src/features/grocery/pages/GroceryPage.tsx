@@ -1,11 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  buildGroceryItemsForPlan,
-  buildGroceryItemsForWeek,
-  saveGroceryList,
-  toggleGroceryItem,
-} from "../api";
+import { buildGroceryItemsForPlan, buildGroceryItemsForWeek } from "../api";
+import { useGroceryListActions } from "../queries";
 import GroceryPlanBrowser from "../components/GroceryPlanBrowser";
 import type { GroceryItemDraft, GroceryList, GrocerySource } from "../types";
 import { groupItemsByCategory } from "../utils/groceryGeneration";
@@ -18,6 +14,7 @@ import {
 import type { SavedMealPlan } from "../../meal-plans/types";
 
 export default function GroceryPage() {
+  const groceryActions = useGroceryListActions();
   const currentWeekStartIso = useMemo(() => getWeekStartIso(new Date()), []);
 
   // ── Source (which plan to generate from) ─────────────────────────────────
@@ -151,7 +148,7 @@ export default function GroceryPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      const list = await saveGroceryList(
+      const list = await groceryActions.save(
         saveTitle.trim(),
         draftMealPlanId,
         draftItems
@@ -175,7 +172,7 @@ export default function GroceryPage() {
     setTogglingId(itemId);
     setToggleError(null);
     try {
-      await toggleGroceryItem(itemId, isChecked);
+      if (savedList) await groceryActions.toggleItem(savedList.id, itemId, isChecked);
       setSavedList((prev) => {
         if (!prev) return prev;
         return {

@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import LoadingModal from "../../../components/feedback/LoadingModal";
-import { useLoadingGate } from "../../../components/feedback/useLoadingGate";
-import {
-  applySavedMealPlan,
-  clearWeekPlan,
-  deleteMealPlanItem,
-  listMealPlanItemsForWeek,
-  moveMealPlanItem,
-  updateMealPlanItemServings,
-} from "../api";
 import MealPlannerCalendar from "../components/MealPlannerCalendar";
 import PastMealPlanPanel from "../components/PastMealPlanPanel";
 import {
@@ -19,13 +10,10 @@ import {
   shiftWeekStartIso,
 } from "../../../lib/utils/dates";
 import { getWeekDays } from "../utils/weekDays";
-import type { MealPlanItem, MealType } from "../types";
+import { useMealPlanActions, useMealPlanWeek } from "../queries";
+import type { MealType } from "../types";
 import {
-  loadCachedMealPlanItems,
-  saveCachedMealPlanItems,
-} from "../utils/mealPlanItemsCache";
-import {
-  loadMealPlannerViewState,
+  getPlannerStartWeek,
   saveMealPlannerViewState,
 } from "../utils/mealPlannerViewState";
 
@@ -39,16 +27,15 @@ export default function MealPlansPage() {
     if (jumpToDate && isIsoDate(jumpToDate)) {
       return { weekStartIso: getWeekStartIso(createDateFromIso(jumpToDate)) };
     }
-    return loadMealPlannerViewState({ weekStartIso: getWeekStartIso(new Date()) });
+    return { weekStartIso: getPlannerStartWeek() };
   });
-  const [initialCachedItems] = useState<MealPlanItem[] | null>(() =>
-    loadCachedMealPlanItems(initialState.weekStartIso)
-  );
   const [weekStartIso, setWeekStartIso] = useState(initialState.weekStartIso);
-  const [items, setItems] = useState<MealPlanItem[]>(initialCachedItems ?? []);
-  const [loadingItems, setLoadingItems] = useState(initialCachedItems === null);
-  const [hasLoadedInitialItems, setHasLoadedInitialItems] = useState(initialCachedItems !== null);
-  const [plannerError, setPlannerError] = useState<string | null>(null);
+  const week = useMealPlanWeek(weekStartIso);
+  const { items } = week;
+  const actions = useMealPlanActions();
+  // Errors from add/move/remove/etc. The week's load error comes from `week.error`.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const plannerError = actionError ?? week.error;
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
   const [updatingServingsItemId, setUpdatingServingsItemId] = useState<string | null>(null);
@@ -56,70 +43,27 @@ export default function MealPlansPage() {
   const weekDays = useMemo(() => getWeekDays(weekStartIso), [weekStartIso]);
   const weekLabel = useMemo(() => formatWeekRangeLabel(weekStartIso), [weekStartIso]);
 
-  const showInitialLoadingModal = useLoadingGate(
-    loadingItems && !hasLoadedInitialItems,
-    { showDelayMs: 0, minVisibleMs: 480 }
-  );
+  const changeWeek = useCallback((nextWeekStartIso: string) => {
+    setWeekStartIso(nextWeekStartIso);
+    setActionError(null);
+  }, []);
 
   useEffect(() => {
     saveMealPlannerViewState({ weekStartIso });
   }, [weekStartIso]);
 
-  useEffect(() => {
-    let mounted = true;
-    const cachedItems = loadCachedMealPlanItems(weekStartIso);
-
-    setItems(cachedItems ?? []);
-    if (cachedItems) {
-      setHasLoadedInitialItems(true);
-    }
-
-    const run = async () => {
-      setLoadingItems(true);
-      setPlannerError(null);
-
-      try {
-        const nextItems = await listMealPlanItemsForWeek(weekStartIso);
-        if (mounted) {
-          setItems(nextItems);
-          saveCachedMealPlanItems(weekStartIso, nextItems);
-        }
-      } catch (error) {
-        if (mounted) {
-          setPlannerError(error instanceof Error ? error.message : "Failed to load meal plan.");
-        }
-      } finally {
-        if (mounted) {
-          setLoadingItems(false);
-          setHasLoadedInitialItems(true);
-        }
-      }
-    };
-
-    void run();
-
-    return () => {
-      mounted = false;
-    };
-  }, [weekStartIso]);
-
   const handleRemoveItem = useCallback(async (itemId: string) => {
     setRemovingItemId(itemId);
-    setPlannerError(null);
+    setActionError(null);
 
     try {
-      await deleteMealPlanItem(itemId);
-      setItems((currentItems) => {
-        const nextItems = currentItems.filter((item) => item.id !== itemId);
-        saveCachedMealPlanItems(weekStartIso, nextItems);
-        return nextItems;
-      });
+      await actions.removeItem(itemId);
     } catch (error) {
-      setPlannerError(error instanceof Error ? error.message : "Failed to remove item.");
+      setActionError(error instanceof Error ? error.message : "Failed to remove item.");
     } finally {
       setRemovingItemId((currentId) => (currentId === itemId ? null : currentId));
     }
-  }, [weekStartIso]);
+  }, [actions]);
 
   const handleMoveItem = useCallback(
     async (itemId: string, plannedFor: string, mealType: MealType) => {
@@ -132,45 +76,27 @@ export default function MealPlansPage() {
       }
 
       setMovingItemId(itemId);
-      setPlannerError(null);
+      setActionError(null);
 
       try {
-        const movedItem = await moveMealPlanItem({
-          itemId,
-          plannedFor,
-          mealType,
-        });
-        setItems((currentItems) => {
-          const nextItems = currentItems.map((item) => (item.id === itemId ? movedItem : item));
-          saveCachedMealPlanItems(weekStartIso, nextItems);
-          return nextItems;
-        });
+        await actions.moveItem({ itemId, plannedFor, mealType });
       } catch (error) {
-        setPlannerError(error instanceof Error ? error.message : "Failed to move recipe.");
+        setActionError(error instanceof Error ? error.message : "Failed to move recipe.");
       } finally {
         setMovingItemId((currentId) => (currentId === itemId ? null : currentId));
       }
     },
-    [items, weekStartIso]
+    [items, actions]
   );
 
   /** Unified handler for both "copy past week" and "apply saved plan".
    *  Uses applySavedMealPlan so multi-week plans are handled correctly. */
   const handleApplyPlan = useCallback(
     async (planId: string, mode: "add" | "replace") => {
-      setPlannerError(null);
-      if (mode === "replace") {
-        await clearWeekPlan(weekStartIso);
-      }
-      const newItems = await applySavedMealPlan(planId, weekStartIso);
-      setItems((current) => {
-        const base = mode === "replace" ? [] : current;
-        const next = [...base, ...newItems];
-        saveCachedMealPlanItems(weekStartIso, next);
-        return next;
-      });
+      setActionError(null);
+      await actions.applyPlan(planId, weekStartIso, mode);
     },
-    [weekStartIso]
+    [weekStartIso, actions]
   );
 
   const handleUpdateItemServings = useCallback(
@@ -181,33 +107,23 @@ export default function MealPlansPage() {
       }
 
       setUpdatingServingsItemId(itemId);
-      setPlannerError(null);
+      setActionError(null);
 
       try {
-        const updatedItem = await updateMealPlanItemServings({
-          itemId,
-          servingsOverride,
-        });
-        setItems((currentItems) => {
-          const nextItems = currentItems.map((item) =>
-            item.id === itemId ? updatedItem : item
-          );
-          saveCachedMealPlanItems(weekStartIso, nextItems);
-          return nextItems;
-        });
+        await actions.updateServings({ itemId, servingsOverride });
       } catch (error) {
-        setPlannerError(error instanceof Error ? error.message : "Failed to update servings.");
+        setActionError(error instanceof Error ? error.message : "Failed to update servings.");
       } finally {
         setUpdatingServingsItemId((currentId) => (currentId === itemId ? null : currentId));
       }
     },
-    [items, weekStartIso]
+    [items, actions]
   );
 
   return (
     <section className="workspace-route meal-planner-route">
       <LoadingModal
-        open={showInitialLoadingModal}
+        open={week.loading}
         title="Loading meal planner..."
         message="Preparing your calendar and saved meals."
       />
@@ -223,10 +139,8 @@ export default function MealPlansPage() {
           removingItemId={removingItemId}
           movingItemId={movingItemId}
           updatingServingsItemId={updatingServingsItemId}
-          onShiftWeek={(weekOffset) =>
-            setWeekStartIso((currentIso) => shiftWeekStartIso(currentIso, weekOffset))
-          }
-          onJumpToCurrentWeek={() => setWeekStartIso(getWeekStartIso(new Date()))}
+          onShiftWeek={(weekOffset) => changeWeek(shiftWeekStartIso(weekStartIso, weekOffset))}
+          onJumpToCurrentWeek={() => changeWeek(getWeekStartIso(new Date()))}
           onMoveItem={handleMoveItem}
           onUpdateItemServings={handleUpdateItemServings}
           onRemoveItem={handleRemoveItem}
@@ -236,7 +150,7 @@ export default function MealPlansPage() {
           <PastMealPlanPanel
             currentWeekStartIso={weekStartIso}
             currentWeekHasItems={items.length > 0}
-            onJumpToWeek={setWeekStartIso}
+            onJumpToWeek={changeWeek}
             onApplyPlan={handleApplyPlan}
           />
         </div>

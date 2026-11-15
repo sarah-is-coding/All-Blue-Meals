@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -29,7 +30,7 @@ const mockAddMealPlanItem = vi.mocked(addMealPlanItem);
 const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
 
 const renderButton = (props: Partial<React.ComponentProps<typeof AddToPlanButton>> = {}) =>
-  render(
+  renderWithProviders(
     <MemoryRouter>
       <AddToPlanButton
         recipeId="recipe-1"

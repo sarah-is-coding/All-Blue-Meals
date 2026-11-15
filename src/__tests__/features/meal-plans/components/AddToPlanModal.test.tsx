@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import AddToPlanModal from "../../../../features/meal-plans/components/AddToPlanModal";
@@ -24,7 +25,7 @@ const renderModal = (
 ) => {
   const onCancel = vi.fn();
   const onConfirm = vi.fn().mockResolvedValue(undefined);
-  render(
+  renderWithProviders(
     <MemoryRouter>
       <AddToPlanModal
         recipeTitle="Pasta Bake"

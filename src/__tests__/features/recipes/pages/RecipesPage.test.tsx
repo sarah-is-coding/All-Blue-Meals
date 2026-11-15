@@ -1,7 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import RecipesPage from "../../../../features/recipes/pages/RecipesPage";
+import {
+  createDefaultRecipeListFilters,
+  saveRecipeListViewState,
+} from "../../../../features/recipes/utils/recipeListViewState";
 
 vi.mock("../../../../features/recipes/api", () => ({
   listRecipes: vi.fn(),
@@ -37,7 +42,7 @@ const recipes = [
 ];
 
 const renderPage = () =>
-  render(
+  renderWithProviders(
     <MemoryRouter initialEntries={["/app/recipes"]}>
       <RecipesPage />
     </MemoryRouter>
@@ -49,7 +54,7 @@ function RecipeDetailLocationProbe() {
 }
 
 const renderPageWithMealSlot = () =>
-  render(
+  renderWithProviders(
     <MemoryRouter
       initialEntries={[
         {
@@ -136,5 +141,33 @@ describe("RecipesPage", () => {
         expect.objectContaining({ page: 1 })
       );
     });
+  });
+
+  it("keeps a remembered page while it loads, instead of jumping back to page 1", async () => {
+    saveRecipeListViewState({
+      searchInput: "",
+      filters: createDefaultRecipeListFilters(),
+      currentPage: 2,
+    });
+    mockListRecipes.mockResolvedValue({ recipes, totalCount: 30 });
+    renderPage();
+
+    await screen.findByText("Chicken Caesar Taco Salad");
+    expect(mockListRecipes).toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ page: 2 }));
+    expect(mockListRecipes).not.toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }));
+  });
+
+  it("moves to the last page when there are fewer results than the remembered page", async () => {
+    saveRecipeListViewState({
+      searchInput: "",
+      filters: createDefaultRecipeListFilters(),
+      currentPage: 3,
+    });
+    mockListRecipes.mockResolvedValue({ recipes, totalCount: recipes.length });
+    renderPage();
+
+    await waitFor(() =>
+      expect(mockListRecipes).toHaveBeenLastCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }))
+    );
   });
 });

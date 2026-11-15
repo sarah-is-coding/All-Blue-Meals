@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  listMealPlanSpans,
-  previewSavedMealPlan,
-  savePlanById,
-  searchSavedMealPlans,
-} from "../api";
+import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
 import { formatDateRange, getWeekStartIso } from "../../../lib/utils/dates";
-import type { MealPlanDayPreview, MealPlanSpan, SavedMealPlan } from "../types";
+import {
+  useMealPlanSpans,
+  useSavedMealPlanActions,
+  useSavedMealPlanSearch,
+  useSavedPlanPreview,
+} from "../queries";
+import type { SavedMealPlan } from "../types";
 import PlanSpanCalendar from "./PlanSpanCalendar";
 
 type CopyMode = "add" | "replace";
@@ -29,15 +30,16 @@ function PastWeeksTab({
   onApplyPlan,
 }: Props) {
   // Span data for the calendar
-  const [spans, setSpans] = useState<MealPlanSpan[]>([]);
-  const [loadingSpans, setLoadingSpans] = useState(true);
-  const [spansError, setSpansError] = useState<string | null>(null);
+  const { spans, loading: loadingSpans, error: spansError } = useMealPlanSpans();
 
   // Selected plan and its preview
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [preview, setPreview] = useState<MealPlanDayPreview[]>([]);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+  const {
+    preview,
+    loading: loadingPreview,
+    error: previewError,
+  } = useSavedPlanPreview(selectedPlanId);
+  const { saveAs } = useSavedMealPlanActions();
 
   // Copy flow
   const [copying, setCopying] = useState(false);
@@ -52,44 +54,15 @@ function PastWeeksTab({
   const [savedLabel, setSavedLabel] = useState<string | null>(null);
   const saveInputRef = useRef<HTMLInputElement>(null);
 
-  // Load all plan spans once on mount
-  useEffect(() => {
-    let mounted = true;
-    listMealPlanSpans()
-      .then((data) => { if (mounted) setSpans(data); })
-      .catch((e) => { if (mounted) setSpansError(e instanceof Error ? e.message : "Failed to load plans."); })
-      .finally(() => { if (mounted) setLoadingSpans(false); });
-    return () => { mounted = false; };
-  }, []);
-
-  // Load preview whenever a plan is selected
-  useEffect(() => {
-    if (!selectedPlanId) return;
-    let mounted = true;
-
-    previewSavedMealPlan(selectedPlanId)
-      .then((items) => { if (mounted) setPreview(items); })
-      .catch((e) => { if (mounted) setPreviewError(e instanceof Error ? e.message : "Failed to load preview."); })
-      .finally(() => { if (mounted) setLoadingPreview(false); });
-
-    return () => { mounted = false; };
-  }, [selectedPlanId]);
-
   useEffect(() => {
     if (showSaveInput) saveInputRef.current?.focus();
   }, [showSaveInput]);
 
-  // Reset per-plan UI state here rather than in the preview effect, so a
-  // selection change is a single render.
+  // Reset per-plan UI state when the selection changes.
   const handleSelectPlan = (planId: string | null) => {
     if (planId === selectedPlanId) return;
     setSelectedPlanId(planId);
-    if (!planId) {
-      setPreview([]);
-      return;
-    }
-    setLoadingPreview(true);
-    setPreviewError(null);
+    if (!planId) return;
     setCopyDone(false);
     setShowConfirm(false);
     setShowSaveInput(false);
@@ -125,7 +98,7 @@ function PastWeeksTab({
     if (!selectedPlanId || !saveName.trim()) return;
     setSaving(true);
     setSaveError(null);
-    savePlanById(selectedPlanId, saveName.trim())
+    saveAs(selectedPlanId, saveName.trim())
       .then((saved) => {
         setSavedLabel(`Saved as "${saved.savedName}"`);
         setShowSaveInput(false);
@@ -293,53 +266,23 @@ function SavedPlansTab({
   onApplyPlan: (planId: string, mode: CopyMode) => Promise<void>;
 }) {
   const [searchInput, setSearchInput] = useState("");
-  const [results, setResults] = useState<SavedMealPlan[]>([]);
-  const [loadingList, setLoadingList] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
+  const searchTerm = useDebouncedValue(searchInput, 220);
+  const searchQuery = useSavedMealPlanSearch(searchTerm);
+  const results = searchQuery.results;
+  // Show "Loading…" while the user is still typing, not just once the request starts.
+  const loadingList = searchQuery.loading || searchInput !== searchTerm;
+  const listError = searchQuery.error;
 
   const [selectedPlan, setSelectedPlan] = useState<SavedMealPlan | null>(null);
-  const [preview, setPreview] = useState<MealPlanDayPreview[]>([]);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+  const {
+    preview,
+    loading: loadingPreview,
+    error: previewError,
+  } = useSavedPlanPreview(selectedPlan?.id ?? null);
 
   const [applying, setApplying] = useState(false);
   const [applyDone, setApplyDone] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
-  // Debounced search
-  useEffect(() => {
-    setLoadingList(true);
-    setListError(null);
-    const id = window.setTimeout(async () => {
-      try {
-        const data = await searchSavedMealPlans(searchInput);
-        setResults(data);
-      } catch (e) {
-        setListError(e instanceof Error ? e.message : "Failed to load saved plans.");
-      } finally {
-        setLoadingList(false);
-      }
-    }, 220);
-    return () => window.clearTimeout(id);
-  }, [searchInput]);
-
-  // Load preview when a plan is selected
-  useEffect(() => {
-    if (!selectedPlan) {
-      setPreview([]);
-      return;
-    }
-    let mounted = true;
-    setLoadingPreview(true);
-    setPreviewError(null);
-    setApplyDone(false);
-    setShowConfirm(false);
-    previewSavedMealPlan(selectedPlan.id)
-      .then((items) => { if (mounted) setPreview(items); })
-      .catch((e) => { if (mounted) setPreviewError(e instanceof Error ? e.message : "Failed to load preview."); })
-      .finally(() => { if (mounted) setLoadingPreview(false); });
-    return () => { mounted = false; };
-  }, [selectedPlan]);
 
   const executeApply = (mode: CopyMode) => {
     if (!selectedPlan) return;

@@ -1,6 +1,11 @@
 import AdSlot from "../ads/AdSlot";
+import { useLoadingGate } from "./useLoadingGate";
 
 type LoadingModalProps = {
+  /** Whether work is in progress. The modal itself decides when to appear:
+   *  it stays hidden for quick work and, once shown, stays up briefly so it
+   *  doesn't flicker. Keep it mounted and toggle `open` rather than mounting
+   *  it only while loading, or the minimum display time can't apply. */
   open: boolean;
   title?: string;
   message?: string;
@@ -11,7 +16,9 @@ export default function LoadingModal({
   title = "Working on your request...",
   message = "Please wait a moment.",
 }: LoadingModalProps) {
-  if (!open) {
+  const visible = useLoadingGate(open);
+
+  if (!visible) {
     return null;
   }
 

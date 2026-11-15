@@ -1,4 +1,5 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import RecipeImportPage from "../../../../features/recipes/pages/RecipeImportPage";
@@ -90,7 +91,7 @@ describe("RecipeImportPage", () => {
 
   it("creates selected imported recipes after extraction", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <MemoryRouter>
         <RecipeImportPage />
       </MemoryRouter>

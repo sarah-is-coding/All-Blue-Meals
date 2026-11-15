@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
 import PlanSpanCalendar from "../../meal-plans/components/PlanSpanCalendar";
-import {
-  listMealPlanSpans,
-  searchSavedMealPlans,
-} from "../../meal-plans/api";
-import type { MealPlanSpan, SavedMealPlan } from "../../meal-plans/types";
+import { useMealPlanSpans, useSavedMealPlanSearch } from "../../meal-plans/queries";
+import type { SavedMealPlan } from "../../meal-plans/types";
 
 type PanelTab = "past" | "saved";
 
@@ -19,30 +17,8 @@ type Props = {
 // ── Past-weeks tab ────────────────────────────────────────────────────────
 
 function PastWeeksTab({ onSelectWeek }: { onSelectWeek: (iso: string) => void }) {
-  const [spans, setSpans] = useState<MealPlanSpan[]>([]);
-  const [loadingSpans, setLoadingSpans] = useState(true);
-  const [spansError, setSpansError] = useState<string | null>(null);
+  const { spans, loading: loadingSpans, error: spansError } = useMealPlanSpans();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    listMealPlanSpans()
-      .then((data) => {
-        if (mounted) setSpans(data);
-      })
-      .catch((e) => {
-        if (mounted)
-          setSpansError(
-            e instanceof Error ? e.message : "Failed to load plans."
-          );
-      })
-      .finally(() => {
-        if (mounted) setLoadingSpans(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const handleSelectPlan = (planId: string | null) => {
     setSelectedPlanId(planId);
@@ -79,27 +55,12 @@ function SavedPlansTab({
   onSelectSavedPlan: (plan: SavedMealPlan) => void;
 }) {
   const [searchInput, setSearchInput] = useState("");
-  const [results, setResults] = useState<SavedMealPlan[]>([]);
-  const [loadingList, setLoadingList] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoadingList(true);
-    setListError(null);
-    const id = window.setTimeout(async () => {
-      try {
-        const data = await searchSavedMealPlans(searchInput);
-        setResults(data);
-      } catch (e) {
-        setListError(
-          e instanceof Error ? e.message : "Failed to load saved plans."
-        );
-      } finally {
-        setLoadingList(false);
-      }
-    }, 220);
-    return () => window.clearTimeout(id);
-  }, [searchInput]);
+  const searchTerm = useDebouncedValue(searchInput, 220);
+  const resultsQuery = useSavedMealPlanSearch(searchTerm);
+  const results = resultsQuery.results;
+  // Show "Loading…" while the user is still typing, not just once the request starts.
+  const loadingList = resultsQuery.loading || searchInput !== searchTerm;
+  const listError = resultsQuery.error;
 
   return (
     <div className="past-plan-panel__body">

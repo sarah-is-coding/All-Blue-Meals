@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { createRecipe } from "../api";
+import { useRecipeActions } from "../queries";
 import RecipeAiImportPanel from "../components/RecipeAiImportPanel";
 import { generateRecipesFromPrompt } from "../importApi";
 import type { ImportedRecipe } from "../importTypes";
@@ -7,6 +7,7 @@ import { mapImportedRecipeToInput } from "../utils/recipeImport";
 
 export default function RecipeGeneratePage() {
   const navigate = useNavigate();
+  const { create: createRecipe } = useRecipeActions();
 
   const handleUseGeneratedDraft = (recipe: ImportedRecipe) => {
     navigate("/app/recipes/new", { state: { importedRecipe: recipe } });

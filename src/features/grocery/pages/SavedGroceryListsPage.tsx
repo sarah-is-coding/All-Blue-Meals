@@ -1,29 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  deleteGroceryList,
-  getGroceryList,
-  listSavedGroceryLists,
-  renameGroceryList,
-  toggleGroceryItem,
-  uncheckAllGroceryItems,
-} from "../api";
-import type { GroceryList, GroceryListSummary } from "../types";
+import { useGroceryList, useGroceryListActions, useSavedGroceryLists } from "../queries";
+import type { GroceryListSummary } from "../types";
 import { groupItemsByCategory } from "../utils/groceryGeneration";
 
 type EditState = { id: string; value: string } | null;
 
 export default function SavedGroceryListsPage() {
   // ── List of summaries ───────────────────────────────────────────────────
-  const [lists, setLists] = useState<GroceryListSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const summaries = useSavedGroceryLists();
+  const { lists } = summaries;
+  const actions = useGroceryListActions();
 
   // ── Expanded (view) state ───────────────────────────────────────────────
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [expandedList, setExpandedList] = useState<GroceryList | null>(null);
-  const [loadingExpanded, setLoadingExpanded] = useState(false);
-  const [expandError, setExpandError] = useState<string | null>(null);
+  const expanded = useGroceryList(expandedId);
+  const expandedList = expanded.list;
   const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [uncheckingId, setUncheckingId] = useState<string | null>(null);
@@ -38,56 +30,6 @@ export default function SavedGroceryListsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  // ── Load summaries ──────────────────────────────────────────────────────
-  useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    setLoadError(null);
-    listSavedGroceryLists()
-      .then((data) => {
-        if (mounted) setLists(data);
-      })
-      .catch((e) => {
-        if (mounted)
-          setLoadError(
-            e instanceof Error ? e.message : "Failed to load lists."
-          );
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // ── Load expanded list when expanded id changes ──────────────────────────
-  useEffect(() => {
-    if (!expandedId) {
-      setExpandedList(null);
-      return;
-    }
-    let mounted = true;
-    setLoadingExpanded(true);
-    setExpandError(null);
-    getGroceryList(expandedId)
-      .then((list) => {
-        if (mounted) setExpandedList(list);
-      })
-      .catch((e) => {
-        if (mounted)
-          setExpandError(
-            e instanceof Error ? e.message : "Failed to load list."
-          );
-      })
-      .finally(() => {
-        if (mounted) setLoadingExpanded(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [expandedId]);
 
   // Focus rename input when it appears
   useEffect(() => {
@@ -104,16 +46,7 @@ export default function SavedGroceryListsPage() {
     setTogglingItemId(itemId);
     setToggleError(null);
     try {
-      await toggleGroceryItem(itemId, isChecked);
-      setExpandedList((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((item) =>
-            item.id === itemId ? { ...item, isChecked } : item
-          ),
-        };
-      });
+      if (expandedId) await actions.toggleItem(expandedId, itemId, isChecked);
     } catch (e) {
       setToggleError(
         e instanceof Error ? e.message : "Failed to update item."
@@ -126,14 +59,7 @@ export default function SavedGroceryListsPage() {
   const handleUncheckAll = async (listId: string) => {
     setUncheckingId(listId);
     try {
-      await uncheckAllGroceryItems(listId);
-      setExpandedList((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((item) => ({ ...item, isChecked: false })),
-        };
-      });
+      await actions.uncheckAll(listId);
     } catch (e) {
       setToggleError(
         e instanceof Error ? e.message : "Failed to reset list."
@@ -152,18 +78,9 @@ export default function SavedGroceryListsPage() {
     if (!editState || !editState.value.trim()) return;
     setRenaming(true);
     setRenameError(null);
-    renameGroceryList(editState.id, editState.value.trim())
-      .then((updated) => {
-        setLists((prev) =>
-          prev.map((l) => (l.id === updated.id ? updated : l))
-        );
-        setEditState(null);
-        // Update expanded list title if it's the one being renamed
-        setExpandedList((prev) => {
-          if (!prev || prev.id !== updated.id) return prev;
-          return { ...prev, title: updated.title };
-        });
-      })
+    actions
+      .rename(editState.id, editState.value.trim())
+      .then(() => setEditState(null))
       .catch((e) =>
         setRenameError(
           e instanceof Error ? e.message : "Failed to rename."
@@ -180,14 +97,11 @@ export default function SavedGroceryListsPage() {
   const handleDelete = (id: string) => {
     setDeleting(true);
     setDeleteError(null);
-    deleteGroceryList(id)
+    actions
+      .remove(id)
       .then(() => {
-        setLists((prev) => prev.filter((l) => l.id !== id));
         setConfirmDeleteId(null);
-        if (expandedId === id) {
-          setExpandedId(null);
-          setExpandedList(null);
-        }
+        if (expandedId === id) setExpandedId(null);
       })
       .catch((e) =>
         setDeleteError(
@@ -215,10 +129,10 @@ export default function SavedGroceryListsPage() {
         <h1 className="saved-plans-title">Saved Grocery Lists</h1>
       </div>
 
-      {loadError && <p className="error">{loadError}</p>}
-      {loading && <p className="saved-plans-empty">Loading…</p>}
+      {summaries.error && <p className="error">{summaries.error}</p>}
+      {summaries.loading && <p className="saved-plans-empty">Loading…</p>}
 
-      {!loading && lists.length === 0 && !loadError && (
+      {!summaries.loading && lists.length === 0 && !summaries.error && (
         <div className="saved-plans-empty">
           <p>You haven't saved any grocery lists yet.</p>
           <p className="saved-plans-empty__hint">
@@ -368,14 +282,14 @@ export default function SavedGroceryListsPage() {
                   {/* ── Expanded checklist ── */}
                   {isExpanded && (
                     <div className="saved-grocery-list__detail">
-                      {expandError && (
-                        <p className="error">{expandError}</p>
+                      {expanded.error && (
+                        <p className="error">{expanded.error}</p>
                       )}
-                      {loadingExpanded && (
+                      {expanded.loading && (
                         <p className="saved-plans-empty">Loading…</p>
                       )}
 
-                      {!loadingExpanded && expandedList && (
+                      {!expanded.loading && expandedList && (
                         <>
                           <div className="saved-grocery-list__detail-header">
                             <span className="saved-grocery-list__progress">

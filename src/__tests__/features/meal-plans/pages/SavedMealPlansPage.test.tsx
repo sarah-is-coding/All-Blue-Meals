@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  createTestQueryClient,
+  renderWithProviders,
+  TEST_USER_ID,
+} from "../../../utils/renderWithProviders";
+import { mealPlanKeys } from "../../../../features/meal-plans/queries";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import SavedMealPlansPage from "../../../../features/meal-plans/pages/SavedMealPlansPage";
@@ -20,11 +26,12 @@ const PLANS = [
   { id: "p2", savedName: "Vegan Week", startDate: "2026-05-11", endDate: "2026-05-17" },
 ];
 
-function renderPage() {
-  render(
+function renderPage(client = createTestQueryClient()) {
+  renderWithProviders(
     <MemoryRouter>
       <SavedMealPlansPage />
-    </MemoryRouter>
+    </MemoryRouter>,
+    { client }
   );
 }
 
@@ -154,6 +161,22 @@ describe("SavedMealPlansPage", () => {
         expect(screen.queryByText("Healthy Week")).not.toBeInTheDocument(),
       { timeout: 1500 });
       expect(deleteSavedMealPlan).toHaveBeenCalledWith("p1");
+    });
+  });
+
+  it("marks cached planner weeks stale after deleting a plan (its meals are deleted too)", async () => {
+    vi.mocked(deleteSavedMealPlan).mockResolvedValue(undefined);
+    const client = createTestQueryClient();
+    const cachedWeek = mealPlanKeys.week(TEST_USER_ID, "2026-05-25");
+    client.setQueryData(cachedWeek, []);
+
+    renderPage(client);
+    await waitFor(() => expect(screen.getByText("Healthy Week")).toBeInTheDocument(), { timeout: 1500 });
+    fireEvent.click(screen.getAllByRole("button", { name: /delete/i })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
+
+    await waitFor(() => expect(client.getQueryState(cachedWeek)?.isInvalidated).toBe(true), {
+      timeout: 1500,
     });
   });
 });

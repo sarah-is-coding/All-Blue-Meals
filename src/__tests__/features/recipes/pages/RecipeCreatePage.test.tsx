@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import RecipeCreatePage from "../../../../features/recipes/pages/RecipeCreatePage";
@@ -34,7 +35,7 @@ import { createRecipe } from "../../../../features/recipes/api";
 const mockCreateRecipe = vi.mocked(createRecipe);
 
 const renderPage = () =>
-  render(
+  renderWithProviders(
     <MemoryRouter initialEntries={["/app/recipes/new"]}>
       <Routes>
         <Route path="/app/recipes/new" element={<RecipeCreatePage />} />

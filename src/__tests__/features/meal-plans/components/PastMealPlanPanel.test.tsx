@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import PastMealPlanPanel from "../../../../features/meal-plans/components/PastMealPlanPanel";
@@ -58,7 +59,7 @@ function renderPanel(
   const onJumpToWeek = vi.fn();
   const onApplyPlan = overrides.onApplyPlan ?? vi.fn().mockResolvedValue(undefined);
 
-  render(
+  renderWithProviders(
     <MemoryRouter>
       <PastMealPlanPanel
         currentWeekStartIso={CURRENT_WEEK}

@@ -1,20 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  deleteSavedMealPlan,
-  listSavedMealPlans,
-  renameSavedMealPlan,
-} from "../api";
 import { formatWeekRangeLabel } from "../../../lib/utils/dates";
+import { useSavedMealPlanActions, useSavedMealPlans } from "../queries";
 import type { SavedMealPlan } from "../types";
 
 type EditState = { id: string; value: string } | null;
 type ConfirmDeleteId = string | null;
 
 export default function SavedMealPlansPage() {
-  const [plans, setPlans] = useState<SavedMealPlan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { plans, loading, error: loadError } = useSavedMealPlans();
+  const actions = useSavedMealPlanActions();
 
   const [editState, setEditState] = useState<EditState>(null);
   const [renaming, setRenaming] = useState(false);
@@ -25,15 +20,6 @@ export default function SavedMealPlansPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const editInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    listSavedMealPlans()
-      .then((data) => { if (mounted) setPlans(data); })
-      .catch((e) => { if (mounted) setLoadError(e instanceof Error ? e.message : "Failed to load saved plans."); })
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
-  }, []);
 
   useEffect(() => {
     if (editState) editInputRef.current?.focus();
@@ -48,11 +34,9 @@ export default function SavedMealPlansPage() {
     if (!editState || !editState.value.trim()) return;
     setRenaming(true);
     setRenameError(null);
-    renameSavedMealPlan(editState.id, editState.value.trim())
-      .then((updated) => {
-        setPlans((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-        setEditState(null);
-      })
+    actions
+      .rename(editState.id, editState.value.trim())
+      .then(() => setEditState(null))
       .catch((e) => setRenameError(e instanceof Error ? e.message : "Failed to rename."))
       .finally(() => setRenaming(false));
   };
@@ -65,11 +49,10 @@ export default function SavedMealPlansPage() {
   const handleDelete = (id: string) => {
     setDeleting(true);
     setDeleteError(null);
-    deleteSavedMealPlan(id)
-      .then(() => {
-        setPlans((prev) => prev.filter((p) => p.id !== id));
-        setConfirmDeleteId(null);
-      })
+    // Deleting a plan deletes its meals too; the action refreshes the planner.
+    actions
+      .remove(id)
+      .then(() => setConfirmDeleteId(null))
       .catch((e) => setDeleteError(e instanceof Error ? e.message : "Failed to delete plan."))
       .finally(() => setDeleting(false));
   };

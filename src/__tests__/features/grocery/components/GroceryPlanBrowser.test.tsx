@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import GroceryPlanBrowser from "../../../../features/grocery/components/GroceryPlanBrowser";
 import type { SavedMealPlan } from "../../../../features/meal-plans/types";
@@ -43,7 +44,7 @@ function setup({
   onSelectSavedPlan = vi.fn(),
 } = {}) {
   const user = userEvent.setup();
-  render(
+  renderWithProviders(
     <GroceryPlanBrowser
       onSelectWeek={onSelectWeek}
       onSelectSavedPlan={onSelectSavedPlan}

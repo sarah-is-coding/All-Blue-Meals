@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import RecipeFormFields from "../components/RecipeFormFields";
-import { createRecipe } from "../api";
+import { useRecipeActions } from "../queries";
 import type { ImportedRecipe } from "../importTypes";
 import {
   createEmptyIngredient,
@@ -22,6 +22,7 @@ type RecipeCreateLocationState = {
 export default function RecipeCreatePage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { create: createRecipe } = useRecipeActions();
   const locationState = (location.state ?? null) as RecipeCreateLocationState | null;
   const [values, setValues] = useState<RecipeFormValues>(() => {
     if (locationState?.importedRecipe) {

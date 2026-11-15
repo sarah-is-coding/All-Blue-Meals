@@ -1,4 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import {
+  createTestQueryClient,
+  renderWithProviders,
+  TEST_USER_ID,
+} from "../../../utils/renderWithProviders";
+import { mealPlanKeys } from "../../../../features/meal-plans/queries";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import RecipeDetailPage from "../../../../features/recipes/pages/RecipeDetailPage";
@@ -78,17 +84,18 @@ const recipe = {
   ],
 };
 
-const renderPage = () =>
-  render(
+const renderPage = (client = createTestQueryClient()) =>
+  renderWithProviders(
     <MemoryRouter initialEntries={["/app/recipes/recipe-1"]}>
       <Routes>
         <Route path="/app/recipes/:recipeId" element={<RecipeDetailPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
+    { client }
   );
 
 const renderPageWithMealSlot = (mealSlot: { date: string; mealType: string }) =>
-  render(
+  renderWithProviders(
     <MemoryRouter
       initialEntries={[
         {
@@ -272,5 +279,35 @@ describe("RecipeDetailPage", () => {
       "aria-checked",
       "false"
     );
+  });
+
+  describe("keeping the meal planner up to date", () => {
+    const cachedWeek = mealPlanKeys.week(TEST_USER_ID, "2026-05-25");
+
+    it("marks cached planner weeks stale after saving an edit (titles/servings may change)", async () => {
+      const user = userEvent.setup();
+      const client = createTestQueryClient();
+      client.setQueryData(cachedWeek, []);
+      renderPage(client);
+
+      await screen.findByText("Chicken Caesar Taco Salad");
+      await user.click(screen.getByRole("button", { name: "Edit" }));
+      await user.click(screen.getAllByRole("button", { name: "Save Changes" })[1]);
+
+      await waitFor(() => expect(client.getQueryState(cachedWeek)?.isInvalidated).toBe(true));
+    });
+
+    it("marks cached planner weeks stale after deleting the recipe", async () => {
+      const user = userEvent.setup();
+      const client = createTestQueryClient();
+      client.setQueryData(cachedWeek, []);
+      renderPage(client);
+
+      await screen.findByText("Chicken Caesar Taco Salad");
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+      await user.click(screen.getByRole("button", { name: "Confirm delete" }));
+
+      await waitFor(() => expect(client.getQueryState(cachedWeek)?.isInvalidated).toBe(true));
+    });
   });
 });

@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { listMealPlanItemsForWeek } from "../api";
+import { useState } from "react";
 import { DEFAULT_MEAL_TYPE } from "../constants";
 import {
   createDateFromIso,
@@ -8,7 +7,8 @@ import {
   shiftWeekStartIso,
 } from "../../../lib/utils/dates";
 import { getWeekDays } from "../utils/weekDays";
-import type { MealPlanItem, MealType } from "../types";
+import { useMealPlanWeek } from "../queries";
+import type { MealType } from "../types";
 import MealPlannerCalendar from "./MealPlannerCalendar";
 
 type AddToPlanModalProps = {
@@ -70,44 +70,19 @@ export default function AddToPlanModal({
   confirming,
 }: AddToPlanModalProps) {
   const [weekStartIso, setWeekStartIso] = useState(() => getDefaultWeekStartIso(initialDay));
-  const [items, setItems] = useState<MealPlanItem[]>([]);
-  const [loadingItems, setLoadingItems] = useState(true);
-  const [itemsError, setItemsError] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; mealType: MealType } | null>(
     initialDay ? { date: initialDay, mealType: initialMealType ?? DEFAULT_MEAL_TYPE } : null
   );
   const [servingsInput, setServingsInput] = useState(recipeServings ? String(recipeServings) : "");
 
+  const {
+    items,
+    loading: loadingItems,
+    error: itemsError,
+  } = useMealPlanWeek(weekStartIso);
   const weekDays = getWeekDays(weekStartIso);
   const weekLabel = formatWeekRangeLabel(weekStartIso);
   const servingsValue = parsePositiveServings(servingsInput);
-
-  useEffect(() => {
-    let mounted = true;
-
-    listMealPlanItemsForWeek(weekStartIso)
-      .then((nextItems) => {
-        if (mounted) {
-          setItems(nextItems);
-        }
-      })
-      .catch((error) => {
-        if (mounted) {
-          setItemsError(
-            error instanceof Error ? error.message : "Failed to load your meal plan."
-          );
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setLoadingItems(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [weekStartIso]);
 
   const shiftWeek = (nextWeekStartIso: string) => {
     const dayIndex = selectedSlot
@@ -115,8 +90,6 @@ export default function AddToPlanModal({
       : -1;
 
     setWeekStartIso(nextWeekStartIso);
-    setLoadingItems(true);
-    setItemsError(null);
 
     if (dayIndex >= 0 && selectedSlot) {
       const nextDay = getWeekDays(nextWeekStartIso)[dayIndex];
