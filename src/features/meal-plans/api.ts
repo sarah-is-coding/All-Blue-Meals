@@ -1,5 +1,6 @@
 import { supabase } from "../../lib/supabaseClient";
-import { getWeekEndIso, getWeekStartIso, toIsoDate } from "./dateUtils";
+import type { Tables } from "../../lib/db/database.types";
+import { getWeekEndIso, getWeekStartIso, toIsoDate } from "../../lib/utils/dates";
 import type {
   AddMealPlanItemInput,
   MealPlanDayPreview,
@@ -11,24 +12,15 @@ import type {
   UpdateMealPlanItemServingsInput,
 } from "./types";
 
-type MealPlanRow = {
-  id: string;
-  end_date: string | null;
-};
+type MealPlanRow = Pick<Tables<"meal_plans">, "id" | "end_date">;
 
-type RecipeRelationRow = {
-  title: string;
-  servings: number | null;
-};
+type RecipeRelationRow = Pick<Tables<"recipes">, "title" | "servings">;
 
 type RecipeRelation = RecipeRelationRow | RecipeRelationRow[] | null;
 
-type MealPlanItemRow = {
-  id: string;
-  recipe_id: string | null;
-  planned_for: string;
-  meal_type: MealType | "other";
-  servings_override: number | null;
+type MealPlanItemRow = Pick<Tables<"meal_plan_items">, "id" | "recipe_id" | "planned_for" | "servings_override"> & {
+  // meal_type is a CHECK-constrained text column; narrow to its allowed values.
+  meal_type: MealType | "other" | null;
   recipes: RecipeRelation;
 };
 
@@ -216,8 +208,7 @@ export async function moveMealPlanItem(input: MoveMealPlanItemInput): Promise<Me
   return mapMealPlanItemRow(data);
 }
 
-type PreviewItemRow = {
-  planned_for: string;
+type PreviewItemRow = Pick<Tables<"meal_plan_items">, "planned_for"> & {
   recipes: RecipeRelation;
 };
 
@@ -337,11 +328,9 @@ export async function copyWeekPlan(
 
 // ── Saved meal plans ───────────────────────────────────────────────────────
 
-type SavedMealPlanRow = {
-  id: string;
+type SavedMealPlanRow = Pick<Tables<"meal_plans">, "id" | "start_date" | "end_date"> & {
+  // Queried with saved_name IS NOT NULL, so it is always present here.
   saved_name: string;
-  start_date: string;
-  end_date: string | null;
 };
 
 function mapSavedPlanRow(row: SavedMealPlanRow): SavedMealPlan {
@@ -484,11 +473,8 @@ export async function previewSavedMealPlan(planId: string): Promise<MealPlanDayP
   return Array.from(byDate.entries()).map(([dateIso, recipes]) => ({ dateIso, recipes }));
 }
 
-type SavedItemRow = {
-  recipe_id: string | null;
-  planned_for: string;
-  meal_type: MealType | "other";
-  servings_override: number | null;
+type SavedItemRow = Pick<Tables<"meal_plan_items">, "recipe_id" | "planned_for" | "servings_override"> & {
+  meal_type: MealType | "other" | null;
 };
 
 /**

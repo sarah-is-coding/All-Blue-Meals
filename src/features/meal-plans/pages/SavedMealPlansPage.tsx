@@ -5,7 +5,7 @@ import {
   listSavedMealPlans,
   renameSavedMealPlan,
 } from "../api";
-import { formatWeekRangeLabel } from "../dateUtils";
+import { formatWeekRangeLabel } from "../../../lib/utils/dates";
 import type { SavedMealPlan } from "../types";
 
 type EditState = { id: string; value: string } | null;
@@ -28,8 +28,6 @@ export default function SavedMealPlansPage() {
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    setLoadError(null);
     listSavedMealPlans()
       .then((data) => { if (mounted) setPlans(data); })
       .catch((e) => { if (mounted) setLoadError(e instanceof Error ? e.message : "Failed to load saved plans."); })

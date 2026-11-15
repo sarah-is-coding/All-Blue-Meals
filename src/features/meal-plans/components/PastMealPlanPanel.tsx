@@ -5,7 +5,7 @@ import {
   savePlanById,
   searchSavedMealPlans,
 } from "../api";
-import { formatDateRange, getWeekStartIso } from "../dateUtils";
+import { formatDateRange, getWeekStartIso } from "../../../lib/utils/dates";
 import type { MealPlanDayPreview, MealPlanSpan, SavedMealPlan } from "../types";
 import PlanSpanCalendar from "./PlanSpanCalendar";
 
@@ -64,17 +64,8 @@ function PastWeeksTab({
 
   // Load preview whenever a plan is selected
   useEffect(() => {
-    if (!selectedPlanId) {
-      setPreview([]);
-      return;
-    }
+    if (!selectedPlanId) return;
     let mounted = true;
-    setLoadingPreview(true);
-    setPreviewError(null);
-    setCopyDone(false);
-    setShowConfirm(false);
-    setShowSaveInput(false);
-    setSavedLabel(null);
 
     previewSavedMealPlan(selectedPlanId)
       .then((items) => { if (mounted) setPreview(items); })
@@ -87,6 +78,23 @@ function PastWeeksTab({
   useEffect(() => {
     if (showSaveInput) saveInputRef.current?.focus();
   }, [showSaveInput]);
+
+  // Reset per-plan UI state here rather than in the preview effect, so a
+  // selection change is a single render.
+  const handleSelectPlan = (planId: string | null) => {
+    if (planId === selectedPlanId) return;
+    setSelectedPlanId(planId);
+    if (!planId) {
+      setPreview([]);
+      return;
+    }
+    setLoadingPreview(true);
+    setPreviewError(null);
+    setCopyDone(false);
+    setShowConfirm(false);
+    setShowSaveInput(false);
+    setSavedLabel(null);
+  };
 
   const selectedSpan = spans.find((s) => s.id === selectedPlanId) ?? null;
   const isEmpty = preview.length === 0;
@@ -134,7 +142,7 @@ function PastWeeksTab({
       <PlanSpanCalendar
         spans={spans}
         selectedPlanId={selectedPlanId}
-        onSelectPlan={setSelectedPlanId}
+        onSelectPlan={handleSelectPlan}
         isLoading={loadingSpans}
       />
 

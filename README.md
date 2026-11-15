@@ -1,18 +1,33 @@
 # PlanMyMeals
-Simple personal meal planner with a mobile-friendly web experience that lets you import or manually add recipes, build and save meal plans, and generate grocery lists. It also supports automated meal plan suggestions based on your preferences, calorie goals, or dietary targets. Optimized for Supabase's free tier with minimal storage usage, allowing the app to scale to tens of thousands of lightweight, text-based recipes before any upgrades are needed. Keeping the backend lightweight also makes it feasible to cover hosting costs with non-intrusive ads rather than subscriptions.
+Simple personal meal planner with a mobile-friendly web experience that lets you import or manually add recipes, build and save meal plans, and generate grocery lists. Optimized for Supabase's free tier with minimal storage usage, allowing the app to scale to tens of thousands of lightweight, text-based recipes before any upgrades are needed. Keeping the backend lightweight also makes it feasible to cover hosting costs with non-intrusive ads rather than subscriptions.
 
 ## Core Features
-- Recipe import and manual recipe entry
-- Meal plan creation and saved weekly plans
+- Recipe entry by hand, AI import from pasted notes or URLs, and AI generation from a plain-language request
+- Star ratings and filtering on recipes
+- Weekly meal planning, with copying from past weeks and saved, named plan templates
+- Grocery list generation from planned meals, grouped by aisle category
+
+### Planned
 - Automated meal plan suggestions based on preferences, calorie goals, or dietary targets
-- Grocery list generation from planned meals
+- PWA support (web app manifest, optional service worker)
 
 ## Running Locally (Contributors)
-- Create a Supabase project (free tier)
-- Copy your project's URL + anon/public key into `.env` (reference `.env.example`)
-- Add `GEMINI_API_KEY` to Supabase function secrets before using AI recipe import
-- Apply `supabase/migrations/schema.sql` to seed the database
-- Run the app
+1. Create a Supabase project (free tier).
+2. Copy your project's URL + anon/public key into `.env` (reference `.env.example`).
+3. Link the project and apply the migrations: `supabase link --project-ref <your-ref>` then `supabase db push`.
+4. Add `GEMINI_API_KEY` to Supabase function secrets before using AI recipe import (see below).
+5. `npm install`, then `npm run dev`.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the Vite dev server |
+| `npm test` | Run the test suite once |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run lint` | Lint with ESLint |
+| `npm run build` | Type-check (app and tests) and build for production |
+| `npm run db:types` | Regenerate `src/lib/db/database.types.ts` from the linked Supabase project (after a migration) |
+
+CI runs lint, build, and tests on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ## AI Recipe Import
 - The Add Recipe screen can extract one or many recipe drafts from pasted notes, recipe URLs, or both.
@@ -23,26 +38,30 @@ Simple personal meal planner with a mobile-friendly web experience that lets you
 ## Project Structure
 - `src/app`: app shell, routes, and top-level pages
 - `src/components`: shared UI components
-- `src/features`: feature modules (`auth`, `recipes`, `meal-plans`, `grocery`)
+- `src/features`: feature modules (`auth`, `recipes`, `ingredients`, `meal-plans`, `grocery`)
 - `src/lib`: shared clients/helpers (`supabaseClient`, `db`, `utils`)
 - `src/styles`: global and app styles
-- `supabase`: schema, migrations, and RLS notes
+- `src/__tests__`: tests, mirroring the `src/features` layout
+- `supabase`: CLI config, migrations, edge functions, and RLS notes
 - `docs`: architecture notes and user flows
 
 ## Tech Stack
-- Frontend: React + TypeScript + Vite
-- Styling: Tailwind CSS
+- Frontend: React 19 + TypeScript + Vite, React Router
+- Styling: plain CSS with CSS variables
 - Auth/DB: Supabase (PostgreSQL + RLS)
 - Client: Supabase JS (browser-side)
-- Dev: Vite, ESLint, Prettier
-- Hosting: Netlify for the web app; Supabase for backend
-- PWA: Web app manifest (service worker optional later)
+- AI: Gemini, called from a Supabase Edge Function
+- Dev: ESLint, Vitest + React Testing Library
+- Hosting: Vercel for the web app; Supabase for backend
 
 ## Database Structure (Supabase)
-- `profiles`: user_id (pk, references auth.users), display_name; keeps everything scoped per user while staying lightweight.
-- `recipes`: id, user_id, title, description, source_url, prep_minutes, cook_minutes, servings, tags (text[]), instructions (text); text-first to minimize storage.
-- `recipe_ingredients`: id, recipe_id, ingredient_name, quantity, unit, notes; no global ingredient catalog to avoid bloat.
-- `meal_plans`: id, user_id, title, start_date, notes; container for saved plans.
+The schema is defined by the migrations in `supabase/migrations/`, applied in filename order. Every table has RLS enabled.
+
+- `profiles`: user_id (pk, references auth.users), display_name.
+- `recipes`: id, user_id, title, description, source_url, prep_minutes, cook_minutes, servings, tags (text[]), instructions (text), rating (1–5, nullable); text-first to minimize storage.
+- `ingredients`: id, name (unique), category, default_unit; a small shared catalog that any signed-in user can read and add to.
+- `recipe_ingredients`: id, recipe_id, ingredient_id (references ingredients), ingredient_name, quantity, quantity_numeric, unit, notes.
+- `meal_plans`: id, user_id, title, start_date, end_date, saved_name (set when saved as a named template), notes.
 - `meal_plan_items`: id, meal_plan_id, recipe_id, planned_for (date), meal_type (breakfast/lunch/dinner/other), servings_override (nullable), notes.
 - `grocery_lists`: id, user_id, meal_plan_id (nullable), title, created_at; can be generated from a plan or ad hoc.
-- `grocery_items`: id, list_id, ingredient_name, quantity, unit, is_checked; keeps lists editable on mobile.
+- `grocery_items`: id, list_id, ingredient_name, quantity, unit, category, is_checked; keeps lists editable on mobile.

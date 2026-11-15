@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import StarRating from "../components/StarRating";
 import { listRecipes } from "../api";
 import { MEAL_TYPE_OPTIONS } from "../../meal-plans/constants";
-import { createDateFromIso } from "../../meal-plans/dateUtils";
+import { createDateFromIso } from "../../../lib/utils/dates";
 import type { MealType } from "../../meal-plans/types";
 import type { RecipeListFilters, RecipeSummary } from "../types";
 import {

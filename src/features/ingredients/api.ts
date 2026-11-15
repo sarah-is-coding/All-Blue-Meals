@@ -1,12 +1,8 @@
 import { supabase } from "../../lib/supabaseClient";
+import type { Tables } from "../../lib/db/database.types";
 import type { Ingredient, IngredientCategory } from "./types";
 
-type IngredientRow = {
-  id: string;
-  name: string;
-  category: string | null;
-  default_unit: string | null;
-};
+type IngredientRow = Pick<Tables<"ingredients">, "id" | "name" | "category" | "default_unit">;
 
 const mapIngredientRow = (row: IngredientRow): Ingredient => ({
   id: row.id,

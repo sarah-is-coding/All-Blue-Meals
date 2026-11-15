@@ -9,7 +9,12 @@ import {
 import GroceryPlanBrowser from "../components/GroceryPlanBrowser";
 import type { GroceryItemDraft, GroceryList, GrocerySource } from "../types";
 import { groupItemsByCategory } from "../utils/groceryGeneration";
-import { formatDateRange, formatWeekRangeLabel, getWeekStartIso, shiftWeekStartIso } from "../../meal-plans/dateUtils";
+import {
+  formatDateRange,
+  formatWeekRangeLabel,
+  getWeekStartIso,
+  shiftWeekStartIso,
+} from "../../../lib/utils/dates";
 import type { SavedMealPlan } from "../../meal-plans/types";
 
 export default function GroceryPage() {

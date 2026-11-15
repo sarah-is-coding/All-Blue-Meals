@@ -26,7 +26,6 @@ function PastWeeksTab({ onSelectWeek }: { onSelectWeek: (iso: string) => void })
 
   useEffect(() => {
     let mounted = true;
-    setLoadingSpans(true);
     listMealPlanSpans()
       .then((data) => {
         if (mounted) setSpans(data);

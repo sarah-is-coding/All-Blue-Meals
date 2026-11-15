@@ -1,7 +1,7 @@
 import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import MealPlansPage from "../../../../features/meal-plans/pages/MealPlansPage";
-import { createDateFromIso, getWeekStartIso } from "../../../../features/meal-plans/dateUtils";
+import { createDateFromIso, getWeekStartIso } from "../../../../lib/utils/dates";
 
 vi.mock("../../../../features/meal-plans/api", () => ({
   listMealPlanItemsForWeek: vi.fn().mockResolvedValue([]),

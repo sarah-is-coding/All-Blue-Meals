@@ -2,7 +2,7 @@ import {
   INGREDIENT_CATEGORIES,
   type IngredientCategory,
 } from "../../ingredients/types";
-import { parseQuantityNumber } from "../../recipes/utils/ingredientScaling";
+import { parseQuantityNumber } from "../../../lib/utils/quantities";
 import type { GroceryItemDraft } from "../types";
 
 type ScaledIngredient = {

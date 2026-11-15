@@ -4,10 +4,10 @@ import { DEFAULT_MEAL_TYPE } from "../constants";
 import {
   createDateFromIso,
   formatWeekRangeLabel,
-  getWeekDays,
   getWeekStartIso,
   shiftWeekStartIso,
-} from "../dateUtils";
+} from "../../../lib/utils/dates";
+import { getWeekDays } from "../utils/weekDays";
 import type { MealPlanItem, MealType } from "../types";
 import MealPlannerCalendar from "./MealPlannerCalendar";
 
@@ -84,8 +84,6 @@ export default function AddToPlanModal({
 
   useEffect(() => {
     let mounted = true;
-    setLoadingItems(true);
-    setItemsError(null);
 
     listMealPlanItemsForWeek(weekStartIso)
       .then((nextItems) => {
@@ -117,6 +115,8 @@ export default function AddToPlanModal({
       : -1;
 
     setWeekStartIso(nextWeekStartIso);
+    setLoadingItems(true);
+    setItemsError(null);
 
     if (dayIndex >= 0 && selectedSlot) {
       const nextDay = getWeekDays(nextWeekStartIso)[dayIndex];

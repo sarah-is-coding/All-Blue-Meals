@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toIsoDate } from "../dateUtils";
+import { useMemo, useState } from "react";
+import { toIsoDate } from "../../../lib/utils/dates";
 import type { MealPlanSpan } from "../types";
 
 // ── Colour palette ────────────────────────────────────────────────────────
@@ -133,16 +133,16 @@ export default function PlanSpanCalendar({
   const todayIso = toIsoDate(new Date());
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
-  const autoNavigatedRef = useRef(false);
+  const [autoNavigated, setAutoNavigated] = useState(false);
 
-  // On first spans load, jump to the month of the most recent plan
-  useEffect(() => {
-    if (autoNavigatedRef.current || spans.length === 0) return;
-    autoNavigatedRef.current = true;
+  // On first spans load, jump to the month of the most recent plan. Done
+  // during render (not in an effect) so the wrong month never paints.
+  if (!autoNavigated && spans.length > 0) {
+    setAutoNavigated(true);
     const [y, m] = spans[0].startDate.split("-").map(Number);
     setViewYear(y);
     setViewMonth(m - 1); // 0-indexed
-  }, [spans]);
+  }
 
   const monthLabel = useMemo(
     () => monthYearFmt.format(new Date(viewYear, viewMonth)),

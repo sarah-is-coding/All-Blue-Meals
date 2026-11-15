@@ -3,12 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import AddToPlanButton from "../../../../features/meal-plans/components/AddToPlanButton";
-import {
-  getWeekDays,
-  getWeekStartIso,
-  shiftWeekStartIso,
-  toIsoDate,
-} from "../../../../features/meal-plans/dateUtils";
+import { getWeekDays } from "../../../../features/meal-plans/utils/weekDays";
+import { getWeekStartIso, shiftWeekStartIso, toIsoDate } from "../../../../lib/utils/dates";
 
 const navigate = vi.fn();
 

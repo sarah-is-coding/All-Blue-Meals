@@ -1,5 +1,11 @@
 # PlanMyMeals — Claude Agent Guidelines
 
+This file covers the stack, testing, code style, and database workflow.
+Product goals and domain rules (RLS ownership patterns, mobile UX, ads,
+grocery merge rules) are in AGENTS.md, imported here:
+
+@AGENTS.md
+
 ## Stack
 
 - **Frontend**: React 19 + TypeScript (strict), Vite, React Router v7
@@ -64,10 +70,14 @@ src/
           recipeForm.test.ts
         components/
           IngredientNameCombobox.test.tsx
+    lib/
+      utils/
+        dates.test.ts
+        quantities.test.ts
     setup.ts                 ← @testing-library/jest-dom import
 ```
 
-Mirror the `src/features/` structure under `src/__tests__/features/`.
+Mirror the `src/features/` and `src/lib/` structure under `src/__tests__/`.
 
 ---
 
@@ -134,19 +144,36 @@ Do NOT use `vi.useFakeTimers()` with `waitFor` — fake timers block
 |---|---|
 | `npm test` | Before finishing any task; must pass |
 | `npm run test:watch` | During active development |
+| `npm run lint` | Before finishing; must pass |
+| `npm run build` | Runs `tsc -b`, which type-checks tests too (Vitest alone does not) |
+
+CI (`.github/workflows/ci.yml`) runs lint, build, and tests on every push
+to `main`.
 
 ---
 
 ## Supabase / Database
 
-- Schema lives in `supabase/migrations/schema.sql`
-- One-time incremental changes go in a new SQL file named
-  `YYYYMMDDHHMMSS_short_description.sql` — **not** appended to the
-  schema file
-- Run migrations via the Supabase Dashboard SQL Editor or
-  `supabase db push` (requires `supabase link` first)
+- The schema is defined by the migrations in `supabase/migrations/`,
+  applied in filename order. There is no separate schema file — the
+  migrations are the source of truth, and a fresh database is built by
+  running all of them
+- Every change goes in a new file named
+  `YYYYMMDDHHMMSS_short_description.sql` (`supabase migration new <name>`
+  generates one). Never edit a migration that has already been applied
+- Apply with `supabase db push` (requires `supabase link` first). If you
+  apply one by hand in the Dashboard SQL Editor instead, record it with
+  `supabase migration repair --status applied <timestamp>` so the CLI's
+  history stays in sync
+- `supabase/config.toml` is committed; `supabase/.temp/` is CLI state and
+  is not
 - RLS is enabled on every table. New tables need policies before the
   app can read or write them
+- After a migration is applied, run `npm run db:types` to regenerate
+  `src/lib/db/database.types.ts` and commit it with the migration. Never
+  edit that file by hand
+- Prefer `NOT NULL` for columns the app always sets, so the generated
+  types match what the code assumes
 
 ## Feature Structure
 
@@ -160,6 +187,20 @@ src/features/<feature>/
   README.md
 ```
 
+### Feature boundaries (enforced by ESLint)
+
+Features may only import from the features listed for them in
+`featureDependencies` in `eslint.config.js`. Today that is
+`recipes → ingredients, meal-plans` and
+`grocery → ingredients, meal-plans`; `auth`, `ingredients`, and
+`meal-plans` import no other feature. `src/lib` and `src/components`
+must not import from features or `src/app`.
+
+If two features need the same generic helper (dates, quantities, …),
+put it in `src/lib/utils/` rather than importing it from another
+feature. Only extend `featureDependencies` for a genuine domain
+dependency, and never in a way that creates a cycle.
+
 ## CSS
 
 - Use existing CSS variables from `src/styles/global.css`
@@ -172,6 +213,10 @@ src/features/<feature>/
 
 - TypeScript strict mode — no `any`, no unused variables
 - Prefer explicit `type` imports (`import type { ... }`)
-- API layer maps snake_case DB rows to camelCase TypeScript types
+- API layer maps snake_case DB rows to camelCase TypeScript types. Derive
+  row types from the generated schema
+  (`Pick<Tables<"recipes">, "id" | "title">`) rather than hand-writing
+  them; only narrow a column (e.g. a CHECK-constrained `meal_type`) with a
+  comment saying why
 - Form state uses string fields for all inputs (numbers are strings
   until parsed on submit)

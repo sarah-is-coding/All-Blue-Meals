@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addMealPlanItem } from "../api";
 import { MEAL_TYPE_OPTIONS } from "../constants";
-import { createDateFromIso, getWeekStartIso } from "../dateUtils";
+import { createDateFromIso, getWeekStartIso } from "../../../lib/utils/dates";
 import type { MealType } from "../types";
 import AddToPlanModal from "./AddToPlanModal";
 

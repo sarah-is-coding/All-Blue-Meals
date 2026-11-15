@@ -1,5 +1,5 @@
 import type { RecipeFormValues } from "../utils/recipeForm";
-import { scaleQuantityText } from "../utils/ingredientScaling";
+import { scaleQuantityText } from "../../../lib/utils/quantities";
 
 type RecipeReadArticleProps = {
   values: RecipeFormValues;

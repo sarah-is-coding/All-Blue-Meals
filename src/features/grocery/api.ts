@@ -1,6 +1,7 @@
 import { supabase } from "../../lib/supabaseClient";
+import type { Tables } from "../../lib/db/database.types";
 import type { IngredientCategory } from "../ingredients/types";
-import { scaleQuantityText } from "../recipes/utils/ingredientScaling";
+import { scaleQuantityText } from "../../lib/utils/quantities";
 import { mergeIngredients } from "./utils/groceryGeneration";
 import type {
   GroceryItem,
@@ -19,35 +20,17 @@ type RecipeServingsRelation =
   | { servings: number | null }[]
   | null;
 
-type PlanItemRow = {
-  recipe_id: string | null;
-  servings_override: number | null;
+type PlanItemRow = Pick<Tables<"meal_plan_items">, "recipe_id" | "servings_override"> & {
   recipes: RecipeServingsRelation;
 };
 
-type RecipeIngRow = {
-  recipe_id: string;
-  ingredient_name: string;
-  quantity: string | null;
-  unit: string | null;
-  ingredients: { category: string | null } | null;
+type RecipeIngRow = Pick<Tables<"recipe_ingredients">, "recipe_id" | "ingredient_name" | "quantity" | "unit"> & {
+  ingredients: Pick<Tables<"ingredients">, "category"> | null;
 };
 
-type GroceryListRow = {
-  id: string;
-  title: string;
-  meal_plan_id: string | null;
-  created_at: string;
-};
+type GroceryListRow = Pick<Tables<"grocery_lists">, "id" | "title" | "meal_plan_id" | "created_at">;
 
-type GroceryItemRow = {
-  id: string;
-  ingredient_name: string;
-  quantity: string | null;
-  unit: string | null;
-  is_checked: boolean;
-  category: string | null;
-};
+type GroceryItemRow = Pick<Tables<"grocery_items">, "id" | "ingredient_name" | "quantity" | "unit" | "is_checked" | "category">;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

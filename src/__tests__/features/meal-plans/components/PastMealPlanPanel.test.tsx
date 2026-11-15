@@ -141,6 +141,36 @@ describe("PastMealPlanPanel — Past weeks tab", () => {
     { timeout: 1500 });
   });
 
+  it("clears the preview when the selected plan is deselected", async () => {
+    vi.mocked(previewSavedMealPlan).mockResolvedValue([
+      { dateIso: "2026-05-18", recipes: ["Pasta"] },
+    ]);
+    openPastTab();
+    fireEvent.click(screen.getByRole("button", { name: /select plan 1/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/Pasta/)).toBeInTheDocument(),
+    { timeout: 1500 });
+
+    fireEvent.click(screen.getByRole("button", { name: /deselect/i }));
+    expect(screen.queryByText(/Pasta/)).not.toBeInTheDocument();
+  });
+
+  it("does not refetch or get stuck loading when the same plan is selected again", async () => {
+    vi.mocked(previewSavedMealPlan).mockResolvedValue([
+      { dateIso: "2026-05-18", recipes: ["Pasta"] },
+    ]);
+    openPastTab();
+    const select = screen.getByRole("button", { name: /select plan 1/i });
+    fireEvent.click(select);
+    await waitFor(() =>
+      expect(screen.getByText(/Pasta/)).toBeInTheDocument(),
+    { timeout: 1500 });
+
+    fireEvent.click(select);
+    expect(screen.getByText(/Pasta/)).toBeInTheDocument();
+    expect(previewSavedMealPlan).toHaveBeenCalledTimes(1);
+  });
+
   it("shows 'Copy to current week' when plan has items", async () => {
     vi.mocked(previewSavedMealPlan).mockResolvedValue([
       { dateIso: "2026-05-18", recipes: ["Pasta"] },

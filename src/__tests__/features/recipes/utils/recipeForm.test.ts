@@ -67,6 +67,7 @@ describe("mapRecipeDetailToFormValues", () => {
     tags: ["quick", "chicken"],
     instructions: "Cook the chicken.",
     createdAt: "2024-01-01T00:00:00Z",
+    rating: null,
     ingredients: [
       {
         id: "ri-1",

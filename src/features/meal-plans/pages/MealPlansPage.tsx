@@ -15,10 +15,10 @@ import PastMealPlanPanel from "../components/PastMealPlanPanel";
 import {
   createDateFromIso,
   formatWeekRangeLabel,
-  getWeekDays,
   getWeekStartIso,
   shiftWeekStartIso,
-} from "../dateUtils";
+} from "../../../lib/utils/dates";
+import { getWeekDays } from "../utils/weekDays";
 import type { MealPlanItem, MealType } from "../types";
 import {
   loadCachedMealPlanItems,

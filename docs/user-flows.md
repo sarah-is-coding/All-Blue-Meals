@@ -12,3 +12,19 @@
 ## Authenticated Workspace
 1. User accesses `/app`.
 2. User can sign out and return to public/auth routes.
+
+Workspace routes (all under `/app`):
+
+| Route | Purpose |
+|---|---|
+| `recipes` | Browse, search, and filter recipes (including by rating) |
+| `recipes/new` | Add a recipe by hand |
+| `recipes/import` | AI import from pasted notes and/or URLs |
+| `recipes/generate` | AI-generate recipe drafts from a request |
+| `recipes/:recipeId` | View, edit, rate, delete, or add a recipe to a plan |
+| `meal-plans` | Weekly meal planner; copy past weeks or apply saved plans |
+| `saved-meal-plans` | Rename or delete saved plan templates |
+| `grocery` | Generate a grocery list from a week or saved plan |
+| `saved-grocery-lists` | View and check off saved grocery lists |
+
+Unknown routes redirect to `/`.

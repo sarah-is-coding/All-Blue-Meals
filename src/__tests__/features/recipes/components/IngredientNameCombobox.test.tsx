@@ -91,7 +91,6 @@ describe("IngredientNameCombobox", () => {
     });
 
     it("in readOnly mode renders a plain input, not a combobox", () => {
-      const user = userEvent.setup();
       render(
         <IngredientNameCombobox value="olive oil" onSelect={vi.fn()} readOnly />
       );

@@ -2,12 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import RecipeDetailPage from "../../../../features/recipes/pages/RecipeDetailPage";
-import {
-  getWeekDays,
-  getWeekStartIso,
-  shiftWeekStartIso,
-  toIsoDate,
-} from "../../../../features/meal-plans/dateUtils";
+import { getWeekDays } from "../../../../features/meal-plans/utils/weekDays";
+import { getWeekStartIso, shiftWeekStartIso, toIsoDate } from "../../../../lib/utils/dates";
 
 const navigate = vi.fn();
 

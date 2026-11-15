@@ -4,11 +4,11 @@ import { MemoryRouter } from "react-router-dom";
 import AddToPlanModal from "../../../../features/meal-plans/components/AddToPlanModal";
 import {
   formatWeekRangeLabel,
-  getWeekDays,
   getWeekStartIso,
   shiftWeekStartIso,
   toIsoDate,
-} from "../../../../features/meal-plans/dateUtils";
+} from "../../../../lib/utils/dates";
+import { getWeekDays } from "../../../../features/meal-plans/utils/weekDays";
 import type { MealPlanItem } from "../../../../features/meal-plans/types";
 
 vi.mock("../../../../features/meal-plans/api", () => ({

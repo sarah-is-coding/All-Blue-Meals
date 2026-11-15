@@ -2,6 +2,8 @@
 
 This repo is a lightweight, text-first personal meal planner built for Supabase free tier. These agents exist to keep changes small, safe, and consistent, with a strong focus on **mobile UX**, **RLS correctness**, and **minimal storage**.
 
+This file covers product goals and domain rules. The tech stack, testing rules, code style, CSS conventions, and database workflow are in [CLAUDE.md](CLAUDE.md) — read both.
+
 ---
 
 ## Core product goals
@@ -17,12 +19,6 @@ This repo is a lightweight, text-first personal meal planner built for Supabase 
 
 ## Repo conventions
 
-### Tech
-- React + TypeScript + Vite  
-- Tailwind CSS  
-- Supabase JS (browser-side)  
-- ESLint + Prettier  
-
 ### Code style
 - Prefer **small, focused modules** over giant files.
 - Keep components **presentational** where possible; put data fetching in hooks/services.
@@ -35,6 +31,7 @@ This repo is a lightweight, text-first personal meal planner built for Supabase 
   - `components/` (shared UI)
   - `features/`
     - `recipes/`
+    - `ingredients/`
     - `meal-plans/`
     - `grocery/`
     - `auth/`
@@ -44,8 +41,8 @@ This repo is a lightweight, text-first personal meal planner built for Supabase 
     - `utils/`
   - `styles/`
 - `supabase/`
-  - `schema.sql`
-  - `migrations/` (if/when using migration tooling)
+  - `config.toml` (Supabase CLI config)
+  - `migrations/` (timestamped migrations; the source of truth for the schema)
   - `rls/` (policy notes + snippets)
 - `docs/` (architecture notes, user flows)
 
@@ -63,9 +60,9 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 - Avoid “god files” (e.g., `utils.ts` with unrelated helpers).
 - Feature logic should live in `features/<domain>/`:
   - UI: `features/recipes/components/*`
-  - Data: `features/recipes/api.ts` or `queries.ts`
-  - Logic: `features/recipes/services/*`
-- Shared logic goes in `lib/` only if used by 2+ features.
+  - Data: `features/recipes/api.ts`
+  - Logic: `features/recipes/utils/*` (pure, unit-tested helpers)
+- Shared logic goes in `lib/` only if used by 2+ features. Which features may import which is enforced by ESLint (see "Feature boundaries" in [CLAUDE.md](CLAUDE.md)).
 - Prefer composition over inheritance.
 - Favor explicit imports over deep shared “magic” utils.
 
@@ -97,13 +94,16 @@ This codebase follows **modular programming** and **separation of concerns**. Av
     - `recipe_ingredients.recipe_id → recipes.user_id`
     - `meal_plan_items.meal_plan_id → meal_plans.user_id`
     - `grocery_items.list_id → grocery_lists.user_id`
+- Shared catalog: `ingredients` (no `user_id`)
+  - Any authenticated user can read and insert; no update/delete policies
+  - This is the one intentional shared table — keep rows small (name, category, default unit)
 
 ### Agent checklist for DB changes
 - [ ] RLS enabled on any new user-scoped table  
 - [ ] SELECT/INSERT/UPDATE/DELETE policies defined and reviewed  
 - [ ] Indexes added for foreign keys + common filters (`user_id`, `created_at`, `planned_for`)  
 - [ ] Avoid heavy text search / full-text unless explicitly planned  
-- [ ] No global ingredient catalog or bloat tables  
+- [ ] No new shared/global tables or bloat tables beyond the `ingredients` catalog  
 
 ---
 
@@ -147,15 +147,12 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 
 ## Testing expectations
 
-Minimum bar for each feature PR:
+Automated testing rules (required tests per change type, mocking conventions, `npm test` must pass) are in [CLAUDE.md](CLAUDE.md). In addition:
 
-- [ ] Manual happy-path test steps listed in PR description  
-- [ ] Any new business logic has unit tests where reasonable  
-- [ ] RLS verified:
+- [ ] Manual happy-path test steps for UI changes  
+- [ ] RLS verified for any DB change:
   - user can access own rows  
   - user cannot access other users’ rows  
-
-If no automated tests are added, PR must include detailed manual verification steps.
 
 ---
 
@@ -236,7 +233,7 @@ If no automated tests are added, PR must include detailed manual verification st
 - [ ] No service role usage client-side  
 - [ ] Minimal fields fetched for list views  
 - [ ] Manual test plan included  
-- [ ] Lint + typecheck pass  
+- [ ] CI passes (lint, type-check/build, tests)  
 - [ ] Ad placement reviewed for non-intrusiveness and accidental-click safety (if ads are touched)
 
 ---
@@ -244,7 +241,7 @@ If no automated tests are added, PR must include detailed manual verification st
 ## Commit & branch guidance
 
 - Small commits with clear messages  
-- Branches: `feature/<name>`, `fix/<name>`  
+- Commit directly to `main`; CI must stay green  
 - Avoid drive-by refactors  
 
 ---

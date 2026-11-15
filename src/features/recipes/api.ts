@@ -1,6 +1,7 @@
 import { supabase } from "../../lib/supabaseClient";
+import type { Tables } from "../../lib/db/database.types";
 import { createIngredient } from "../ingredients/api";
-import { parseQuantityNumber } from "./utils/ingredientScaling";
+import { parseQuantityNumber } from "../../lib/utils/quantities";
 import type {
   RecipeDetail,
   RecipeIngredient,
@@ -9,44 +10,13 @@ import type {
   RecipeUpsertInput,
 } from "./types";
 
-type RecipeSummaryRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  prep_minutes: number | null;
-  cook_minutes: number | null;
-  tags: string[] | null;
-  source_url: string | null;
-  rating: number | null;
-  created_at: string;
-};
+type RecipeSummaryRow = Pick<Tables<"recipes">, "id" | "title" | "description" | "prep_minutes" | "cook_minutes" | "tags" | "source_url" | "rating" | "created_at">;
 
-type RecipeDetailRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  source_url: string | null;
-  prep_minutes: number | null;
-  cook_minutes: number | null;
-  servings: number | null;
-  tags: string[] | null;
-  instructions: string | null;
-  rating: number | null;
-  created_at: string;
-};
+type RecipeDetailRow = Pick<Tables<"recipes">, "id" | "title" | "description" | "source_url" | "prep_minutes" | "cook_minutes" | "servings" | "tags" | "instructions" | "rating" | "created_at">;
 
-type RecipeIngredientRow = {
-  id: string;
-  ingredient_id: string;
-  ingredient_name: string;
-  quantity: string | null;
-  unit: string | null;
-  notes: string | null;
-};
+type RecipeIngredientRow = Pick<Tables<"recipe_ingredients">, "id" | "ingredient_id" | "ingredient_name" | "quantity" | "unit" | "notes">;
 
-type RecipeIdRow = {
-  id: string;
-};
+type RecipeIdRow = Pick<Tables<"recipes">, "id">;
 
 const mapRecipeSummaryRow = (row: RecipeSummaryRow): RecipeSummary => ({
   id: row.id,
