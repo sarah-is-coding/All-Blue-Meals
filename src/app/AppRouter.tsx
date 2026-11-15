@@ -17,9 +17,24 @@ import LandingPage from "./pages/LandingPage";
 type AppRouterProps = {
   session: Session | null;
   authReady: boolean;
+  /** Signed in via a password-reset link: keep the user on the reset form
+   *  until they set a new password, instead of sending them into the app. */
+  passwordRecovery?: boolean;
+  /** Message for an email link that failed (e.g. expired), shown on /auth. */
+  linkError?: string | null;
+  /** Called once AuthPage has shown `linkError`, so it isn't shown again. */
+  onLinkErrorShown?: () => void;
 };
 
-export default function AppRouter({ session, authReady }: AppRouterProps) {
+export default function AppRouter({
+  session,
+  authReady,
+  passwordRecovery = false,
+  linkError = null,
+  onLinkErrorShown,
+}: AppRouterProps) {
+  const signedIn = session !== null && !passwordRecovery;
+
   if (!authReady) {
     return (
       <main className="status-page">
@@ -33,15 +48,33 @@ export default function AppRouter({ session, authReady }: AppRouterProps) {
       <Routes>
         <Route
           path="/"
-          element={session ? <Navigate to="/app" replace /> : <LandingPage />}
+          element={
+            signedIn ? (
+              <Navigate to="/app" replace />
+            ) : passwordRecovery ? (
+              <Navigate to="/auth" replace />
+            ) : (
+              <LandingPage />
+            )
+          }
         />
         <Route
           path="/auth"
-          element={session ? <Navigate to="/app" replace /> : <AuthPage />}
+          element={
+            signedIn ? (
+              <Navigate to="/app" replace />
+            ) : (
+              <AuthPage
+                recovery={passwordRecovery}
+                linkError={linkError}
+                onLinkErrorShown={onLinkErrorShown}
+              />
+            )
+          }
         />
         <Route
           path="/app"
-          element={session ? <AppWorkspaceLayout /> : <Navigate to="/auth" replace />}
+          element={signedIn ? <AppWorkspaceLayout /> : <Navigate to="/auth" replace />}
         >
           <Route index element={<AppHomePage />} />
           <Route path="recipes" element={<RecipesPage />} />

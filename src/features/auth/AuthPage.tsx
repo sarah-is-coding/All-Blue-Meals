@@ -1,22 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { authService } from "./services/authService";
 import LoadingModal from "../../components/feedback/LoadingModal";
 
 type AuthMode = "signIn" | "signUp" | "resetRequest" | "resetUpdate";
 
-export default function AuthPage() {
-  const recoveryMode = window.location.hash.includes("type=recovery");
+const RECOVERY_MESSAGE = "Recovery link detected. Enter a new password.";
+
+type AuthPageProps = {
+  /** The user followed a valid password-reset link: show "Set a new password". */
+  recovery?: boolean;
+  /** An email link failed (e.g. expired): explain why on arrival. */
+  linkError?: string | null;
+  /** Called once `linkError` is on screen, so the parent can forget it. */
+  onLinkErrorShown?: () => void;
+};
+
+export default function AuthPage({
+  recovery = false,
+  linkError = null,
+  onLinkErrorShown,
+}: AuthPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<AuthMode>(
-    recoveryMode ? "resetUpdate" : "signIn"
-  );
+  const [mode, setMode] = useState<AuthMode>(recovery ? "resetUpdate" : "signIn");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(
-    recoveryMode ? "Recovery link detected. Enter a new password." : null
-  );
+  const [error, setError] = useState<string | null>(recovery ? null : linkError);
+  const [message, setMessage] = useState<string | null>(recovery ? RECOVERY_MESSAGE : null);
+
+  // The message now lives in this page's own state; let the parent drop it.
+  useEffect(() => {
+    if (linkError) onLinkErrorShown?.();
+  }, [linkError, onLinkErrorShown]);
+
+  // Supabase can confirm a reset link a moment after this page first renders;
+  // switch to the new-password form when that happens.
+  const [wasRecovery, setWasRecovery] = useState(recovery);
+  if (recovery !== wasRecovery) {
+    setWasRecovery(recovery);
+    if (recovery) {
+      setMode("resetUpdate");
+      setError(null);
+      setMessage(RECOVERY_MESSAGE);
+    }
+  }
   const loadingMessageByMode: Record<AuthMode, string> = {
     signIn: "Signing you in securely.",
     signUp: "Creating your account securely.",
