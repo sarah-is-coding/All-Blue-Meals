@@ -67,6 +67,47 @@ describe("mergeIngredients", () => {
     expect(result[0].quantity).toBe("to taste");
   });
 
+  // Previously a non-numeric amount was dropped as soon as a numeric one for the
+  // same ingredient appeared (e.g. "1" + "2-3" cloves became "1"), so lists
+  // under-counted. Every amount is now kept.
+  it("keeps a range alongside a numeric amount instead of dropping it", () => {
+    const result = mergeIngredients([
+      ing("garlic", "1", "clove", "produce"),
+      ing("garlic", "2-3", "clove", "produce"),
+    ]);
+    expect(result).toEqual([
+      { ingredientName: "garlic", quantity: "1 + 2-3", unit: "clove", category: "produce" },
+    ]);
+  });
+
+  it("lists the numeric total first, then each distinct non-numeric amount", () => {
+    const result = mergeIngredients([
+      ing("salt", "a pinch", ""),
+      ing("salt", "1", ""),
+      ing("salt", "To taste", ""),
+      ing("salt", "2", ""),
+      ing("salt", "to taste", ""),
+    ]);
+    expect(result[0].quantity).toBe("3 + a pinch + To taste");
+  });
+
+  it("keeps every distinct non-numeric amount when there are no numbers", () => {
+    const result = mergeIngredients([
+      ing("cilantro", "a handful", ""),
+      ing("cilantro", "to garnish", ""),
+    ]);
+    expect(result[0].quantity).toBe("a handful + to garnish");
+  });
+
+  it("ignores blank amounts", () => {
+    const result = mergeIngredients([
+      ing("lemon", "", ""),
+      ing("lemon", "1", ""),
+      ing("lemon", "  ", ""),
+    ]);
+    expect(result[0].quantity).toBe("1");
+  });
+
   it("handles fractions", () => {
     const result = mergeIngredients([
       ing("sugar", "1/2", "cup", "pantry"),

@@ -227,6 +227,19 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   `recipes/queries.ts` (list pages, recipe detail). Recipe changes also
   refresh planner weeks, since the planner shows recipe titles/servings
 
+### Which meals count (meal plans)
+
+Anything that needs "the meals planned for some dates" must use the shared
+functions in `src/features/meal-plans/api.ts` instead of querying
+`meal_plan_items` itself, so the planner, grocery lists, previews, and
+copying plans always agree:
+
+- `listMealPlanItemsBetween(start, end)`: every meal dated in the range, from
+  any plan (dates decide, not plan membership, so this works for plans longer
+  than a week). The planner week, grocery week, and "Replace existing" use it
+- `listMealPlanItemsForPlan(planId)`: a plan's own meals within its start and
+  end dates. Saved-plan previews, applying a plan, and grocery-by-plan use it
+
 ### Feature boundaries (enforced by ESLint)
 
 Features may only import from the features listed for them in

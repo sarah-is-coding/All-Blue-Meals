@@ -1,7 +1,10 @@
 import { supabase } from "../../lib/supabaseClient";
 import type { Tables } from "../../lib/db/database.types";
 import type { IngredientCategory } from "../ingredients/types";
+import { getWeekEndIso } from "../../lib/utils/dates";
 import { scaleQuantityText } from "../../lib/utils/quantities";
+import { listMealPlanItemsBetween, listMealPlanItemsForPlan } from "../meal-plans/api";
+import type { MealPlanItem } from "../meal-plans/types";
 import { mergeIngredients } from "./utils/groceryGeneration";
 import type {
   GroceryItem,
@@ -12,18 +15,6 @@ import type {
 
 // ── Internal row types ──────────────────────────────────────────────────────
 
-type MealTypeConst = "breakfast" | "lunch" | "dinner";
-const MEAL_TYPES: MealTypeConst[] = ["breakfast", "lunch", "dinner"];
-
-type RecipeServingsRelation =
-  | { servings: number | null }
-  | { servings: number | null }[]
-  | null;
-
-type PlanItemRow = Pick<Tables<"meal_plan_items">, "recipe_id" | "servings_override"> & {
-  recipes: RecipeServingsRelation;
-};
-
 type RecipeIngRow = Pick<Tables<"recipe_ingredients">, "recipe_id" | "ingredient_name" | "quantity" | "unit"> & {
   ingredients: Pick<Tables<"ingredients">, "category"> | null;
 };
@@ -33,12 +24,6 @@ type GroceryListRow = Pick<Tables<"grocery_lists">, "id" | "title" | "meal_plan_
 type GroceryItemRow = Pick<Tables<"grocery_items">, "id" | "ingredient_name" | "quantity" | "unit" | "is_checked" | "category">;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function getRecipeServings(rel: RecipeServingsRelation): number | null {
-  if (!rel) return null;
-  if (Array.isArray(rel)) return rel[0]?.servings ?? null;
-  return rel.servings;
-}
 
 function mapItemRow(row: GroceryItemRow): GroceryItem {
   return {
@@ -97,34 +82,18 @@ async function getPlanIdForWeek(weekStartIso: string): Promise<string | null> {
 // ── Grocery generation ──────────────────────────────────────────────────────
 
 /**
- * Fetch all meals in the given plan, scale each recipe's ingredients to the
- * planned serving count, then merge duplicate ingredients.
+ * Turn planned meals into a grocery list: fetch every planned recipe's
+ * ingredients, scale each to that meal's servings, then merge duplicates.
+ * Which meals count is decided by meal-plans (listMealPlanItemsBetween /
+ * listMealPlanItemsForPlan), the same definition the planner uses.
  */
-export async function buildGroceryItemsForPlan(
-  planId: string
-): Promise<GroceryItemDraft[]> {
-  // 1. Plan items with recipe servings
-  const { data: planItems, error: planErr } = await supabase
-    .from("meal_plan_items")
-    .select("recipe_id, servings_override, recipes(servings)")
-    .eq("meal_plan_id", planId)
-    .in("meal_type", MEAL_TYPES)
-    .returns<PlanItemRow[]>();
-
-  if (planErr) throw new Error(planErr.message);
-  if (!planItems || planItems.length === 0) return [];
-
-  // 2. Collect unique recipe IDs
+async function buildGroceryItemsFromMeals(meals: MealPlanItem[]): Promise<GroceryItemDraft[]> {
   const recipeIds = Array.from(
-    new Set(
-      planItems
-        .map((i) => i.recipe_id)
-        .filter((id): id is string => id !== null)
-    )
+    new Set(meals.map((meal) => meal.recipeId).filter((id): id is string => id !== null))
   );
   if (recipeIds.length === 0) return [];
 
-  // 3. Batch-fetch all recipe ingredients (including category via ingredient FK)
+  // Batch-fetch all recipe ingredients (including category via ingredient FK)
   const { data: ingRows, error: ingErr } = await supabase
     .from("recipe_ingredients")
     .select("recipe_id, ingredient_name, quantity, unit, ingredients(category)")
@@ -133,7 +102,6 @@ export async function buildGroceryItemsForPlan(
 
   if (ingErr) throw new Error(ingErr.message);
 
-  // Group by recipe_id for fast lookup
   const ingByRecipe = new Map<string, RecipeIngRow[]>();
   for (const row of ingRows ?? []) {
     const list = ingByRecipe.get(row.recipe_id) ?? [];
@@ -141,47 +109,42 @@ export async function buildGroceryItemsForPlan(
     ingByRecipe.set(row.recipe_id, list);
   }
 
-  // 4. Scale each plan item's ingredients and collect
+  // Scale each planned meal's ingredients to the servings planned for it
   const scaled: GroceryItemDraft[] = [];
-  for (const item of planItems) {
-    if (!item.recipe_id) continue;
-    const ings = ingByRecipe.get(item.recipe_id) ?? [];
-    if (ings.length === 0) continue;
-
-    const recipeServings = getRecipeServings(item.recipes);
-    const effectiveServings = item.servings_override ?? recipeServings;
-
-    for (const ing of ings) {
+  for (const meal of meals) {
+    if (!meal.recipeId) continue;
+    for (const ing of ingByRecipe.get(meal.recipeId) ?? []) {
       scaled.push({
         ingredientName: ing.ingredient_name,
-        quantity: scaleQuantityText(
-          ing.quantity ?? "",
-          recipeServings,
-          effectiveServings
-        ),
+        quantity: scaleQuantityText(ing.quantity ?? "", meal.recipeServings, meal.effectiveServings),
         unit: ing.unit ?? "",
         category: (ing.ingredients?.category ?? null) as IngredientCategory | null,
       });
     }
   }
 
-  // 5. Merge + sort
   return mergeIngredients(scaled);
 }
 
+/** Grocery list for a plan: its own meals within its start and end dates. */
+export async function buildGroceryItemsForPlan(planId: string): Promise<GroceryItemDraft[]> {
+  return buildGroceryItemsFromMeals(await listMealPlanItemsForPlan(planId));
+}
+
 /**
- * Convenience: find the meal plan for a given week, then delegate to
- * `buildGroceryItemsForPlan`. Returns the plan id alongside items so the
- * caller can link the grocery list back to the plan.
+ * Grocery list for a week: every meal planned in that week (exactly what the
+ * planner shows), plus the week's plan id (if there is one) so the saved list
+ * can link back to it.
  */
 export async function buildGroceryItemsForWeek(weekStartIso: string): Promise<{
   items: GroceryItemDraft[];
   planId: string | null;
 }> {
-  const planId = await getPlanIdForWeek(weekStartIso);
-  if (!planId) return { items: [], planId: null };
-  const items = await buildGroceryItemsForPlan(planId);
-  return { items, planId };
+  const [meals, planId] = await Promise.all([
+    listMealPlanItemsBetween(weekStartIso, getWeekEndIso(weekStartIso)),
+    getPlanIdForWeek(weekStartIso),
+  ]);
+  return { items: await buildGroceryItemsFromMeals(meals), planId };
 }
 
 // ── Persistence ─────────────────────────────────────────────────────────────

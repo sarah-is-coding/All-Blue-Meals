@@ -44,15 +44,17 @@ function formatMergedQuantity(value: number): string {
  * de-duped grocery list, sorted by ingredient category then alphabetically.
  *
  * Grouping key: lower-cased ingredient name + lower-cased unit.
- * If both entries have parseable quantities they are summed; otherwise
- * the first parseable quantity (or freeform text) is kept.
+ * Numeric amounts ("2", "1 1/2") are summed. Amounts that aren't numbers
+ * ("2-3", "a pinch", "to taste") are never dropped: each distinct one is kept
+ * alongside the total, e.g. "1 + 2-3", so nothing is silently under-bought.
  */
 export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDraft[] {
   type Bucket = {
     ingredientName: string;
     unit: string;
     numericTotal: number | null;
-    fallbackQuantity: string;
+    /** Distinct non-numeric amounts, in first-seen order. */
+    otherAmounts: string[];
     category: IngredientCategory | null;
   };
 
@@ -67,36 +69,36 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
     const rawQty = ing.quantity.trim();
     const qty = rawQty ? parseQuantityNumber(rawQty) : null;
 
-    const existing = buckets.get(key);
-    if (existing) {
-      if (qty !== null && existing.numericTotal !== null) {
-        existing.numericTotal += qty;
-      } else if (qty !== null && existing.numericTotal === null) {
-        // Upgrade: earlier bucket was non-numeric, this one is — start fresh
-        existing.numericTotal = qty;
-        existing.fallbackQuantity = "";
-      } else if (!existing.fallbackQuantity && rawQty) {
-        existing.fallbackQuantity = rawQty;
-      }
-    } else {
-      buckets.set(key, {
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = {
         ingredientName: nameTrimmed,
         unit: unitTrimmed,
-        numericTotal: qty,
-        fallbackQuantity: qty === null ? rawQty : "",
+        numericTotal: null,
+        otherAmounts: [],
         category: ing.category,
-      });
+      };
+      buckets.set(key, bucket);
+    }
+
+    if (qty !== null) {
+      bucket.numericTotal = (bucket.numericTotal ?? 0) + qty;
+    } else if (
+      rawQty &&
+      !bucket.otherAmounts.some((amount) => amount.toLowerCase() === rawQty.toLowerCase())
+    ) {
+      bucket.otherAmounts.push(rawQty);
     }
   }
 
   return Array.from(buckets.values())
-    .map(({ ingredientName, unit, numericTotal, fallbackQuantity, category }) => ({
+    .map(({ ingredientName, unit, numericTotal, otherAmounts, category }) => ({
       ingredientName,
       unit,
-      quantity:
-        numericTotal !== null
-          ? formatMergedQuantity(numericTotal)
-          : fallbackQuantity,
+      quantity: [
+        ...(numericTotal !== null ? [formatMergedQuantity(numericTotal)] : []),
+        ...otherAmounts,
+      ].join(" + "),
       category,
     }))
     .sort((a, b) => {

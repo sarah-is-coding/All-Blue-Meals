@@ -39,7 +39,19 @@ vi.mock("../../../lib/supabaseClient", () => {
   return { supabase: { ...builder, auth } };
 });
 
+// Which meals count is decided by meal-plans (tested in meal-plans/api.test.ts);
+// grocery generation only has to ask for the right plan/dates and use every meal.
+vi.mock("../../../features/meal-plans/api", () => ({
+  listMealPlanItemsBetween: vi.fn(),
+  listMealPlanItemsForPlan: vi.fn(),
+}));
+
 import { supabase } from "../../../lib/supabaseClient";
+import {
+  listMealPlanItemsBetween,
+  listMealPlanItemsForPlan,
+} from "../../../features/meal-plans/api";
+import type { MealPlanItem } from "../../../features/meal-plans/types";
 
 const builder = supabase as unknown as Record<string, ReturnType<typeof vi.fn>> & {
   auth: { getUser: ReturnType<typeof vi.fn> };
@@ -66,109 +78,156 @@ beforeEach(() => {
   });
 });
 
-// ── buildGroceryItemsForPlan ───────────────────────────────────────────────
+// ── Grocery generation ─────────────────────────────────────────────────────
+
+/** A planned meal as meal-plans returns it. */
+function meal(
+  recipeId: string | null,
+  { servings = 4, override = null }: { servings?: number | null; override?: number | null } = {}
+): MealPlanItem {
+  return {
+    id: `meal-${recipeId}-${Math.random()}`,
+    recipeId,
+    recipeTitle: recipeId ?? "Untitled recipe",
+    plannedFor: "2026-05-25",
+    mealType: "dinner",
+    servingsOverride: override,
+    recipeServings: servings,
+    effectiveServings: override ?? servings,
+  };
+}
+
+const ingredientRow = (recipeId: string, name: string, quantity: string, unit = "", category: string | null = null) => ({
+  recipe_id: recipeId,
+  ingredient_name: name,
+  quantity,
+  unit,
+  ingredients: category ? { category } : null,
+});
+
+beforeEach(() => {
+  vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([]);
+  vi.mocked(listMealPlanItemsBetween).mockResolvedValue([]);
+});
 
 describe("buildGroceryItemsForPlan", () => {
-  it("returns empty array when the plan has no items", async () => {
-    builder.returns.mockResolvedValueOnce({ data: [], error: null }); // plan items
-    const result = await buildGroceryItemsForPlan("plan-1");
-    expect(result).toEqual([]);
+  it("uses the chosen plan's meals", async () => {
+    await buildGroceryItemsForPlan("plan-7");
+    expect(listMealPlanItemsForPlan).toHaveBeenCalledWith("plan-7");
+    expect(listMealPlanItemsBetween).not.toHaveBeenCalled();
   });
 
-  it("returns empty array when items have no recipe_ids", async () => {
+  it("returns an empty list when the plan has no meals, without querying ingredients", async () => {
+    expect(await buildGroceryItemsForPlan("plan-7")).toEqual([]);
+    expect(builder.from).not.toHaveBeenCalledWith("recipe_ingredients");
+  });
+
+  it("returns an empty list when the plan's meals have no recipes (deleted recipes)", async () => {
+    vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([meal(null)]);
+    expect(await buildGroceryItemsForPlan("plan-7")).toEqual([]);
+  });
+
+  it("fetches ingredients for every planned recipe, each once", async () => {
+    vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([
+      meal("r1"), meal("r2"), meal("r1"), meal(null), meal("r3"),
+    ]);
+    await buildGroceryItemsForPlan("plan-7");
+    expect(builder.from).toHaveBeenCalledWith("recipe_ingredients");
+    expect(builder.in).toHaveBeenCalledWith("recipe_id", ["r1", "r2", "r3"]);
+  });
+
+  it("includes every ingredient of every planned recipe, and nothing else", async () => {
+    vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([meal("tacos"), meal("salad"), meal("toast")]);
     builder.returns.mockResolvedValueOnce({
-      data: [{ recipe_id: null, servings_override: null, recipes: null }],
+      data: [
+        ingredientRow("tacos", "tortillas", "8", "", "bakery & bread"),
+        ingredientRow("tacos", "ground beef", "1", "lb", "meat & seafood"),
+        ingredientRow("salad", "lettuce", "1", "head", "produce"),
+        ingredientRow("salad", "olive oil", ""),
+        // toast has no ingredients; a recipe that isn't planned must never appear:
+        ingredientRow("not-planned", "anchovies", "1", "tin"),
+      ],
       error: null,
-    }); // plan items
-    const result = await buildGroceryItemsForPlan("plan-1");
-    expect(result).toEqual([]);
+    });
+
+    const result = await buildGroceryItemsForPlan("plan-7");
+
+    expect(result.map((item) => item.ingredientName).sort()).toEqual(
+      ["ground beef", "lettuce", "olive oil", "tortillas"]
+    );
   });
 
-  it("fetches, scales, and merges ingredients from plan items", async () => {
-    // Plan items: one recipe, 2 servings (recipe default is 4)
-    builder.returns
-      .mockResolvedValueOnce({
-        data: [
-          {
-            recipe_id: "recipe-1",
-            servings_override: 2,
-            recipes: { servings: 4 },
-          },
-        ],
-        error: null,
-      })
-      // Recipe ingredients (with category via ingredients FK)
-      .mockResolvedValueOnce({
-        data: [
-          { recipe_id: "recipe-1", ingredient_name: "flour", quantity: "2", unit: "cup", ingredients: { category: "pantry" } },
-          { recipe_id: "recipe-1", ingredient_name: "eggs", quantity: "4", unit: "", ingredients: { category: "dairy & eggs" } },
-        ],
-        error: null,
-      });
+  it("scales each meal's ingredients to the servings planned for it", async () => {
+    vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([meal("r1", { servings: 4, override: 2 })]);
+    builder.returns.mockResolvedValueOnce({
+      data: [
+        ingredientRow("r1", "flour", "2", "cup", "pantry"),
+        ingredientRow("r1", "eggs", "4", "", "dairy & eggs"),
+      ],
+      error: null,
+    });
 
-    const result = await buildGroceryItemsForPlan("plan-1");
-    // Sorted by category: dairy & eggs(2) < pantry(6)
-    // Scaled to 2/4 = 0.5x: flour 2→1 cup, eggs 4→2
-    expect(result).toEqual([
-      { ingredientName: "eggs",  quantity: "2", unit: "", category: "dairy & eggs" },
+    // Sorted by category (dairy & eggs before pantry); scaled 2/4 = half.
+    expect(await buildGroceryItemsForPlan("plan-7")).toEqual([
+      { ingredientName: "eggs", quantity: "2", unit: "", category: "dairy & eggs" },
       { ingredientName: "flour", quantity: "1", unit: "cup", category: "pantry" },
     ]);
   });
 
-  it("merges the same ingredient across multiple plan items", async () => {
-    // Two plan items using the same recipe (different servings)
-    builder.returns
-      .mockResolvedValueOnce({
-        data: [
-          { recipe_id: "recipe-1", servings_override: 2, recipes: { servings: 4 } },
-          { recipe_id: "recipe-1", servings_override: 4, recipes: { servings: 4 } },
-        ],
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: [
-          { recipe_id: "recipe-1", ingredient_name: "butter", quantity: "4", unit: "tbsp", ingredients: { category: "dairy & eggs" } },
-        ],
-        error: null,
-      });
+  it("merges the same ingredient across meals, each scaled separately", async () => {
+    vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([
+      meal("r1", { servings: 4, override: 2 }),
+      meal("r1", { servings: 4, override: 4 }),
+    ]);
+    builder.returns.mockResolvedValueOnce({
+      data: [ingredientRow("r1", "butter", "4", "tbsp", "dairy & eggs")],
+      error: null,
+    });
 
-    const result = await buildGroceryItemsForPlan("plan-1");
-    // 4 × 0.5 + 4 × 1 = 2 + 4 = 6
-    expect(result).toEqual([
+    // 4 × 0.5 + 4 × 1 = 6
+    expect(await buildGroceryItemsForPlan("plan-7")).toEqual([
       { ingredientName: "butter", quantity: "6", unit: "tbsp", category: "dairy & eggs" },
     ]);
   });
 
-  it("throws when the plan items query fails", async () => {
-    builder.returns.mockResolvedValueOnce({
-      data: null,
-      error: { message: "DB error" },
-    });
-    await expect(buildGroceryItemsForPlan("plan-1")).rejects.toThrow("DB error");
+  it("throws when loading ingredients fails", async () => {
+    vi.mocked(listMealPlanItemsForPlan).mockResolvedValue([meal("r1")]);
+    builder.returns.mockResolvedValueOnce({ data: null, error: { message: "DB error" } });
+    await expect(buildGroceryItemsForPlan("plan-7")).rejects.toThrow("DB error");
   });
 });
 
-// ── buildGroceryItemsForWeek ──────────────────────────────────────────────
-
 describe("buildGroceryItemsForWeek", () => {
-  it("returns empty items and null planId when no plan exists for the week", async () => {
-    builder.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
-    const result = await buildGroceryItemsForWeek("2026-05-19");
-    expect(result).toEqual({ items: [], planId: null });
+  it("uses every meal planned in that week (what the planner shows), Monday to Sunday", async () => {
+    vi.mocked(listMealPlanItemsBetween).mockResolvedValue([meal("r1")]);
+    builder.returns.mockResolvedValueOnce({ data: [ingredientRow("r1", "rice", "1", "cup")], error: null });
+
+    const result = await buildGroceryItemsForWeek("2026-05-25");
+
+    expect(listMealPlanItemsBetween).toHaveBeenCalledWith("2026-05-25", "2026-05-31");
+    expect(result.items.map((item) => item.ingredientName)).toEqual(["rice"]);
   });
 
-  it("delegates to buildGroceryItemsForPlan when a plan exists", async () => {
-    builder.maybeSingle.mockResolvedValueOnce({
-      data: { id: "plan-42" },
-      error: null,
-    });
-    // buildGroceryItemsForPlan: plan items
-    builder.returns
-      .mockResolvedValueOnce({ data: [], error: null });
+  it("returns the week's plan id so the saved list links back to it", async () => {
+    builder.maybeSingle.mockResolvedValueOnce({ data: { id: "plan-42" }, error: null });
 
-    const result = await buildGroceryItemsForWeek("2026-05-19");
-    expect(result).toEqual({ items: [], planId: "plan-42" });
-    expect(builder.eq).toHaveBeenCalledWith("start_date", "2026-05-19");
+    const result = await buildGroceryItemsForWeek("2026-05-25");
+
+    expect(builder.eq).toHaveBeenCalledWith("start_date", "2026-05-25");
+    expect(result.planId).toBe("plan-42");
+  });
+
+  it("still builds the list when no plan starts that week (e.g. a longer plan covers it)", async () => {
+    builder.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    vi.mocked(listMealPlanItemsBetween).mockResolvedValue([meal("r1")]);
+    builder.returns.mockResolvedValueOnce({ data: [ingredientRow("r1", "rice", "1", "cup")], error: null });
+
+    const result = await buildGroceryItemsForWeek("2026-05-25");
+
+    expect(result).toEqual({
+      items: [{ ingredientName: "rice", quantity: "1", unit: "cup", category: null }],
+      planId: null,
+    });
   });
 });
 
@@ -204,6 +263,34 @@ describe("saveGroceryList", () => {
       isChecked: false,
       category: "pantry",
     });
+  });
+
+  it("links the saved list to the chosen plan and writes every item to it", async () => {
+    builder.single.mockResolvedValueOnce({
+      data: { id: "list-9", title: "Groceries", meal_plan_id: "plan-7", created_at: "2026-05-25T00:00:00Z" },
+      error: null,
+    });
+    builder.returns.mockResolvedValueOnce({ data: [], error: null });
+    const drafts = [
+      { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread" as const },
+      { ingredientName: "lettuce", quantity: "1", unit: "head", category: "produce" as const },
+      { ingredientName: "olive oil", quantity: "", unit: "", category: null },
+    ];
+
+    await saveGroceryList("  Groceries  ", "plan-7", drafts);
+
+    expect(builder.from).toHaveBeenCalledWith("grocery_lists");
+    expect(builder.insert).toHaveBeenNthCalledWith(1, {
+      user_id: "user-1",
+      title: "Groceries",
+      meal_plan_id: "plan-7",
+    });
+    expect(builder.from).toHaveBeenCalledWith("grocery_items");
+    expect(builder.insert).toHaveBeenNthCalledWith(2, [
+      { list_id: "list-9", ingredient_name: "tortillas", quantity: "8", unit: null, is_checked: false, category: "bakery & bread" },
+      { list_id: "list-9", ingredient_name: "lettuce", quantity: "1", unit: "head", is_checked: false, category: "produce" },
+      { list_id: "list-9", ingredient_name: "olive oil", quantity: null, unit: null, is_checked: false, category: null },
+    ]);
   });
 
   it("returns empty items array when no items are passed", async () => {

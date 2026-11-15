@@ -41,6 +41,10 @@ import {
   savePlanById,
   listMealPlanSpans,
   applySavedMealPlan,
+  clearWeekPlan,
+  listMealPlanItemsBetween,
+  listMealPlanItemsForPlan,
+  listMealPlanItemsForWeek,
 } from "../../../features/meal-plans/api";
 
 const db = supabase as unknown as Record<string, ReturnType<typeof vi.fn>>;
@@ -226,38 +230,153 @@ describe("deleteSavedMealPlan", () => {
 // ─────────────────────────────────────────────────────────────
 // previewSavedMealPlan
 // ─────────────────────────────────────────────────────────────
-describe("previewSavedMealPlan", () => {
+const itemRow = (id: string, plannedFor: string, title: string, mealType = "dinner") => ({
+  id,
+  recipe_id: `recipe-${id}`,
+  planned_for: plannedFor,
+  meal_type: mealType,
+  servings_override: null,
+  recipes: { title, servings: 4 },
+});
+
+// ─────────────────────────────────────────────────────────────
+// Which meals count: the shared definitions
+// ─────────────────────────────────────────────────────────────
+describe("listMealPlanItemsBetween", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetChain();
     db.returns.mockResolvedValue({ data: [], error: null });
   });
 
-  it("queries meal_plan_items filtered by plan id", async () => {
+  it("selects meals by date range and meal type, from any plan", async () => {
+    await listMealPlanItemsBetween("2026-05-25", "2026-06-07");
+    expect(db.from).toHaveBeenCalledWith("meal_plan_items");
+    expect(db.gte).toHaveBeenCalledWith("planned_for", "2026-05-25");
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-06-07");
+    expect(db.in).toHaveBeenCalledWith("meal_type", ["breakfast", "lunch", "dinner"]);
+    // Dates decide what's in the range, not which plan a meal belongs to.
+    expect(db.eq).not.toHaveBeenCalled();
+  });
+
+  it("maps rows to meal plan items", async () => {
+    db.returns.mockResolvedValue({ data: [itemRow("i1", "2026-05-26", "Tacos")], error: null });
+    const [item] = await listMealPlanItemsBetween("2026-05-25", "2026-05-31");
+    expect(item).toMatchObject({ id: "i1", plannedFor: "2026-05-26", recipeTitle: "Tacos", mealType: "dinner" });
+  });
+
+  it("throws when supabase returns an error", async () => {
+    db.returns.mockResolvedValue({ data: null, error: { message: "Load failed" } });
+    await expect(listMealPlanItemsBetween("2026-05-25", "2026-05-31")).rejects.toThrow("Load failed");
+  });
+});
+
+describe("listMealPlanItemsForWeek", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetChain();
+    db.returns.mockResolvedValue({ data: [], error: null });
+  });
+
+  it("is the meals dated Monday to Sunday, without looking up the week's plan", async () => {
+    await listMealPlanItemsForWeek("2026-05-25");
+    expect(db.gte).toHaveBeenCalledWith("planned_for", "2026-05-25");
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-05-31");
+    expect(db.maybeSingle).not.toHaveBeenCalled();
+  });
+});
+
+describe("listMealPlanItemsForPlan", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetChain();
+    db.returns.mockResolvedValue({ data: [], error: null });
+  });
+
+  it("returns the plan's own meals within its start and end dates", async () => {
+    db.single.mockResolvedValue({ data: { start_date: "2026-05-18", end_date: "2026-05-31" }, error: null });
+    await listMealPlanItemsForPlan("p1");
+    expect(db.eq).toHaveBeenCalledWith("id", "p1");
+    expect(db.eq).toHaveBeenCalledWith("meal_plan_id", "p1");
+    expect(db.gte).toHaveBeenCalledWith("planned_for", "2026-05-18");
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-05-31");
+    expect(db.in).toHaveBeenCalledWith("meal_type", ["breakfast", "lunch", "dinner"]);
+  });
+
+  it("treats a plan without an end date as one week long", async () => {
+    db.single.mockResolvedValue({ data: { start_date: "2026-05-18", end_date: null }, error: null });
+    await listMealPlanItemsForPlan("p1");
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-05-24");
+  });
+
+  it("throws when the plan can't be found", async () => {
+    db.single.mockResolvedValue({ data: null, error: { message: "Not found" } });
+    await expect(listMealPlanItemsForPlan("p1")).rejects.toThrow("Not found");
+  });
+});
+
+describe("clearWeekPlan", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetChain();
+  });
+
+  it("deletes exactly the meals the planner shows for that week", async () => {
+    // The delete chain ends at .in(); make it resolve.
+    db.in.mockResolvedValueOnce({ error: null });
+    await clearWeekPlan("2026-05-25");
+    expect(db.from).toHaveBeenCalledWith("meal_plan_items");
+    expect(db.delete).toHaveBeenCalled();
+    expect(db.gte).toHaveBeenCalledWith("planned_for", "2026-05-25");
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-05-31");
+    expect(db.in).toHaveBeenCalledWith("meal_type", ["breakfast", "lunch", "dinner"]);
+    expect(db.maybeSingle).not.toHaveBeenCalled();
+  });
+
+  it("throws when the delete fails", async () => {
+    db.in.mockResolvedValueOnce({ error: { message: "Delete failed" } });
+    await expect(clearWeekPlan("2026-05-25")).rejects.toThrow("Delete failed");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// previewSavedMealPlan
+// ─────────────────────────────────────────────────────────────
+describe("previewSavedMealPlan", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetChain();
+    db.single.mockResolvedValue({ data: { start_date: "2026-05-18", end_date: "2026-05-24" }, error: null });
+    db.returns.mockResolvedValue({ data: [], error: null });
+  });
+
+  it("uses the plan's own meals within its dates", async () => {
     await previewSavedMealPlan("p1");
     expect(db.from).toHaveBeenCalledWith("meal_plan_items");
     expect(db.eq).toHaveBeenCalledWith("meal_plan_id", "p1");
+    expect(db.gte).toHaveBeenCalledWith("planned_for", "2026-05-18");
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-05-24");
   });
 
   it("returns an empty array for a plan with no items", async () => {
-    const result = await previewSavedMealPlan("p1");
-    expect(result).toEqual([]);
+    expect(await previewSavedMealPlan("p1")).toEqual([]);
   });
 
   it("groups recipe titles by date", async () => {
     db.returns.mockResolvedValue({
       data: [
-        { planned_for: "2026-05-18", recipes: { title: "Pasta", servings: 4 } },
-        { planned_for: "2026-05-18", recipes: { title: "Salad", servings: 2 } },
-        { planned_for: "2026-05-19", recipes: { title: "Soup", servings: 4 } },
+        itemRow("i1", "2026-05-18", "Pasta"),
+        itemRow("i2", "2026-05-18", "Salad", "lunch"),
+        itemRow("i3", "2026-05-19", "Soup"),
       ],
       error: null,
     });
 
     const result = await previewSavedMealPlan("p1");
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ dateIso: "2026-05-18", recipes: ["Pasta", "Salad"] });
-    expect(result[1]).toEqual({ dateIso: "2026-05-19", recipes: ["Soup"] });
+    expect(result).toEqual([
+      { dateIso: "2026-05-18", recipes: ["Pasta", "Salad"] },
+      { dateIso: "2026-05-19", recipes: ["Soup"] },
+    ]);
   });
 
   it("throws when supabase returns an error", async () => {
@@ -381,10 +500,13 @@ describe("applySavedMealPlan", () => {
     expect(db.eq).toHaveBeenCalledWith("id", "saved-plan-id");
   });
 
-  it("fetches all items for the saved plan", async () => {
+  it("copies the saved plan's own meals within its dates", async () => {
     await applySavedMealPlan("saved-plan-id", "2026-05-25");
     expect(db.from).toHaveBeenCalledWith("meal_plan_items");
     expect(db.eq).toHaveBeenCalledWith("meal_plan_id", "saved-plan-id");
+    expect(db.gte).toHaveBeenCalledWith("planned_for", "2026-05-18");
+    // The fixture plan has no end date, so it's treated as one week long.
+    expect(db.lte).toHaveBeenCalledWith("planned_for", "2026-05-24");
   });
 
   it("inserts items shifted to the target week", async () => {
