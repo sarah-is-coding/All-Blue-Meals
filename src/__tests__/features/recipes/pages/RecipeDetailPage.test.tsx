@@ -2,7 +2,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import RecipeDetailPage from "../../../../features/recipes/pages/RecipeDetailPage";
-import { toIsoDate } from "../../../../features/meal-plans/dateUtils";
+import {
+  getWeekDays,
+  getWeekStartIso,
+  shiftWeekStartIso,
+  toIsoDate,
+} from "../../../../features/meal-plans/dateUtils";
 
 const navigate = vi.fn();
 
@@ -35,6 +40,7 @@ vi.mock("../../../../features/ingredients/api", () => ({
 
 vi.mock("../../../../features/meal-plans/api", () => ({
   addMealPlanItem: vi.fn(),
+  listMealPlanItemsForWeek: vi.fn(),
 }));
 
 import {
@@ -43,13 +49,14 @@ import {
   rateRecipe,
   updateRecipe,
 } from "../../../../features/recipes/api";
-import { addMealPlanItem } from "../../../../features/meal-plans/api";
+import { addMealPlanItem, listMealPlanItemsForWeek } from "../../../../features/meal-plans/api";
 
 const mockGetRecipeById = vi.mocked(getRecipeById);
 const mockUpdateRecipe = vi.mocked(updateRecipe);
 const mockDeleteRecipe = vi.mocked(deleteRecipe);
 const mockRateRecipe = vi.mocked(rateRecipe);
 const mockAddMealPlanItem = vi.mocked(addMealPlanItem);
+const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
 
 const recipe = {
   id: "recipe-1",
@@ -107,6 +114,7 @@ describe("RecipeDetailPage", () => {
     mockUpdateRecipe.mockResolvedValue(undefined);
     mockDeleteRecipe.mockResolvedValue(undefined);
     mockRateRecipe.mockResolvedValue(undefined);
+    mockListMealPlanItemsForWeek.mockResolvedValue([]);
   });
 
   it("adds the recipe to the meal plan from the detail page", async () => {
@@ -121,20 +129,33 @@ describe("RecipeDetailPage", () => {
       effectiveServings: 4,
     });
 
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const targetDay = getWeekDays(expectedWeekStartIso)[2];
+
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByText("Chicken Caesar Taco Salad");
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
 
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Add Chicken Caesar Taco Salad to your meal plan" })
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Chicken Caesar Taco Salad").length).toBeGreaterThan(0);
 
+    await user.click(
+      await screen.findByRole("button", { name: `Dinner on ${targetDay.fullLabel}` })
+    );
     await user.click(screen.getByRole("button", { name: "Add recipe" }));
 
     await waitFor(() => {
       expect(mockAddMealPlanItem).toHaveBeenCalledWith(
-        expect.objectContaining({ recipeId: "recipe-1", mealType: "dinner", servingsOverride: null })
+        expect.objectContaining({
+          recipeId: "recipe-1",
+          plannedFor: targetDay.dateIso,
+          mealType: "dinner",
+          servingsOverride: null,
+        })
       );
     });
     expect(await screen.findByText("Added to your meal plan.")).toBeInTheDocument();
@@ -144,6 +165,9 @@ describe("RecipeDetailPage", () => {
     const farFutureDate = new Date();
     farFutureDate.setDate(farFutureDate.getDate() + 30);
     const initialDay = toIsoDate(farFutureDate);
+    const expectedDay = getWeekDays(getWeekStartIso(farFutureDate)).find(
+      (day) => day.dateIso === initialDay
+    );
 
     const user = userEvent.setup();
     renderPageWithMealSlot({ date: initialDay, mealType: "breakfast" });
@@ -151,8 +175,11 @@ describe("RecipeDetailPage", () => {
     await screen.findByText("Chicken Caesar Taco Salad");
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
 
-    expect((screen.getByLabelText("Day") as HTMLSelectElement).value).toBe(initialDay);
-    expect((screen.getByLabelText("Meal") as HTMLSelectElement).value).toBe("breakfast");
+    const slot = await screen.findByRole("button", {
+      name: `Breakfast on ${expectedDay?.fullLabel}`,
+    });
+    expect(slot).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Add recipe" })).toBeEnabled();
   });
 
   it("shows a sticky save button while editing and submits the edit form", async () => {

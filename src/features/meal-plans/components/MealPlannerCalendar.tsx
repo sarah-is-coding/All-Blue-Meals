@@ -1,4 +1,4 @@
-import { useMemo, useState, type DragEvent } from "react";
+import { useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   MEAL_PLAN_ITEM_DRAG_MIME_TYPE,
@@ -11,14 +11,22 @@ type MealPlannerCalendarProps = {
   weekLabel: string;
   weekDays: MealPlannerDay[];
   items: MealPlanItem[];
-  removingItemId: string | null;
-  movingItemId: string | null;
-  updatingServingsItemId: string | null;
+  heading?: string;
+  headingTag?: "h1" | "h2";
+  removingItemId?: string | null;
+  movingItemId?: string | null;
+  updatingServingsItemId?: string | null;
   onShiftWeek: (weekOffset: number) => void;
   onJumpToCurrentWeek: () => void;
-  onMoveItem: (itemId: string, plannedFor: string, mealType: MealType) => Promise<void>;
-  onUpdateItemServings: (itemId: string, servingsOverride: number | null) => Promise<void>;
-  onRemoveItem: (itemId: string) => Promise<void>;
+  onMoveItem?: (itemId: string, plannedFor: string, mealType: MealType) => Promise<void>;
+  onUpdateItemServings?: (itemId: string, servingsOverride: number | null) => Promise<void>;
+  onRemoveItem?: (itemId: string) => Promise<void>;
+  /** Picker mode (enabled by passing onSelectSlot): hides item management
+   *  UI and the "Search recipes" / "Manage Saved Plans" links, renders
+   *  existing items read-only, and makes each slot a selectable target
+   *  instead of a drop zone. */
+  selectedSlot?: { date: string; mealType: MealType } | null;
+  onSelectSlot?: (date: string, mealType: MealType) => void;
 };
 
 function getSlotKey(dayIso: string, mealType: MealType): string {
@@ -39,17 +47,23 @@ export default function MealPlannerCalendar({
   weekLabel,
   weekDays,
   items,
-  removingItemId,
-  movingItemId,
-  updatingServingsItemId,
+  heading = "Meal Planner",
+  headingTag = "h1",
+  removingItemId = null,
+  movingItemId = null,
+  updatingServingsItemId = null,
   onShiftWeek,
   onJumpToCurrentWeek,
   onMoveItem,
   onUpdateItemServings,
   onRemoveItem,
+  selectedSlot = null,
+  onSelectSlot,
 }: MealPlannerCalendarProps) {
   const navigate = useNavigate();
   const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
+  const isPickerMode = Boolean(onSelectSlot);
+  const HeadingTag = headingTag;
 
   const slotMap = useMemo(() => {
     const map = new Map<string, MealPlanItem[]>();
@@ -79,7 +93,7 @@ export default function MealPlannerCalendar({
       }
     }
     if (mealPlanItemId) {
-      void onMoveItem(mealPlanItemId, dayIso, mealType);
+      void onMoveItem?.(mealPlanItemId, dayIso, mealType);
     }
   };
 
@@ -101,10 +115,12 @@ export default function MealPlannerCalendar({
     <article className="workspace-card meal-calendar">
       <header className="meal-calendar__header">
         <div>
-          <h1>Meal Planner</h1>
-          <Link to="/app/saved-meal-plans" className="meal-calendar__manage-link">
-            Manage Saved Plans
-          </Link>
+          <HeadingTag className="meal-calendar__title">{heading}</HeadingTag>
+          {!isPickerMode ? (
+            <Link to="/app/saved-meal-plans" className="meal-calendar__manage-link">
+              Manage Saved Plans
+            </Link>
+          ) : null}
           <p>{weekLabel}</p>
         </div>
         <div className="meal-calendar__actions">
@@ -133,23 +149,59 @@ export default function MealPlannerCalendar({
                 const slotKey = getSlotKey(day.dateIso, option.value);
                 const slotItems = slotMap.get(slotKey) ?? [];
                 const isDropTarget = dragOverSlotKey === slotKey;
+                const isSelected =
+                  isPickerMode &&
+                  selectedSlot?.date === day.dateIso &&
+                  selectedSlot?.mealType === option.value;
+
+                const slotProps = isPickerMode
+                  ? {
+                      role: "button" as const,
+                      tabIndex: 0,
+                      "aria-pressed": isSelected,
+                      onClick: () => onSelectSlot?.(day.dateIso, option.value),
+                      onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectSlot?.(day.dateIso, option.value);
+                        }
+                      },
+                    }
+                  : {
+                      onDragOver: (event: DragEvent<HTMLElement>) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      },
+                      onDragEnter: () => setDragOverSlotKey(slotKey),
+                      onDragLeave: () =>
+                        setDragOverSlotKey((current) => (current === slotKey ? null : current)),
+                      onDrop: (event: DragEvent<HTMLElement>) =>
+                        onDropToSlot(event, day.dateIso, option.value),
+                    };
 
                 return (
                   <section
                     key={slotKey}
-                    className={`meal-slot${isDropTarget ? " meal-slot--active" : ""}`}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
-                    }}
-                    onDragEnter={() => setDragOverSlotKey(slotKey)}
-                    onDragLeave={() => setDragOverSlotKey((current) => (current === slotKey ? null : current))}
-                    onDrop={(event) => onDropToSlot(event, day.dateIso, option.value)}
+                    className={`meal-slot${isDropTarget ? " meal-slot--active" : ""}${isSelected ? " meal-slot--selected" : ""}`}
                     aria-label={`${option.label} on ${day.fullLabel}`}
+                    {...slotProps}
                   >
                     <div className="meal-slot__title">{option.label}</div>
                     {slotItems.length === 0 ? (
                       <p className="meal-slot__empty">No recipes yet</p>
+                    ) : isPickerMode ? (
+                      <ul className="meal-slot__items">
+                        {slotItems.map((item) => (
+                          <li key={item.id} className="meal-chip meal-chip--readonly">
+                            <span>{item.recipeTitle}</span>
+                            {item.effectiveServings ? (
+                              <span className="meal-chip__servings-readout">
+                                {item.effectiveServings} servings
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
                     ) : (
                       <ul className="meal-slot__items">
                         {slotItems.map((item) => (
@@ -198,7 +250,7 @@ export default function MealPlannerCalendar({
                                       return;
                                     }
                                     const nextEffectiveServings = item.effectiveServings - 1;
-                                    void onUpdateItemServings(
+                                    void onUpdateItemServings?.(
                                       item.id,
                                       getServingsOverride(
                                         nextEffectiveServings,
@@ -236,7 +288,7 @@ export default function MealPlannerCalendar({
                                       1,
                                       (item.effectiveServings ?? 0) + 1
                                     );
-                                    void onUpdateItemServings(
+                                    void onUpdateItemServings?.(
                                       item.id,
                                       getServingsOverride(
                                         nextEffectiveServings,
@@ -259,7 +311,7 @@ export default function MealPlannerCalendar({
                               className="meal-chip__remove"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                void onRemoveItem(item.id);
+                                void onRemoveItem?.(item.id);
                               }}
                               disabled={
                                 removingItemId === item.id ||
@@ -274,13 +326,15 @@ export default function MealPlannerCalendar({
                         ))}
                       </ul>
                     )}
-                    <Link
-                      className="meal-slot__search-link"
-                      to="/app/recipes"
-                      state={{ mealSlot: { date: day.dateIso, mealType: option.value } }}
-                    >
-                      Search recipes
-                    </Link>
+                    {!isPickerMode ? (
+                      <Link
+                        className="meal-slot__search-link"
+                        to="/app/recipes"
+                        state={{ mealSlot: { date: day.dateIso, mealType: option.value } }}
+                      >
+                        Search recipes
+                      </Link>
+                    ) : null}
                   </section>
                 );
               })}

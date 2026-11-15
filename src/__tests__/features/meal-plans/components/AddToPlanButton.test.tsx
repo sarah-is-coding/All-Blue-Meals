@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import AddToPlanButton from "../../../../features/meal-plans/components/AddToPlanButton";
 import {
-  formatWeekRangeLabel,
   getWeekDays,
   getWeekStartIso,
   shiftWeekStartIso,
@@ -25,11 +24,13 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("../../../../features/meal-plans/api", () => ({
   addMealPlanItem: vi.fn(),
+  listMealPlanItemsForWeek: vi.fn(),
 }));
 
-import { addMealPlanItem } from "../../../../features/meal-plans/api";
+import { addMealPlanItem, listMealPlanItemsForWeek } from "../../../../features/meal-plans/api";
 
 const mockAddMealPlanItem = vi.mocked(addMealPlanItem);
+const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
 
 const renderButton = (props: Partial<React.ComponentProps<typeof AddToPlanButton>> = {}) =>
   render(
@@ -46,22 +47,22 @@ const renderButton = (props: Partial<React.ComponentProps<typeof AddToPlanButton
 describe("AddToPlanButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockListMealPlanItemsForWeek.mockResolvedValue([]);
   });
 
-  it("opens the popup with the recipe name and week days on click", async () => {
+  it("opens the Add to Plan modal with the recipe name", async () => {
     const user = userEvent.setup();
     renderButton();
 
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
 
     expect(
-      screen.getByRole("dialog", { name: "Choose day and meal for recipe assignment" })
+      await screen.findByRole("dialog", { name: "Add Pasta Bake to your meal plan" })
     ).toBeInTheDocument();
     expect(screen.getByText("Pasta Bake")).toBeInTheDocument();
-    expect(screen.getByLabelText("Day").querySelectorAll("option")).toHaveLength(7);
   });
 
-  it("assigns the recipe and offers to view it on the meal plan", async () => {
+  it("assigns the recipe to a picked slot and offers to view it on the meal plan", async () => {
     mockAddMealPlanItem.mockResolvedValue({
       id: "item-1",
       recipeId: "recipe-1",
@@ -73,30 +74,30 @@ describe("AddToPlanButton", () => {
       effectiveServings: 4,
     });
 
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const targetDay = getWeekDays(expectedWeekStartIso)[2];
+
     const user = userEvent.setup();
     renderButton();
 
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
-
-    const daySelect = screen.getByLabelText("Day") as HTMLSelectElement;
-    const expectedDay = daySelect.value;
-
-    await user.selectOptions(screen.getByLabelText("Meal"), "lunch");
+    await user.click(
+      await screen.findByRole("button", { name: `Lunch on ${targetDay.fullLabel}` })
+    );
     await user.click(screen.getByRole("button", { name: "Add recipe" }));
 
     await waitFor(() => {
-      expect(mockAddMealPlanItem).toHaveBeenCalledWith(
-        expect.objectContaining({
-          plannedFor: expectedDay,
-          mealType: "lunch",
-          recipeId: "recipe-1",
-          servingsOverride: null,
-        })
-      );
+      expect(mockAddMealPlanItem).toHaveBeenCalledWith({
+        weekStartIso: expectedWeekStartIso,
+        plannedFor: targetDay.dateIso,
+        mealType: "lunch",
+        recipeId: "recipe-1",
+        servingsOverride: null,
+      });
     });
 
     expect(
-      screen.queryByRole("dialog", { name: "Choose day and meal for recipe assignment" })
+      screen.queryByRole("dialog", { name: "Add Pasta Bake to your meal plan" })
     ).not.toBeInTheDocument();
 
     const confirmDialog = await screen.findByRole("dialog", { name: "Recipe added to plan" });
@@ -105,7 +106,7 @@ describe("AddToPlanButton", () => {
     await user.click(screen.getByRole("button", { name: "View meal plan" }));
 
     expect(navigate).toHaveBeenCalledWith("/app/meal-plans", {
-      state: { jumpToDate: expectedDay },
+      state: { jumpToDate: targetDay.dateIso },
     });
     expect(screen.queryByRole("dialog", { name: "Recipe added to plan" })).not.toBeInTheDocument();
   });
@@ -122,10 +123,16 @@ describe("AddToPlanButton", () => {
       effectiveServings: 4,
     });
 
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const targetDay = getWeekDays(expectedWeekStartIso)[2];
+
     const user = userEvent.setup();
     renderButton();
 
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
+    await user.click(
+      await screen.findByRole("button", { name: `Lunch on ${targetDay.fullLabel}` })
+    );
     await user.click(screen.getByRole("button", { name: "Add recipe" }));
 
     await screen.findByRole("dialog", { name: "Recipe added to plan" });
@@ -135,91 +142,40 @@ describe("AddToPlanButton", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("defaults to next week rather than the current week", async () => {
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
-    const expectedWeekDays = getWeekDays(expectedWeekStartIso);
-
-    const user = userEvent.setup();
-    renderButton();
-
-    await user.click(screen.getByRole("button", { name: "Add to Plan" }));
-
-    expect(screen.getByText(formatWeekRangeLabel(expectedWeekStartIso))).toBeInTheDocument();
-    const daySelect = screen.getByLabelText("Day") as HTMLSelectElement;
-    expect(daySelect.value).toBe(expectedWeekDays[0].dateIso);
-  });
-
-  it("steps to another week, keeping the same weekday selected", async () => {
-    const initialWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
-    const initialWeekDays = getWeekDays(initialWeekStartIso);
-
-    const user = userEvent.setup();
-    renderButton();
-
-    await user.click(screen.getByRole("button", { name: "Add to Plan" }));
-
-    const daySelect = screen.getByLabelText("Day") as HTMLSelectElement;
-    await user.selectOptions(daySelect, initialWeekDays[2].dateIso);
-
-    await user.click(screen.getByRole("button", { name: "Next week" }));
-
-    const nextWeekStartIso = shiftWeekStartIso(initialWeekStartIso, 1);
-    const nextWeekDays = getWeekDays(nextWeekStartIso);
-    expect(screen.getByText(formatWeekRangeLabel(nextWeekStartIso))).toBeInTheDocument();
-    expect(daySelect.value).toBe(nextWeekDays[2].dateIso);
-
-    await user.click(screen.getByRole("button", { name: "Previous week" }));
-    expect(screen.getByText(formatWeekRangeLabel(initialWeekStartIso))).toBeInTheDocument();
-    expect(daySelect.value).toBe(initialWeekDays[2].dateIso);
-
-    await user.click(screen.getByRole("button", { name: "Next week" }));
-    await user.click(screen.getByRole("button", { name: "Current week" }));
-
-    const currentWeekStartIso = getWeekStartIso(new Date());
-    const currentWeekDays = getWeekDays(currentWeekStartIso);
-    expect(screen.getByText(formatWeekRangeLabel(currentWeekStartIso))).toBeInTheDocument();
-    expect(daySelect.value).toBe(currentWeekDays[2].dateIso);
-  });
-
-  it("resets to the default week after cancelling", async () => {
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
-
-    const user = userEvent.setup();
-    renderButton();
-
-    await user.click(screen.getByRole("button", { name: "Add to Plan" }));
-    await user.click(screen.getByRole("button", { name: "Next week" }));
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-    await user.click(screen.getByRole("button", { name: "Add to Plan" }));
-    expect(screen.getByText(formatWeekRangeLabel(expectedWeekStartIso))).toBeInTheDocument();
-  });
-
-  it("preselects an initial day/meal outside the current week", async () => {
+  it("preselects the initial day and meal so Add recipe is immediately available", async () => {
     const farFutureDate = new Date();
     farFutureDate.setDate(farFutureDate.getDate() + 30);
     const initialDay = toIsoDate(farFutureDate);
+    const expectedWeekStartIso = getWeekStartIso(farFutureDate);
+    const expectedDay = getWeekDays(expectedWeekStartIso).find(
+      (day) => day.dateIso === initialDay
+    );
 
     const user = userEvent.setup();
     renderButton({ initialDay, initialMealType: "breakfast" });
 
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
 
-    const daySelect = screen.getByLabelText("Day") as HTMLSelectElement;
-    expect(daySelect.value).toBe(initialDay);
-    expect(
-      Array.from(daySelect.querySelectorAll("option")).map((option) => option.value)
-    ).toContain(initialDay);
-    expect((screen.getByLabelText("Meal") as HTMLSelectElement).value).toBe("breakfast");
+    const slot = await screen.findByRole("button", {
+      name: `Breakfast on ${expectedDay?.fullLabel}`,
+    });
+    expect(slot).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Add recipe" })).toBeEnabled();
   });
 
   it("shows an error message when assignment fails", async () => {
     mockAddMealPlanItem.mockRejectedValue(new Error("Failed to add recipe to plan."));
 
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const targetDay = getWeekDays(expectedWeekStartIso)[2];
+
     const user = userEvent.setup();
     renderButton();
 
     await user.click(screen.getByRole("button", { name: "Add to Plan" }));
+    await user.click(
+      await screen.findByRole("button", { name: `Lunch on ${targetDay.fullLabel}` })
+    );
     await user.click(screen.getByRole("button", { name: "Add recipe" }));
 
     expect(await screen.findByText("Failed to add recipe to plan.")).toBeInTheDocument();

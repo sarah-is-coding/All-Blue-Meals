@@ -1,17 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addMealPlanItem } from "../api";
-import { DEFAULT_MEAL_TYPE, MEAL_TYPE_OPTIONS } from "../constants";
-import {
-  createDateFromIso,
-  formatWeekRangeLabel,
-  getWeekDays,
-  getWeekStartIso,
-  shiftWeekStartIso,
-} from "../dateUtils";
-import { useAddToPlanPopup } from "../hooks/useAddToPlanPopup";
+import { MEAL_TYPE_OPTIONS } from "../constants";
+import { createDateFromIso, getWeekStartIso } from "../dateUtils";
 import type { MealType } from "../types";
-import AddToPlanPopup from "./AddToPlanPopup";
+import AddToPlanModal from "./AddToPlanModal";
+
+const fullDateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
 
 type AddToPlanButtonProps = {
   recipeId: string;
@@ -21,17 +20,11 @@ type AddToPlanButtonProps = {
   initialMealType?: MealType;
 };
 
-const getDefaultWeekStartIso = (initialDay?: string): string =>
-  initialDay
-    ? getWeekStartIso(createDateFromIso(initialDay))
-    : shiftWeekStartIso(getWeekStartIso(new Date()), 1);
-
 /** Standalone "Add to plan" trigger for pages outside the meal planner
- *  (e.g. the recipe detail page). Reuses the same popup used by the
- *  planner's calendar, and lets you step to other weeks just like the
- *  planner does. Scoped to the given day's week when arriving from a
- *  meal slot's "Search recipes" link; otherwise defaults to *next*
- *  week, since the current week is often already planned. */
+ *  (e.g. the recipe detail page). Opens the same weekly calendar used by
+ *  the planner itself, scoped to the given day's week when arriving from
+ *  a meal slot's "Search recipes" link, otherwise defaulting to *next*
+ *  week since the current week is often already planned. */
 export default function AddToPlanButton({
   recipeId,
   recipeTitle,
@@ -40,9 +33,7 @@ export default function AddToPlanButton({
   initialMealType,
 }: AddToPlanButtonProps) {
   const navigate = useNavigate();
-  const [weekStartIso, setWeekStartIso] = useState(() => getDefaultWeekStartIso(initialDay));
-  const weekDays = getWeekDays(weekStartIso);
-  const weekLabel = formatWeekRangeLabel(weekStartIso);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addedTo, setAddedTo] = useState<{
@@ -51,83 +42,58 @@ export default function AddToPlanButton({
     dayLabel: string;
   } | null>(null);
 
-  const popup = useAddToPlanPopup({
-    weekDays,
-    defaultDay: initialDay ?? weekDays[0]?.dateIso ?? "",
-    defaultMealType: initialMealType ?? DEFAULT_MEAL_TYPE,
-    onAssignRecipe: async (assignedRecipeId, plannedFor, mealType, servingsOverride) => {
-      setIsAssigning(true);
-      setError(null);
-      setAddedTo(null);
-      try {
-        await addMealPlanItem({
-          weekStartIso,
-          plannedFor,
-          mealType,
-          recipeId: assignedRecipeId,
-          servingsOverride,
-        });
-        const dayLabel =
-          weekDays.find((day) => day.dateIso === plannedFor)?.fullLabel ?? plannedFor;
-        setAddedTo({ plannedFor, mealType, dayLabel });
-      } catch (assignError) {
-        setError(
-          assignError instanceof Error ? assignError.message : "Failed to add recipe to plan."
-        );
-      } finally {
-        setIsAssigning(false);
-      }
-    },
-  });
-
-  const shiftWeek = (nextWeekStartIso: string) => {
-    const dayIndex = weekDays.findIndex((day) => day.dateIso === popup.draftDay);
-    const nextWeekDays = getWeekDays(nextWeekStartIso);
-    const nextDay = nextWeekDays[dayIndex >= 0 ? dayIndex : 0];
-    setWeekStartIso(nextWeekStartIso);
-    if (nextDay) {
-      popup.setDraftDay(nextDay.dateIso);
+  const handleConfirm = async (
+    plannedFor: string,
+    mealType: MealType,
+    servingsOverride: number | null
+  ) => {
+    setIsAssigning(true);
+    setError(null);
+    setAddedTo(null);
+    try {
+      await addMealPlanItem({
+        weekStartIso: getWeekStartIso(createDateFromIso(plannedFor)),
+        plannedFor,
+        mealType,
+        recipeId,
+        servingsOverride,
+      });
+      setIsModalOpen(false);
+      setAddedTo({
+        plannedFor,
+        mealType,
+        dayLabel: fullDateFormatter.format(createDateFromIso(plannedFor)),
+      });
+    } catch (assignError) {
+      setError(
+        assignError instanceof Error ? assignError.message : "Failed to add recipe to plan."
+      );
+    } finally {
+      setIsAssigning(false);
     }
   };
 
-  const handleClose = () => {
-    popup.close();
-    setWeekStartIso(getDefaultWeekStartIso(initialDay));
-  };
-
   return (
-    <div className="add-to-plan-anchor" ref={popup.anchorRef}>
-      {popup.isOpen ? (
-        <AddToPlanPopup
-          popupRef={popup.popupRef}
-          placement={popup.popupPlacement}
-          maxHeightPx={popup.popupMaxHeightPx}
-          recipeTitle={popup.pendingRecipeTitle}
-          recipeServings={popup.pendingRecipeServings}
-          weekLabel={weekLabel}
-          weekDays={weekDays}
-          onShiftWeek={(weekOffset) => shiftWeek(shiftWeekStartIso(weekStartIso, weekOffset))}
-          onJumpToCurrentWeek={() => shiftWeek(getWeekStartIso(new Date()))}
-          draftDay={popup.draftDay}
-          onDraftDayChange={popup.setDraftDay}
-          draftMealType={popup.draftMealType}
-          onDraftMealTypeChange={popup.setDraftMealType}
-          draftServings={popup.draftServings}
-          onDraftServingsChange={popup.setDraftServings}
-          onCancel={handleClose}
-          onConfirm={() => {
-            void popup.confirm();
-          }}
-          confirmDisabled={!popup.draftDay || isAssigning}
-          confirmLabel={isAssigning ? "Adding..." : "Add recipe"}
+    <div className="add-to-plan-anchor">
+      {isModalOpen ? (
+        <AddToPlanModal
+          recipeTitle={recipeTitle}
+          recipeServings={recipeServings}
+          initialDay={initialDay}
+          initialMealType={initialMealType}
+          onCancel={() => setIsModalOpen(false)}
+          onConfirm={handleConfirm}
+          confirming={isAssigning}
         />
       ) : null}
 
       <button
         type="button"
         className="btn btn--ghost"
-        onClick={() => popup.open({ id: recipeId, title: recipeTitle, servings: recipeServings })}
-        disabled={!weekDays[0]}
+        onClick={() => {
+          setError(null);
+          setIsModalOpen(true);
+        }}
       >
         Add to Plan
       </button>
