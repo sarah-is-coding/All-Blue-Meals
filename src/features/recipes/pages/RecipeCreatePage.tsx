@@ -4,17 +4,12 @@ import RecipeFormFields from "../components/RecipeFormFields";
 import { useRecipeActions } from "../queries";
 import type { ImportedRecipe } from "../types";
 import {
-  addSubstituteRow,
-  createEmptyIngredient,
   createEmptyRecipeFormValues,
   mapRecipeFormValuesToInput,
-  removeIngredientRow,
   type RecipeFormValues,
 } from "../utils/recipeForm";
+import { createRecipeFormHandlers } from "../utils/recipeFormHandlers";
 import { mapImportedRecipeToFormValues } from "../utils/recipeImport";
-
-type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
-type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
 
 type RecipeCreateLocationState = {
   importedRecipe?: ImportedRecipe;
@@ -45,58 +40,7 @@ export default function RecipeCreatePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFieldChange = (field: RecipeFieldName, value: string) => {
-    setValues((previousValues) => ({ ...previousValues, [field]: value }));
-  };
-
-  const handleIngredientChange = (
-    ingredientId: string,
-    field: RecipeIngredientFieldName,
-    value: string
-  ) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: previousValues.ingredients.map((ingredient) =>
-        ingredient.id === ingredientId ? { ...ingredient, [field]: value } : ingredient
-      ),
-    }));
-  };
-
-  const handleIngredientSelect = (
-    rowId: string,
-    ingredientId: string,
-    name: string
-  ) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: previousValues.ingredients.map((ingredient) =>
-        ingredient.id === rowId
-          ? { ...ingredient, ingredientId, ingredientName: name }
-          : ingredient
-      ),
-    }));
-  };
-
-  const handleAddIngredient = () => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: [...previousValues.ingredients, createEmptyIngredient()],
-    }));
-  };
-
-  const handleAddSubstitute = (mainRowId: string) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: addSubstituteRow(previousValues.ingredients, mainRowId),
-    }));
-  };
-
-  const handleRemoveIngredient = (rowId: string) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: removeIngredientRow(previousValues.ingredients, rowId),
-    }));
-  };
+  const formHandlers = createRecipeFormHandlers((change) => setValues(change));
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -135,12 +79,7 @@ export default function RecipeCreatePage() {
         <RecipeFormFields
           values={values}
           readOnly={false}
-          onFieldChange={handleFieldChange}
-          onIngredientChange={handleIngredientChange}
-          onIngredientSelect={handleIngredientSelect}
-          onAddIngredient={handleAddIngredient}
-          onAddSubstitute={handleAddSubstitute}
-          onRemoveIngredient={handleRemoveIngredient}
+          {...formHandlers}
         />
 
         <div className="recipe-form__actions">

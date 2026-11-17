@@ -1,22 +1,11 @@
 import type { RecipeFormValues } from "../utils/recipeForm";
+import type { RecipeFormHandlers } from "../utils/recipeFormHandlers";
 import { groupSubstitutes } from "../utils/ingredientGroups";
-import RecipeIngredientCard, { type RecipeIngredientFieldName } from "./RecipeIngredientCard";
+import RecipeIngredientCard from "./RecipeIngredientCard";
 
-type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
-
-type RecipeFormFieldsProps = {
+type RecipeFormFieldsProps = RecipeFormHandlers & {
   values: RecipeFormValues;
   readOnly: boolean;
-  onFieldChange: (field: RecipeFieldName, value: string) => void;
-  onIngredientChange: (
-    rowId: string,
-    field: RecipeIngredientFieldName,
-    value: string
-  ) => void;
-  onIngredientSelect: (rowId: string, ingredientId: string, name: string) => void;
-  onAddIngredient: () => void;
-  onAddSubstitute: (mainRowId: string) => void;
-  onRemoveIngredient: (rowId: string) => void;
 };
 
 export default function RecipeFormFields({

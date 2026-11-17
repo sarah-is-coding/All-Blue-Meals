@@ -1,7 +1,5 @@
-import type { RecipeFormIngredient } from "../utils/recipeForm";
+import type { RecipeFormIngredient, RecipeIngredientFieldName } from "../utils/recipeForm";
 import IngredientNameCombobox from "./IngredientNameCombobox";
-
-export type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
 
 type RecipeIngredientCardProps = {
   ingredient: RecipeFormIngredient;

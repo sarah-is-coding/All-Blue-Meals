@@ -7,6 +7,7 @@ import {
   type IngredientMatch,
 } from "../../ingredients/types";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
+import IngredientCategoryPicker from "./IngredientCategoryPicker";
 
 type Phase = "search" | "categorize";
 
@@ -278,44 +279,17 @@ export default function IngredientNameCombobox({
 
       {/* ── Phase 2: category picker ─────────────────────────── */}
       {showCategorizeDropdown && (
-        <div className="ingredient-combobox__dropdown ingredient-combobox__categorize">
-          <div className="ingredient-combobox__categorize-header">
-            <button
-              type="button"
-              className="ingredient-combobox__back"
-              onMouseDown={() => {
-                setPhase("search");
-                setActiveIndex(-1);
-              }}
-            >
-              ← back
-            </button>
-            <span className="ingredient-combobox__categorize-label">
-              {`Pick a category for "${query.trim()}"`}
-            </span>
-          </div>
-          <div className="ingredient-combobox__category-pills" role="listbox">
-            {INGREDIENT_CATEGORIES.map((cat, idx) => (
-              <button
-                key={cat}
-                type="button"
-                role="option"
-                aria-selected={activeIndex === idx}
-                disabled={creating}
-                className={[
-                  "ingredient-combobox__pill",
-                  activeIndex === idx ? "ingredient-combobox__pill--active" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onMouseDown={() => void commitNew(cat)}
-                onMouseEnter={() => setActiveIndex(idx)}
-              >
-                {creating && activeIndex === idx ? "Adding…" : cat}
-              </button>
-            ))}
-          </div>
-        </div>
+        <IngredientCategoryPicker
+          name={query.trim()}
+          activeIndex={activeIndex}
+          creating={creating}
+          onActiveIndexChange={setActiveIndex}
+          onPick={(category) => void commitNew(category)}
+          onBack={() => {
+            setPhase("search");
+            setActiveIndex(-1);
+          }}
+        />
       )}
     </div>
   );

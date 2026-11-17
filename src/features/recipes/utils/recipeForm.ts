@@ -14,6 +14,12 @@ export type RecipeFormIngredient = {
   substituteFor: string | null;
 };
 
+/** Ingredient fields edited as plain text (name and id change through the combobox). */
+export type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
+
+/** Recipe fields edited as plain text. */
+export type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
+
 export type RecipeFormValues = {
   title: string;
   description: string;
