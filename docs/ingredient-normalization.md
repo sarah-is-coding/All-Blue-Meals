@@ -606,6 +606,7 @@ Each is its own commit; the app works after every one.
    `mergeIngredients`, the grocery API select, tests, and AGENTS.md. Skip
    `water`. Substitutes as options: `grocery_items.substitutes` migration,
    attach and merge them in generation, and the "N options" toggle on items.
+   **Done.**
 7. **Cleanup script → reviewed mapping → data migration.** Names, notes,
    units, junk values, "or" rows, merges; matched by name; collision check.
    Merged-away names become `merge` alias rows of the kept ingredient; the

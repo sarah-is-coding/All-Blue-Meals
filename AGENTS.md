@@ -223,8 +223,9 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 - Optimistic UI allowed  
 
 **Merge rules**
-- Same `ingredient_name` + `unit` → merge quantities  
+- Same catalog ingredient (`ingredient_id`) + normalized unit (`normalizeUnit`: "cups" = "cup") → merge quantities  
 - Otherwise keep separate rows  
+- Water is left off; substitutes ("or avocado oil") are shown as options on their item, never as items to buy  
 
 ---
 

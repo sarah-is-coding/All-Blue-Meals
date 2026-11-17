@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   groupItemsByCategory,
+  isWater,
   mergeIngredients,
 } from "../../../../features/grocery/utils/groceryGeneration";
 import type { IngredientCategory } from "../../../../features/ingredients/types";
@@ -23,7 +24,7 @@ describe("mergeIngredients", () => {
   it("passes a single ingredient through unchanged", () => {
     const result = mergeIngredients([ing("butter", "2", "tbsp", "dairy & eggs")]);
     expect(result).toEqual([
-      { ingredientName: "butter", quantity: "2", unit: "tbsp", category: "dairy & eggs" },
+      { ingredientName: "butter", quantity: "2", unit: "tbsp", category: "dairy & eggs", substitutes: [] },
     ]);
   });
 
@@ -33,7 +34,7 @@ describe("mergeIngredients", () => {
       ing("flour", "2", "cup", "pantry"),
     ]);
     expect(result).toEqual([
-      { ingredientName: "flour", quantity: "3", unit: "cup", category: "pantry" },
+      { ingredientName: "flour", quantity: "3", unit: "cup", category: "pantry", substitutes: [] },
     ]);
   });
 
@@ -76,7 +77,7 @@ describe("mergeIngredients", () => {
       ing("garlic", "2-3", "clove", "produce"),
     ]);
     expect(result).toEqual([
-      { ingredientName: "garlic", quantity: "1 + 2-3", unit: "clove", category: "produce" },
+      { ingredientName: "garlic", quantity: "1 + 2-3", unit: "clove", category: "produce", substitutes: [] },
     ]);
   });
 
@@ -184,6 +185,86 @@ describe("mergeIngredients", () => {
       ing("eggs", "3", ""),
     ]);
     expect(result[0].quantity).toBe("6");
+  });
+});
+
+// Step 6 of docs/ingredient-normalization.md: merge on the catalog
+// ingredient and a normalized unit, skip water, keep substitutes as options.
+describe("mergeIngredients: catalog ingredients, units, water, substitutes", () => {
+  it("merges rows of the same catalog ingredient even when the names differ", () => {
+    const result = mergeIngredients([
+      { ingredientId: "i-onion", ingredientName: "onion", quantity: "1", unit: "", category: "produce" },
+      { ingredientId: "i-onion", ingredientName: "onions", quantity: "2", unit: "", category: "produce" },
+    ]);
+    expect(result).toEqual([
+      { ingredientName: "onion", quantity: "3", unit: "", category: "produce", substitutes: [] },
+    ]);
+  });
+
+  it("merges plural and singular names without an id by their key", () => {
+    const result = mergeIngredients([ing("tomato", "1", ""), ing("Tomatoes", "2", "")]);
+    expect(result.map((r) => r.quantity)).toEqual(["3"]);
+  });
+
+  it("merges different spellings of the same unit", () => {
+    const result = mergeIngredients([
+      ing("flour", "1", "cups", "pantry"),
+      ing("flour", "1", "Cup", "pantry"),
+      ing("flour", "2", "Tablespoons", "pantry"),
+    ]);
+    expect(result.map((r) => [r.quantity, r.unit])).toEqual([
+      ["2", "cup"],
+      ["2", "tbsp"],
+    ]);
+  });
+
+  it("leaves water off the list, but not other waters you buy", () => {
+    const result = mergeIngredients([
+      ing("water", "2", "cup"),
+      ing("warm water", "1", "cup"),
+      ing("boiling filtered water", "4", "cup"),
+      ing("coconut water", "1", "can"),
+    ]);
+    expect(result.map((r) => r.ingredientName)).toEqual(["coconut water"]);
+  });
+
+  it("shows substitutes as options, merged across recipes and without the item itself", () => {
+    const avocado = (quantity: string) => ({
+      ingredientId: "i-avo", ingredientName: "avocado oil", quantity, unit: "tbsp", category: "pantry" as const,
+    });
+    const result = mergeIngredients([
+      { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "2", unit: "tbsp", category: "pantry",
+        substitutes: [avocado("2")] },
+      { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "1", unit: "tbsp", category: "pantry",
+        substitutes: [avocado("1"), { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "1", unit: "tbsp", category: "pantry" }] },
+      { ingredientId: "i-ghee", ingredientName: "ghee", quantity: "1", unit: "tbsp", category: "pantry" },
+    ]);
+    expect(result).toEqual([
+      { ingredientName: "ghee", quantity: "1", unit: "tbsp", category: "pantry", substitutes: [] },
+      { ingredientName: "olive oil", quantity: "3", unit: "tbsp", category: "pantry", substitutes: ["avocado oil, 3 tbsp"] },
+    ]);
+  });
+
+  it("shows an option without an amount by name only", () => {
+    const result = mergeIngredients([
+      { ingredientName: "parsley", quantity: "", unit: "", category: "produce",
+        substitutes: [{ ingredientName: "cilantro", quantity: "", unit: "", category: "produce" }] },
+    ]);
+    expect(result[0]!.substitutes).toEqual(["cilantro"]);
+  });
+});
+
+describe("isWater", () => {
+  it("recognises plain water with size or state words", () => {
+    for (const name of ["water", "Warm water", "boiling water", "filtered water", "ice water"]) {
+      expect(isWater(name)).toBe(true);
+    }
+  });
+
+  it("doesn't treat waters you buy as water", () => {
+    for (const name of ["coconut water", "tonic water", "rose water", "sparkling water", ""]) {
+      expect(isWater(name)).toBe(false);
+    }
   });
 });
 

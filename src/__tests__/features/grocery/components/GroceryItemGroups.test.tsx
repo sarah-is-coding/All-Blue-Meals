@@ -9,6 +9,7 @@ const item = (id: string, ingredientName: string, overrides: Partial<GroceryItem
   unit: "",
   isChecked: false,
   category: null,
+  substitutes: [],
   ...overrides,
 });
 
@@ -46,5 +47,40 @@ describe("GroceryItemGroups", () => {
     render(<GroceryItemGroups items={ITEMS} onToggle={vi.fn()} savingItemId="2" />);
     expect(screen.getByRole("checkbox", { name: /milk/ })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: /apples/ })).toBeEnabled();
+  });
+});
+
+// Step 6 of docs/ingredient-normalization.md: substitutes as options.
+describe("GroceryItemGroups substitute options", () => {
+  it("shows an options toggle only on items with substitutes, collapsed at first", () => {
+    render(
+      <GroceryItemGroups
+        items={[
+          item("1", "olive oil", { substitutes: ["avocado oil, 2 tbsp", "ghee, 2 tbsp"] }),
+          item("2", "salt"),
+        ]}
+        onToggle={() => {}}
+      />
+    );
+    const toggle = screen.getByRole("button", { name: "2 options" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("or avocado oil, 2 tbsp")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("expands and collapses the options without checking the item", () => {
+    const onToggle = vi.fn();
+    render(
+      <GroceryItemGroups items={[item("1", "olive oil", { substitutes: ["avocado oil, 2 tbsp"] })]} onToggle={onToggle} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "1 option" }));
+    expect(screen.getByRole("list", { name: "Options for olive oil" })).toBeInTheDocument();
+    expect(screen.getByText("or avocado oil, 2 tbsp")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1 option" })).toHaveAttribute("aria-expanded", "true");
+    expect(onToggle).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "1 option" }));
+    expect(screen.queryByText("or avocado oil, 2 tbsp")).not.toBeInTheDocument();
   });
 });

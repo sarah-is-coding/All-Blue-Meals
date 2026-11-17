@@ -23,6 +23,7 @@ export type Database = {
           is_checked: boolean
           list_id: string
           quantity: string | null
+          substitutes: string[]
           unit: string | null
         }
         Insert: {
@@ -33,6 +34,7 @@ export type Database = {
           is_checked?: boolean
           list_id: string
           quantity?: string | null
+          substitutes?: string[]
           unit?: string | null
         }
         Update: {
@@ -43,6 +45,7 @@ export type Database = {
           is_checked?: boolean
           list_id?: string
           quantity?: string | null
+          substitutes?: string[]
           unit?: string | null
         }
         Relationships: [

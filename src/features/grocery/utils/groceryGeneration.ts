@@ -2,15 +2,28 @@ import {
   INGREDIENT_CATEGORIES,
   type IngredientCategory,
 } from "../../ingredients/types";
+import { ingredientKey } from "../../ingredients/utils/ingredientKey";
+import { parseName } from "../../ingredients/utils/ingredientText";
 import { parseQuantityNumber } from "../../../lib/utils/quantities";
+import { normalizeUnit } from "../../../lib/utils/units";
 import type { GroceryItemDraft } from "../types";
 
-type ScaledIngredient = {
+export type ScaledIngredient = {
+  /** Catalog ingredient id; rows merge on it. Falls back to the name's key when missing. */
+  ingredientId?: string;
   ingredientName: string;
   quantity: string;
   unit: string;
   category: IngredientCategory | null;
+  /** Alternatives shown as options on the item, not bought ("or avocado oil"). */
+  substitutes?: ScaledIngredient[];
 };
+
+// Water is in recipes but not something to buy. Matched after size/state
+// words are dropped, so "warm water" and "boiling water" count; "coconut
+// water" or "tonic water" don't.
+const WATER_KEYS = new Set(["water", "filteredwater", "tapwater", "coldwater", "icewater", "hotwater"]);
+export const isWater = (name: string): boolean => WATER_KEYS.has(ingredientKey(parseName(name.toLowerCase()).name));
 
 /** Display label for each ingredient category. */
 const CATEGORY_LABELS: Record<IngredientCategory, string> = {
@@ -39,14 +52,23 @@ function formatMergedQuantity(value: number): string {
   return rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+/** "avocado oil, 2 tbsp" (or just the name when there's no amount). */
+const formatOption = (draft: GroceryItemDraft): string => {
+  const amount = [draft.quantity, draft.unit].filter(Boolean).join(" ");
+  return amount ? `${draft.ingredientName}, ${amount}` : draft.ingredientName;
+};
+
 /**
  * Merge a flat list of (possibly duplicated) scaled ingredients into a
  * de-duped grocery list, sorted by ingredient category then alphabetically.
  *
- * Grouping key: lower-cased ingredient name + lower-cased unit.
+ * Grouping key: the catalog ingredient (or the name's key when there's no
+ * id) + the normalized unit, so "onions, 2 cups" and "onion, 1 cup" merge.
  * Numeric amounts ("2", "1 1/2") are summed. Amounts that aren't numbers
  * ("2-3", "a pinch", "to taste") are never dropped: each distinct one is kept
  * alongside the total, e.g. "1 + 2-3", so nothing is silently under-bought.
+ * Water is left off. Substitutes become text options on their item, merged
+ * the same way, without repeating the item itself.
  */
 export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDraft[] {
   type Bucket = {
@@ -56,16 +78,19 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
     /** Distinct non-numeric amounts, in first-seen order. */
     otherAmounts: string[];
     category: IngredientCategory | null;
+    substitutes: ScaledIngredient[];
+    identity: string;
   };
 
   const buckets = new Map<string, Bucket>();
 
   for (const ing of ingredients) {
     const nameTrimmed = ing.ingredientName.trim();
-    const unitTrimmed = ing.unit.trim();
-    if (!nameTrimmed) continue;
+    if (!nameTrimmed || isWater(nameTrimmed)) continue;
 
-    const key = `${nameTrimmed.toLowerCase()}|${unitTrimmed.toLowerCase()}`;
+    const unit = normalizeUnit(ing.unit).unit;
+    const identity = ing.ingredientId || ingredientKey(nameTrimmed);
+    const key = `${identity}|${unit}`;
     const rawQty = ing.quantity.trim();
     const qty = rawQty ? parseQuantityNumber(rawQty) : null;
 
@@ -73,10 +98,12 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
     if (!bucket) {
       bucket = {
         ingredientName: nameTrimmed,
-        unit: unitTrimmed,
+        unit,
         numericTotal: null,
         otherAmounts: [],
         category: ing.category,
+        substitutes: [],
+        identity,
       };
       buckets.set(key, bucket);
     }
@@ -89,10 +116,11 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
     ) {
       bucket.otherAmounts.push(rawQty);
     }
+    bucket.substitutes.push(...(ing.substitutes ?? []));
   }
 
   return Array.from(buckets.values())
-    .map(({ ingredientName, unit, numericTotal, otherAmounts, category }) => ({
+    .map(({ ingredientName, unit, numericTotal, otherAmounts, category, substitutes, identity }) => ({
       ingredientName,
       unit,
       quantity: [
@@ -100,6 +128,9 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
         ...otherAmounts,
       ].join(" + "),
       category,
+      substitutes: mergeIngredients(
+        substitutes.filter((option) => (option.ingredientId || ingredientKey(option.ingredientName)) !== identity)
+      ).map(formatOption),
     }))
     .sort((a, b) => {
       const catA = CATEGORY_ORDER.get(a.category ?? "other") ?? INGREDIENT_CATEGORIES.length;
