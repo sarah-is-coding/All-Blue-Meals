@@ -6,7 +6,7 @@ import {
 } from "../../../utils/renderWithProviders";
 import { mealPlanKeys } from "../../../../features/meal-plans/queries";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import RecipeDetailPage from "../../../../features/recipes/pages/RecipeDetailPage";
 import { getWeekDays } from "../../../../features/meal-plans/utils/weekDays";
 import { getWeekStartIso, shiftWeekStartIso, toIsoDate } from "../../../../lib/utils/dates";
@@ -109,6 +109,67 @@ const renderPageWithMealSlot = (mealSlot: { date: string; mealType: string }) =>
       </Routes>
     </MemoryRouter>
   );
+
+/** Render the detail page reached with `state`, plus a stand-in recipes list
+ *  that shows the location state it was returned to with. */
+const renderPageArrivingWith = (state: Record<string, unknown> | undefined) =>
+  renderWithProviders(
+    <MemoryRouter initialEntries={[{ pathname: "/app/recipes/recipe-1", state }]}>
+      <Routes>
+        <Route path="/app/recipes/:recipeId" element={<RecipeDetailPage />} />
+        <Route path="/app/recipes" element={<RecipesListStandIn />} />
+        <Route path="/app/meal-plans" element={<p>Meal planner page</p>} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+function RecipesListStandIn() {
+  const location = useLocation();
+  return <p>Recipes list page, state: {JSON.stringify(location.state)}</p>;
+}
+
+describe("RecipeDetailPage — back links follow how you arrived", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetRecipeById.mockResolvedValue(recipe);
+    mockListPlannedMealsForWeek.mockResolvedValue([]);
+  });
+
+  const backLinkNames = async () => {
+    await screen.findByRole("heading", { name: recipe.title }, { timeout: 1500 });
+    return screen
+      .getAllByRole("link", { name: /^back to/i })
+      .map((link) => link.textContent);
+  };
+
+  it("from the recipes list: back to recipes only", async () => {
+    renderPageArrivingWith(undefined);
+    expect(await backLinkNames()).toEqual(["Back to Recipes"]);
+  });
+
+  it("opened from a meal on the planner: back to the planner only", async () => {
+    renderPageArrivingWith({ from: "meal-planner", plannedMealId: "meal-1", initialServings: 4 });
+    expect(await backLinkNames()).toEqual(["Back to Meal Planner"]);
+  });
+
+  it("picking a recipe for a planner slot: back to the recipes list or the planner", async () => {
+    renderPageArrivingWith({ from: "meal-planner", mealSlot: { date: "2026-11-17", mealType: "dinner" } });
+    expect(await backLinkNames()).toEqual(["Back to Recipes", "Back to Meal Planner"]);
+  });
+
+  it("going back to the list keeps the slot being picked for", async () => {
+    const user = userEvent.setup();
+    const mealSlot = { date: "2026-11-17", mealType: "dinner" };
+    renderPageArrivingWith({ from: "meal-planner", mealSlot });
+    await backLinkNames();
+
+    await user.click(screen.getByRole("link", { name: "Back to Recipes" }));
+    // The list gets the slot back, so its "Picking a recipe for…" banner stays.
+    expect(
+      await screen.findByText(`Recipes list page, state: ${JSON.stringify({ mealSlot })}`)
+    ).toBeInTheDocument();
+  });
+});
 
 describe("RecipeDetailPage", () => {
   beforeEach(() => {

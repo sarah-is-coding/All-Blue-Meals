@@ -50,8 +50,27 @@ export default function RecipeDetailPage() {
   const recipeActions = useRecipeActions();
   const locationState = (location.state ?? null) as RecipeDetailLocationState | null;
   const isFromMealPlanner = locationState?.from === "meal-planner";
-  const backTo = isFromMealPlanner ? "/app/meal-plans" : "/app/recipes";
-  const backLabel = isFromMealPlanner ? "Back to Meal Planner" : "Back to Recipes";
+  // Offer a way back along the path that led here. Picking a recipe for a
+  // planner slot goes planner → recipes list → recipe, so both are offered;
+  // the list keeps its "Picking a recipe for…" banner (and its saved search).
+  // A meal opened straight from the planner only came from the planner.
+  const pickingForSlot = locationState?.mealSlot;
+  const backLinks: Array<{ to: string; label: string; state?: { mealSlot: { date: string; mealType: MealType } } }> = [];
+  if (!isFromMealPlanner || pickingForSlot) {
+    backLinks.push({
+      to: "/app/recipes",
+      label: "Back to Recipes",
+      state: pickingForSlot ? { mealSlot: pickingForSlot } : undefined,
+    });
+  }
+  if (isFromMealPlanner) {
+    backLinks.push({ to: "/app/meal-plans", label: "Back to Meal Planner" });
+  }
+  const backLinkElements = backLinks.map((link) => (
+    <Link key={link.to} className="btn btn--ghost" to={link.to} state={link.state}>
+      {link.label}
+    </Link>
+  ));
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -311,9 +330,7 @@ export default function RecipeDetailPage() {
         <article className="workspace-card recipe-empty-state">
           <h1>Recipe not found</h1>
           <p>This recipe may have been removed or you might not have access.</p>
-          <Link className="btn btn--ghost" to={backTo}>
-            {backLabel}
-          </Link>
+          {backLinkElements}
         </article>
       </section>
     );
@@ -346,9 +363,7 @@ export default function RecipeDetailPage() {
             ) : null}
           </div>
           <div className="recipe-page-header__actions">
-            <Link className="btn btn--ghost" to={backTo}>
-              {backLabel}
-            </Link>
+            {backLinkElements}
             {!editing && recipeId ? (
               <AddToPlanButton
                 recipeId={recipeId}
