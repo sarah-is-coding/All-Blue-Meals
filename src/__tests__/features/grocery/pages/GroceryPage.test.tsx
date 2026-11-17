@@ -19,10 +19,11 @@ vi.mock("../../../../features/grocery/api", () => ({
   deleteGroceryList: vi.fn(),
 }));
 
-// The saved-plan picker searches saved plans.
+// The saved-plan list searches saved plans and previews the picked one.
 vi.mock("../../../../features/meal-plans/api", () => ({
   searchSavedMealPlans: vi.fn(),
   listPlannedMealsBetween: vi.fn(),
+  previewSavedMealPlan: vi.fn(),
 }));
 
 // Mock the calendar with fixed day buttons; its month grid has its own tests.
@@ -51,7 +52,11 @@ import {
   buildGroceryItemsForRange,
   saveGroceryList,
 } from "../../../../features/grocery/api";
-import { listPlannedMealsBetween, searchSavedMealPlans } from "../../../../features/meal-plans/api";
+import {
+  listPlannedMealsBetween,
+  previewSavedMealPlan,
+  searchSavedMealPlans,
+} from "../../../../features/meal-plans/api";
 import type { PlannedMeal } from "../../../../features/meal-plans/types";
 
 const T = { timeout: 1500 };
@@ -87,9 +92,11 @@ function savedListFor(origin: GroceryListOrigin, items: GroceryItemDraft[]): Gro
   };
 }
 
-function renderPage() {
+function renderPage(
+  initialEntries?: Parameters<typeof MemoryRouter>[0]["initialEntries"]
+) {
   renderWithProviders(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <GroceryPage />
     </MemoryRouter>
   );
@@ -109,6 +116,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(searchSavedMealPlans).mockResolvedValue([SAVED_PLAN]);
   vi.mocked(listPlannedMealsBetween).mockResolvedValue([]);
+  vi.mocked(previewSavedMealPlan).mockResolvedValue([]);
   vi.mocked(buildGroceryItemsForRange).mockResolvedValue(RANGE_ITEMS);
   vi.mocked(buildGroceryItemsForSavedPlan).mockResolvedValue(SAVED_PLAN_ITEMS);
   vi.mocked(saveGroceryList).mockImplementation(async (_title, origin, items) => savedListFor(origin, items));
@@ -188,13 +196,44 @@ describe("GroceryPage — building from dates", () => {
   });
 });
 
+describe("GroceryPage — ticking items before saving", () => {
+  it("checks and unchecks just the item clicked on an unsaved list", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await build(user);
+
+    const beef = await screen.findByRole("checkbox", { name: /ground beef/ }, T);
+    const tortillas = screen.getByRole("checkbox", { name: /tortillas/ });
+    await user.click(beef);
+    expect(beef).toBeChecked();
+    expect(tortillas).not.toBeChecked();
+    expect(screen.getByText("1/2 checked")).toBeInTheDocument();
+
+    await user.click(beef);
+    expect(beef).not.toBeChecked();
+    expect(screen.getByText("0/2 checked")).toBeInTheDocument();
+  });
+
+  it("starts a rebuilt list fresh, with nothing ticked", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await build(user);
+    await user.click(await screen.findByRole("checkbox", { name: /ground beef/ }, T));
+    expect(screen.getByText("1/2 checked")).toBeInTheDocument();
+
+    await build(user);
+    expect(await screen.findByText("0/2 checked", undefined, T)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /ground beef/ })).not.toBeChecked();
+  });
+});
+
 describe("GroceryPage — building from a saved plan", () => {
   it("builds from the chosen saved plan and saves the list linked to it, with every item", async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /or use a saved plan/i }));
-    await user.click(await screen.findByRole("button", { name: /Lean week/ }, T));
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    await user.click(await screen.findByRole("button", { name: /^Lean week/ }, T));
     await build(user);
     for (const item of SAVED_PLAN_ITEMS) {
       expect(await screen.findByText(item.ingredientName, undefined, T)).toBeInTheDocument();
@@ -215,8 +254,8 @@ describe("GroceryPage — building from a saved plan", () => {
     await build(user);
     expect(await screen.findByText("tortillas", undefined, T)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /or use a saved plan/i }));
-    await user.click(await screen.findByRole("button", { name: /Lean week/ }, T));
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    await user.click(await screen.findByRole("button", { name: /^Lean week/ }, T));
     expect(screen.queryByText("tortillas")).not.toBeInTheDocument();
 
     await build(user);
@@ -228,15 +267,120 @@ describe("GroceryPage — building from a saved plan", () => {
     expect(items).toEqual(SAVED_PLAN_ITEMS);
   });
 
-  it("'Back to dates' returns to this week's range", async () => {
+  // The "← Back to dates" button was replaced by the Browse plans tabs:
+  // each tab keeps its own choice, and the open tab is what gets built.
+  it("switching back to the Calendar tab builds from the dates you had", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-05-28" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-06-08" } });
+
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    await user.click(await screen.findByRole("button", { name: /^Lean week/ }, T));
+    await user.click(screen.getByRole("tab", { name: "Calendar" }));
+
+    expect(screen.getByLabelText("From")).toHaveValue("2026-05-28");
+    await build(user);
+    await waitFor(() =>
+      expect(buildGroceryItemsForRange).toHaveBeenCalledWith("2026-05-28", "2026-06-08"), T
+    );
+    expect(buildGroceryItemsForSavedPlan).not.toHaveBeenCalled();
+  });
+
+  it("can't build from the Saved plans tab until a plan is picked", async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /or use a saved plan/i }));
-    await user.click(await screen.findByRole("button", { name: /Lean week/ }, T));
-    await user.click(screen.getByRole("button", { name: "← Back to dates" }));
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeDisabled();
+    expect(screen.getByText("Pick a saved plan to build from.")).toBeInTheDocument();
 
-    expect(screen.getByLabelText("From")).toHaveValue(THIS_WEEK);
+    // Behavior change: clicking a plan only picks it (aria-pressed); its
+    // meals preview opens from the separate arrow button instead.
+    const plan = await screen.findByRole("button", { name: /^Lean week/ }, T);
+    await user.click(plan);
+    expect(plan).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Show meals in Lean week" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeEnabled();
+  });
+
+  it("opens and closes a plan's meals preview with its arrow, without picking it", async () => {
+    vi.mocked(previewSavedMealPlan).mockResolvedValue([
+      { dateIso: "2026-06-01", recipes: ["Chili", "Salad"] },
+    ]);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    await user.click(await screen.findByRole("button", { name: "Show meals in Lean week" }, T));
+    expect(await screen.findByText("Chili · Salad", undefined, T)).toBeInTheDocument();
+    expect(previewSavedMealPlan).toHaveBeenCalledWith("plan-saved");
+    expect(screen.getByRole("button", { name: /^Lean week/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Hide meals in Lean week" }));
+    expect(screen.queryByText("Chili · Salad")).not.toBeInTheDocument();
+  });
+
+  it("clicking the picked plan again keeps it picked and keeps its built list", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    const plan = await screen.findByRole("button", { name: /^Lean week/ }, T);
+    await user.click(plan);
+    await build(user);
+    expect(await screen.findByText("lettuce", undefined, T)).toBeInTheDocument();
+
+    await user.click(plan);
+    expect(plan).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("lettuce")).toBeInTheDocument();
+  });
+
+  it("puts Build below the saved plans list", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    const plan = await screen.findByRole("button", { name: /^Lean week/ }, T);
+    const buildBtn = screen.getByRole("button", { name: "Build Grocery List" });
+    expect(buildBtn.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+  });
+
+  it("keeps the picked plan when you switch tabs and come back", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    await user.click(await screen.findByRole("button", { name: /^Lean week/ }, T));
+    await user.click(screen.getByRole("tab", { name: "Calendar" }));
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+
+    expect(await screen.findByRole("button", { name: /^Lean week/ }, T)).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeEnabled();
+  });
+});
+
+describe("GroceryPage — Browse plans card", () => {
+  it("has the planner's heading and tabs, opening on Calendar", () => {
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Browse plans" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Calendar" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Saved plans" })).toHaveAttribute("aria-selected", "false");
+  });
+
+  // Coming back from the Saved Meal Plans page.
+  it("opens on the Saved plans tab when asked to", () => {
+    renderPage([{ pathname: "/app/grocery", state: { planBrowserTab: "saved" } }]);
+    expect(screen.getByRole("tab", { name: "Saved plans" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("link", { name: "Manage saved plans" })).toBeInTheDocument();
+  });
+
+  it("keeps Build Grocery List visible under both tabs", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeInTheDocument();
   });
 });
 
@@ -293,8 +437,8 @@ describe("GroceryPage — planned meal count", () => {
     renderPage();
     await screen.findByText("No meals planned for these dates", undefined, T);
 
-    await user.click(screen.getByRole("button", { name: /or use a saved plan/i }));
-    await user.click(await screen.findByRole("button", { name: /Lean week/ }, T));
+    await user.click(screen.getByRole("tab", { name: "Saved plans" }));
+    await user.click(await screen.findByRole("button", { name: /^Lean week/ }, T));
     expect(screen.queryByText(/planned for these dates|in these dates/)).not.toBeInTheDocument();
   });
 });

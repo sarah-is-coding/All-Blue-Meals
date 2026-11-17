@@ -29,19 +29,6 @@
   font-size: clamp(1.4rem, 3.5vw, 2rem);
 }
 
-.meal-calendar__manage-link {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-muted-soft);
-}
-
-.meal-calendar__manage-link:hover {
-  color: var(--color-brand-dark);
-  text-decoration: underline;
-}
-
 .meal-calendar__actions {
   display: flex;
   gap: 0.45rem;
@@ -577,34 +564,17 @@
   color: var(--color-brand-dark);
 }
 
-.plan-browser__save-form {
-  display: grid;
+/* ── Saved-plans search row ──────────────────────────────── */
+/* Search box and the "Manage" button: the box stretches to the button's height. */
+.plan-browser__search-row {
+  display: flex;
+  align-items: stretch;
   gap: 0.5rem;
 }
 
-.plan-browser__save-input {
-  width: 100%;
-  padding: 0.42rem 0.65rem;
-  border: 1px solid var(--alpha-slate-44);
-  border-radius: 0.55rem;
-  font-size: 0.9rem;
-  background: var(--color-bg-base);
-  color: var(--color-ink);
-  box-sizing: border-box;
-}
-
-.plan-browser__save-input:focus {
-  outline: none;
-  border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px var(--alpha-brand-20);
-}
-
-/* ── Saved-plans search row ──────────────────────────────── */
-.plan-browser__search-row {
-  display: grid;
-}
-
 .plan-browser__search-input {
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   padding: 0.42rem 0.65rem;
   border: 1px solid var(--alpha-slate-44);
@@ -638,7 +608,7 @@
 
 .saved-plan-list__btn {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 0.4rem;
   align-items: center;
   width: 100%;
@@ -672,10 +642,36 @@
   white-space: nowrap;
 }
 
-.saved-plan-list__chevron {
-  font-size: 0.65rem;
+/* The plan button picks the plan; the arrow opens its preview. */
+.saved-plan-list__row {
+  display: flex;
+}
+
+.saved-plan-list__row .saved-plan-list__btn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.saved-plan-list__toggle {
+  flex: 0 0 auto;
+  min-width: 2.6rem;
+  border: none;
+  border-left: 1px solid var(--alpha-slate-33);
+  background: var(--alpha-bg-248-85);
   color: var(--color-muted-soft);
-  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.saved-plan-list__toggle:hover {
+  background: var(--alpha-brand-12);
+}
+
+/* A tab's main action, full width with its hint below: the planner's Copy
+   and Apply, and the grocery page's Build. */
+.plan-browser__main-action {
+  display: grid;
+  gap: 0.4rem;
 }
 
 .saved-plan-list__detail {

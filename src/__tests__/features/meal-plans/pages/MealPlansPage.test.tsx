@@ -81,6 +81,17 @@ describe("MealPlansPage", () => {
     });
   });
 
+  it("opens Browse plans on Calendar by default", () => {
+    renderPage(["/app/meal-plans"]);
+    expect(screen.getByRole("tab", { name: "Calendar" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  // Coming back from the Saved Meal Plans page.
+  it("opens Browse plans on Saved plans when asked to", () => {
+    renderPage([{ pathname: "/app/meal-plans", state: { planBrowserTab: "saved" } }]);
+    expect(screen.getByRole("tab", { name: "Saved plans" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("falls back to the current week when there is no jumpToDate", async () => {
     const expectedWeekStartIso = getWeekStartIso(new Date());
 

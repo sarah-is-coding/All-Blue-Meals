@@ -16,6 +16,7 @@ import {
   getPlannerStartWeek,
   saveMealPlannerViewState,
 } from "../utils/mealPlannerViewState";
+import { opensSavedPlansTab } from "../utils/savedPlansNavigation";
 
 const isIsoDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -161,6 +162,7 @@ export default function MealPlansPage() {
             onJumpToWeek={changeWeek}
             onCopyRange={handleCopyRange}
             onApplySavedPlan={handleApplySavedPlan}
+            initialTab={opensSavedPlansTab(location.state) ? "saved" : "calendar"}
           />
         </div>
       </div>

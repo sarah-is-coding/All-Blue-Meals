@@ -1,5 +1,5 @@
 /* App styles, one file per area. Plain CSS with BEM-style class names
-   prefixed by the component they style (e.g. .grocery-source__card).
+   prefixed by the component they style (e.g. .grocery-item__label).
 
    The order below is the cascade order between files: a rule later in the
    list wins over an equally specific one earlier. Shared styles come before

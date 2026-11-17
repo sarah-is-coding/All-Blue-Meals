@@ -102,8 +102,21 @@ describe("PlanBrowserPanel — always open", () => {
   it("shows every action up front, disabled until dates are picked", () => {
     renderPanel();
     expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /copy, starting/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /apply, starting/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /view week/i })).toBeDisabled();
+    // Behavior change: the Calendar tab's "Copy, starting …" now reads
+    // "Apply, starting …" like the Saved plans tab, and says what it's
+    // waiting for.
+    expect(screen.getByText("Pick dates to apply.")).toBeInTheDocument();
+  });
+
+  it("drops the hint once dates are picked", async () => {
+    renderPanel();
+    pickDay("2026-05-18");
+    pickDay("2026-05-24");
+    await waitFor(() => expect(screen.queryByText("Pick dates to apply.")).not.toBeInTheDocument(), {
+      timeout: 1500,
+    });
   });
 });
 
@@ -175,7 +188,7 @@ describe("PlanBrowserPanel — Calendar tab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^clear$/i }));
     expect(screen.queryByText(/Pasta/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /copy, starting may 25/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeDisabled();
   });
 
   it("walks the whole journey: pick dates → preview → copy with 'add'", async () => {
@@ -185,11 +198,11 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /copy, starting may 25/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeEnabled(),
     { timeout: 1500 });
 
     // The actions sit above the meal list, so long previews never bury them.
-    const copyButton = screen.getByRole("button", { name: /copy, starting may 25/i });
+    const copyButton = screen.getByRole("button", { name: /apply, starting may 25/i });
     const mealList = screen.getByText(/Pasta/);
     expect(copyButton.compareDocumentPosition(mealList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
@@ -197,7 +210,7 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     await waitFor(() =>
       expect(onCopyRange).toHaveBeenCalledWith("2026-05-18", "2026-05-24", "add"),
     { timeout: 1500 });
-    await waitFor(() => expect(screen.getByText(/✓ Copied/)).toBeInTheDocument(), { timeout: 1500 });
+    await waitFor(() => expect(screen.getByText(/✓ Applied/)).toBeInTheDocument(), { timeout: 1500 });
   });
 
   it("asks add-or-replace when the current week already has meals", async () => {
@@ -207,9 +220,9 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /copy, starting may 25/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeEnabled(),
     { timeout: 1500 });
-    fireEvent.click(screen.getByRole("button", { name: /copy, starting may 25/i }));
+    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 25/i }));
 
     expect(screen.getByRole("button", { name: /add on top/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /replace existing/i }));
@@ -306,26 +319,73 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
     { timeout: 1500 });
   });
 
-  it("calls onApplySavedPlan when Apply is clicked on a saved plan", async () => {
-    vi.mocked(searchSavedMealPlans).mockResolvedValue([
-      { id: "sp1", savedName: "Healthy Week", startDate: "2026-05-18", endDate: "2026-05-24" },
-    ]);
-    vi.mocked(previewSavedMealPlan).mockResolvedValue([
-      { dateIso: "2026-05-18", recipes: ["Pasta"] },
-    ]);
+  // Behavior change: the tab now works like the grocery page's. Clicking a
+  // plan picks it (the arrow previews it), and Apply sits under the list,
+  // disabled until a plan is picked. It used to sit inside the opened plan.
+  const HEALTHY = { id: "sp1", savedName: "Healthy Week", startDate: "2026-05-18", endDate: "2026-05-24" };
+  const T = { timeout: 1500 };
+  const applyButton = () => screen.getByRole("button", { name: /apply, starting may 25/i });
+  const pickHealthy = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: /^Healthy Week/ }, T));
+  };
+
+  it("shows Apply under the list, disabled until a plan is picked", async () => {
+    vi.mocked(searchSavedMealPlans).mockResolvedValue([HEALTHY]);
+    openSavedTab();
+    const plan = await screen.findByRole("button", { name: /^Healthy Week/ }, T);
+    expect(applyButton()).toBeDisabled();
+    expect(screen.getByText("Pick a saved plan to apply.")).toBeInTheDocument();
+    expect(applyButton().compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+
+    fireEvent.click(plan);
+    expect(plan).toHaveAttribute("aria-pressed", "true");
+    expect(applyButton()).toBeEnabled();
+    expect(screen.queryByText("Pick a saved plan to apply.")).not.toBeInTheDocument();
+  });
+
+  it("previews a plan's meals from its arrow, without picking it", async () => {
+    vi.mocked(searchSavedMealPlans).mockResolvedValue([HEALTHY]);
+    vi.mocked(previewSavedMealPlan).mockResolvedValue([{ dateIso: "2026-05-18", recipes: ["Pasta"] }]);
+    openSavedTab();
+    fireEvent.click(await screen.findByRole("button", { name: "Show meals in Healthy Week" }, T));
+    expect(await screen.findByText("Pasta", undefined, T)).toBeInTheDocument();
+    expect(applyButton()).toBeDisabled();
+  });
+
+  it("applies the picked plan to the week", async () => {
+    vi.mocked(searchSavedMealPlans).mockResolvedValue([HEALTHY]);
     const onApplySavedPlan = vi.fn().mockResolvedValue(undefined);
     renderPanel({ onApplySavedPlan });
     fireEvent.click(screen.getByRole("tab", { name: /saved plans/i }));
 
-    await waitFor(() => expect(screen.getByText("Healthy Week")).toBeInTheDocument(), { timeout: 1500 });
-    fireEvent.click(screen.getByText("Healthy Week").closest("button")!);
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeInTheDocument(),
-    { timeout: 1500 });
+    await pickHealthy();
+    fireEvent.click(applyButton());
+    await waitFor(() => expect(onApplySavedPlan).toHaveBeenCalledWith("sp1", "add"), T);
+    expect(await screen.findByRole("button", { name: "✓ Applied" }, T)).toBeDisabled();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 25/i }));
-    await waitFor(() =>
-      expect(onApplySavedPlan).toHaveBeenCalledWith("sp1", "add"),
-    { timeout: 1500 });
+  it("asks add-or-replace when the week already has meals", async () => {
+    vi.mocked(searchSavedMealPlans).mockResolvedValue([HEALTHY]);
+    const onApplySavedPlan = vi.fn().mockResolvedValue(undefined);
+    renderPanel({ onApplySavedPlan, currentWeekHasItems: true });
+    fireEvent.click(screen.getByRole("tab", { name: /saved plans/i }));
+
+    await pickHealthy();
+    fireEvent.click(applyButton());
+    fireEvent.click(screen.getByRole("button", { name: /replace existing/i }));
+    await waitFor(() => expect(onApplySavedPlan).toHaveBeenCalledWith("sp1", "replace"), T);
+  });
+
+  it("picking another plan after applying offers Apply again", async () => {
+    const OTHER = { id: "sp2", savedName: "Quick Week", startDate: "2026-06-01", endDate: "2026-06-07" };
+    vi.mocked(searchSavedMealPlans).mockResolvedValue([HEALTHY, OTHER]);
+    openSavedTab();
+
+    await pickHealthy();
+    fireEvent.click(applyButton());
+    await screen.findByRole("button", { name: "✓ Applied" }, T);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Quick Week/ }));
+    expect(applyButton()).toBeEnabled();
   });
 });

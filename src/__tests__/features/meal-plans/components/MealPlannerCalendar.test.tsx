@@ -114,13 +114,11 @@ describe("MealPlannerCalendar", () => {
       return onSelectSlot;
     };
 
-    it("hides the Search recipes and Manage Saved Plans links", () => {
+    // (The Manage Saved Plans link moved to the Saved plans tab.)
+    it("hides the Search recipes link", () => {
       renderPicker(null);
 
       expect(screen.queryByRole("link", { name: "Search recipes" })).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("link", { name: "Manage Saved Plans" })
-      ).not.toBeInTheDocument();
     });
 
     it("calls onSelectSlot when a slot is clicked", async () => {

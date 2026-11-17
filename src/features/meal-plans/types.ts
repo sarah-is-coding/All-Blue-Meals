@@ -48,3 +48,6 @@ export type SavedMealPlan = {
   startDate: string;
   endDate: string;
 };
+
+/** How copied or applied meals meet the meals already in the target dates. */
+export type CopyMode = "add" | "replace";

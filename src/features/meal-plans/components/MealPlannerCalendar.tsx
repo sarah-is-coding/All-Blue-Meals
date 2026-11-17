@@ -22,7 +22,7 @@ type MealPlannerCalendarProps = {
   onUpdateItemServings?: (itemId: string, servingsOverride: number | null) => Promise<void>;
   onRemoveItem?: (itemId: string) => Promise<void>;
   /** Picker mode (enabled by passing onSelectSlot): hides item management
-   *  UI and the "Search recipes" / "Manage Saved Plans" links, renders
+   *  UI and the "Search recipes" link, renders
    *  existing items read-only, and makes each slot a selectable target
    *  instead of a drop zone. */
   selectedSlot?: { date: string; mealType: MealType } | null;
@@ -116,11 +116,6 @@ export default function MealPlannerCalendar({
       <header className="meal-calendar__header">
         <div>
           <HeadingTag className="meal-calendar__title">{heading}</HeadingTag>
-          {!isPickerMode ? (
-            <Link to="/app/saved-meal-plans" className="meal-calendar__manage-link">
-              Manage Saved Plans
-            </Link>
-          ) : null}
           <p>{weekLabel}</p>
         </div>
         <div className="meal-calendar__actions">

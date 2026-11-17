@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { formatDateRange } from "../../../lib/utils/dates";
 import { useSavedMealPlanActions, useSavedMealPlans } from "../queries";
 import type { SavedMealPlan } from "../types";
+import { savedPlansBackLink } from "../utils/savedPlansNavigation";
 
 type EditState = { id: string; value: string } | null;
 type ConfirmDeleteId = string | null;
@@ -10,6 +11,8 @@ type ConfirmDeleteId = string | null;
 export default function SavedMealPlansPage() {
   const { plans, loading, error: loadError } = useSavedMealPlans();
   const actions = useSavedMealPlanActions();
+  // Back to the page the user came from, with its Saved plans tab open.
+  const back = savedPlansBackLink(useLocation().state);
 
   const [editState, setEditState] = useState<EditState>(null);
   const [renaming, setRenaming] = useState(false);
@@ -60,8 +63,8 @@ export default function SavedMealPlansPage() {
   return (
     <section className="workspace-route saved-plans-route">
       <div className="saved-plans-header">
-        <Link to="/app/meal-plans" className="saved-plans-back">
-          ← Meal Plans
+        <Link to={back.to} state={back.state} className="saved-plans-back">
+          ← {back.label}
         </Link>
         <h1 className="saved-plans-title">Saved Meal Plans</h1>
       </div>

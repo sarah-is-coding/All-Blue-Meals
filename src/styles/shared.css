@@ -1,5 +1,5 @@
-/* Shared UI used across the app: buttons, ad slots, the loading modal, and
-   form messages (.actions, .error, .message). */
+/* Shared UI used across the app: buttons, ad slots, the loading modal, the
+   save-a-name form, and form messages (.actions, .error, .message). */
 
 .ad-slot {
   --ad-w: 320;
@@ -247,4 +247,34 @@
 .btn--danger:hover:not(:disabled) {
   background: #991b1b;
   border-color: #991b1b;
+}
+
+/* SaveNameForm (src/components/forms): "name it and save" */
+.save-name-form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.save-name-form__input {
+  width: 100%;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid var(--alpha-slate-44);
+  border-radius: 0.55rem;
+  font-size: 0.9rem;
+  background: var(--color-bg-base);
+  color: var(--color-ink);
+  box-sizing: border-box;
+}
+
+.save-name-form__input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+.save-name-form__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
 }

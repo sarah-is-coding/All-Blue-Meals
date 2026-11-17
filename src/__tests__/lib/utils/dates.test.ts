@@ -2,6 +2,7 @@ import {
   addDays,
   createDateFromIso,
   formatDateRange,
+  formatMonthDay,
   formatWeekRangeLabel,
   getWeekEndIso,
   getWeekStartIso,
@@ -110,6 +111,17 @@ describe("formatWeekRangeLabel", () => {
 describe("formatDateRange", () => {
   it("formats an arbitrary start/end range with an en dash", () => {
     expect(formatDateRange("2026-12-28", "2027-01-03")).toBe("Dec 28, 2026 – Jan 3, 2027");
+  });
+});
+
+describe("formatMonthDay", () => {
+  it("formats a day as short month and day, without the year", () => {
+    expect(formatMonthDay("2026-05-25")).toBe("May 25");
+  });
+
+  it("does not shift the day across a year boundary (local time, not UTC)", () => {
+    expect(formatMonthDay("2027-01-01")).toBe("Jan 1");
+    expect(formatMonthDay("2026-12-31")).toBe("Dec 31");
   });
 });
 

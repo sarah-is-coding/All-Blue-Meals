@@ -7,6 +7,8 @@ const monthDayYearFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
+const monthDayFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+
 export function createDateFromIso(isoDate: string): Date {
   const [yearPart, monthPart, dayPart] = isoDate.split("-").map(Number);
   return new Date(yearPart, monthPart - 1, dayPart);
@@ -50,4 +52,9 @@ export function formatWeekRangeLabel(weekStartIso: string): string {
 
 export function formatDateRange(startIso: string, endIso: string): string {
   return `${monthDayYearFormatter.format(createDateFromIso(startIso))} – ${monthDayYearFormatter.format(createDateFromIso(endIso))}`;
+}
+
+/** "May 25": a single day, without the year. */
+export function formatMonthDay(isoDate: string): string {
+  return monthDayFormatter.format(createDateFromIso(isoDate));
 }

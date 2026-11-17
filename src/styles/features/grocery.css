@@ -39,45 +39,39 @@
   gap: 0.85rem;
 }
 
-@media (min-width: 900px) {
+.grocery-sidebar {
+  display: grid;
+  gap: 0.85rem;
+  align-self: start;
+}
+
+/* Same columns, breakpoint and sticky sidebar as the meal planner
+   (.meal-planner-layout), so Browse plans sits in the same place. */
+@media (min-width: 1080px) {
   .grocery-layout {
-    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 340px;
     align-items: start;
   }
 
-  .grocery-source {
+  .grocery-sidebar {
+    grid-column: 2;
+    grid-row: 1;
     position: sticky;
     top: 0.8rem;
   }
+
+  .grocery-list-area {
+    grid-column: 1;
+    grid-row: 1;
+  }
 }
 
-/* Source selector card */
-.grocery-source__card {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.grocery-source__heading {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-brand-dark);
-}
-
+/* The arrows sit at either end, as they did around the old range label. */
 .grocery-source__week-nav {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-/* Date range: two date fields side by side */
-.grocery-source__range {
-  display: grid;
-  gap: 0.6rem;
 }
 
 .grocery-source__nav-btn {
@@ -91,36 +85,9 @@
   flex-shrink: 0;
 }
 
-.grocery-source__week-label {
-  margin: 0;
-  flex: 1 1 auto;
-  text-align: center;
-  font-weight: 700;
-  font-size: 0.88rem;
-  color: var(--color-ink);
-}
-
 .grocery-source__meal-count {
   margin: 0;
   text-align: center;
-  font-size: 0.82rem;
-  color: var(--color-muted-soft);
-}
-
-.grocery-source__plan-info {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.grocery-source__plan-name {
-  margin: 0;
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--color-ink);
-}
-
-.grocery-source__plan-range {
-  margin: 0 0 0.3rem;
   font-size: 0.82rem;
   color: var(--color-muted-soft);
 }
@@ -187,35 +154,12 @@
 }
 
 /* Inline save form */
+/* The grocery page boxes its SaveNameForm (shared.css has the form itself). */
 .grocery-save-form {
-  display: grid;
-  gap: 0.5rem;
   padding: 0.72rem 0.85rem;
   border: 1px solid var(--alpha-brand-22);
   border-radius: 0.75rem;
   background: var(--alpha-bg-241-88);
-}
-
-.grocery-save-form__input {
-  padding: 0.42rem 0.65rem;
-  border: 1px solid var(--alpha-slate-44);
-  border-radius: 0.55rem;
-  font-size: 0.9rem;
-  background: var(--color-bg-base);
-  color: var(--color-ink);
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.grocery-save-form__input:focus {
-  outline: none;
-  border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px var(--alpha-brand-20);
-}
-
-.grocery-save-form__actions {
-  display: flex;
-  gap: 0.45rem;
 }
 
 /* Category sections */
