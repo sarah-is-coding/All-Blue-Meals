@@ -224,6 +224,7 @@ export type Database = {
           ingredient_id: string
           ingredient_name: string
           notes: string | null
+          position: number
           quantity: string | null
           quantity_numeric: number | null
           recipe_id: string
@@ -235,6 +236,7 @@ export type Database = {
           ingredient_id: string
           ingredient_name: string
           notes?: string | null
+          position?: number
           quantity?: string | null
           quantity_numeric?: number | null
           recipe_id: string
@@ -246,6 +248,7 @@ export type Database = {
           ingredient_id?: string
           ingredient_name?: string
           notes?: string | null
+          position?: number
           quantity?: string | null
           quantity_numeric?: number | null
           recipe_id?: string
@@ -387,7 +390,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_recipe_ingredients: {
+        Args: { p_recipe_id: string; p_rows: Json }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

@@ -590,7 +590,7 @@ Each is its own commit; the app works after every one.
    (backfilled) and the `save_recipe_ingredients` function; recipes save
    through it and load sorted by `position`. Units normalized on save.
    A new recipe whose ingredients fail to save is removed again, so no
-   empty recipe is left behind.
+   empty recipe is left behind. **Done.**
 4. **Substitutes.** Migration for `substitute_for` with the same-recipe
    composite key + index; save, load, recipe view, form, scaling, grocery
    filter.

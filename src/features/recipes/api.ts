@@ -4,6 +4,8 @@ import type { Tables } from "../../lib/db/database.types";
 import { resolveIngredients } from "../ingredients/api";
 import { ingredientKey } from "../ingredients/utils/ingredientKey";
 import { parseQuantityNumber } from "../../lib/utils/quantities";
+import { cleanMissingText, joinNotes } from "../../lib/utils/text";
+import { normalizeUnit } from "../../lib/utils/units";
 import type {
   RecipeDetail,
   RecipeIngredient,
@@ -57,10 +59,9 @@ const mapRecipeDetail = (row: RecipeDetailRow, ingredients: RecipeIngredient[]):
   ingredients,
 });
 
-const cleanText = (value: string | null | undefined): string | null => {
-  const normalized = (value ?? "").trim();
-  return normalized.length > 0 ? normalized : null;
-};
+// Empty, whitespace-only and "no value" words ("null", "n/a") are saved as null.
+const cleanText = (value: string | null | undefined): string | null =>
+  cleanMissingText(value) || null;
 
 const getFriendlyRecipeError = (error: { code?: string; message: string }): string => {
   if (error.code === "23505" || error.message.includes("duplicate key")) {
@@ -82,7 +83,12 @@ const getRecipePayload = (input: RecipeUpsertInput, userId: string) => ({
   instructions: cleanText(input.instructions),
 });
 
-const getIngredientPayload = async (recipeId: string, input: RecipeUpsertInput) => {
+/**
+ * The rows save_recipe_ingredients stores, in display order. Units get one
+ * spelling each ("Tablespoons" → "tbsp"); text that was in the unit field
+ * but isn't a unit ("large", "(15 oz)") moves to the notes.
+ */
+const getIngredientRows = async (input: RecipeUpsertInput) => {
   // Ingredients typed or imported without a catalog id are found or created
   // in one batch, matched by key (see ingredients/api.ts resolveIngredients).
   const unresolved = input.ingredients.filter(
@@ -102,17 +108,32 @@ const getIngredientPayload = async (recipeId: string, input: RecipeUpsertInput) 
         ingredient.ingredientId ||
         (ingredientName ? resolved.get(ingredientKey(ingredientName))?.id ?? "" : "");
       const quantityText = cleanText(ingredient.quantity);
+      const unit = normalizeUnit(ingredient.unit);
       return {
-        recipe_id: recipeId,
         ingredient_id: ingredientId,
         ingredient_name: ingredientName,
         quantity: quantityText,
         quantity_numeric: quantityText ? parseQuantityNumber(quantityText) : null,
-        unit: cleanText(ingredient.unit),
-        notes: cleanText(ingredient.notes),
+        unit: unit.unit || null,
+        notes: joinNotes([...unit.notes, ingredient.notes]) || null,
       };
     })
     .filter((ingredient) => ingredient.ingredient_name.length > 0 && ingredient.ingredient_id);
+};
+
+/**
+ * Replace a recipe's ingredients in one transaction (save_recipe_ingredients
+ * migration): either the new list is saved or the old one stays.
+ */
+const saveIngredients = async (recipeId: string, input: RecipeUpsertInput) => {
+  const rows = await getIngredientRows(input);
+  const { error } = await supabase.rpc("save_recipe_ingredients", {
+    p_recipe_id: recipeId,
+    p_rows: rows,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
 };
 
 async function requireUserId(): Promise<string> {
@@ -227,6 +248,8 @@ export async function getRecipeById(recipeId: string): Promise<RecipeDetail | nu
     .from("recipe_ingredients")
     .select("id,ingredient_id,ingredient_name,quantity,unit,notes")
     .eq("recipe_id", recipeId)
+    .order("position", { ascending: true })
+    // Rows saved by older app versions all have position 0.
     .order("created_at", { ascending: true })
     .returns<RecipeIngredientRow[]>();
 
@@ -253,15 +276,12 @@ export async function createRecipe(input: RecipeUpsertInput): Promise<string> {
     throw new Error(getFriendlyRecipeError(recipeError));
   }
 
-  const ingredientPayload = await getIngredientPayload(recipeRow.id, input);
-  if (ingredientPayload.length > 0) {
-    const { error: ingredientError } = await supabase
-      .from("recipe_ingredients")
-      .insert(ingredientPayload);
-
-    if (ingredientError) {
-      throw new Error(ingredientError.message);
-    }
+  try {
+    await saveIngredients(recipeRow.id, input);
+  } catch (error) {
+    // Don't leave a new recipe behind with no ingredients; the user can retry.
+    await supabase.from("recipes").delete().eq("id", recipeRow.id);
+    throw error;
   }
 
   return recipeRow.id;
@@ -298,27 +318,7 @@ export async function updateRecipe(recipeId: string, input: RecipeUpsertInput): 
     throw new Error(recipeError.message);
   }
 
-  const { error: deleteIngredientsError } = await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("recipe_id", recipeId);
-
-  if (deleteIngredientsError) {
-    throw new Error(deleteIngredientsError.message);
-  }
-
-  const ingredientPayload = await getIngredientPayload(recipeId, input);
-  if (ingredientPayload.length === 0) {
-    return;
-  }
-
-  const { error: ingredientError } = await supabase
-    .from("recipe_ingredients")
-    .insert(ingredientPayload);
-
-  if (ingredientError) {
-    throw new Error(ingredientError.message);
-  }
+  await saveIngredients(recipeId, input);
 }
 
 // ── Recipe import: AI extraction and generation (edge functions) ─────────

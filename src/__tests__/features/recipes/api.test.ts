@@ -31,6 +31,7 @@ vi.mock("../../../lib/supabaseClient", () => {
   });
 
   builder.returns = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 });
+  builder.rpc = vi.fn().mockResolvedValue({ data: null, error: null });
 
   const mockAuth = {
     getUser: vi.fn().mockResolvedValue({
@@ -44,7 +45,14 @@ vi.mock("../../../lib/supabaseClient", () => {
 
 import { supabase } from "../../../lib/supabaseClient";
 import { resolveIngredients } from "../../../features/ingredients/api";
-import { createRecipe, deleteRecipe, listRecipes, rateRecipe } from "../../../features/recipes/api";
+import {
+  createRecipe,
+  deleteRecipe,
+  getRecipeById,
+  listRecipes,
+  rateRecipe,
+  updateRecipe,
+} from "../../../features/recipes/api";
 
 const db = supabase as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
@@ -90,6 +98,7 @@ describe("recipe api", () => {
       error: null,
     });
     db.returns.mockResolvedValue({ data: [], error: null, count: 0 });
+    db.rpc.mockResolvedValue({ data: null, error: null });
   });
 
   it("returns a friendly error when a recipe title already exists", async () => {
@@ -123,11 +132,72 @@ describe("recipe api", () => {
 
     expect(resolveIngredients).toHaveBeenCalledTimes(1);
     expect(resolveIngredients).toHaveBeenCalledWith([{ name: "Onions", category: "produce" }]);
-    expect(db.from).toHaveBeenCalledWith("recipe_ingredients");
-    expect(db.insert).toHaveBeenLastCalledWith([
-      expect.objectContaining({ ingredient_id: "ing-oil", ingredient_name: "Olive oil", quantity_numeric: 2 }),
-      expect.objectContaining({ ingredient_id: "ing-onion", ingredient_name: "Onions", notes: "diced" }),
-    ]);
+    // Step 3: rows go to save_recipe_ingredients in display order (one
+    // transaction) instead of a direct insert into recipe_ingredients.
+    expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", {
+      p_recipe_id: "recipe-1",
+      p_rows: [
+        expect.objectContaining({ ingredient_id: "ing-oil", ingredient_name: "Olive oil", quantity_numeric: 2 }),
+        expect.objectContaining({ ingredient_id: "ing-onion", ingredient_name: "Onions", notes: "diced" }),
+      ],
+    });
+  });
+
+  it("normalizes units and clears 'null' text when saving", async () => {
+    await createRecipe({
+      ...recipeInput,
+      ingredients: [
+        { ingredientId: "ing-oil", ingredientName: "olive oil", quantity: "2", unit: "Tablespoons", notes: "null", category: null },
+        { ingredientId: "ing-onion", ingredientName: "onion", quantity: "1", unit: "large", notes: "diced", category: null },
+        { ingredientId: "ing-tom", ingredientName: "diced tomatoes", quantity: "null", unit: "(15 ounce) can", notes: "", category: null },
+      ],
+    });
+
+    expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", {
+      p_recipe_id: "recipe-1",
+      p_rows: [
+        { ingredient_id: "ing-oil", ingredient_name: "olive oil", quantity: "2", quantity_numeric: 2, unit: "tbsp", notes: null },
+        { ingredient_id: "ing-onion", ingredient_name: "onion", quantity: "1", quantity_numeric: 1, unit: null, notes: "large, diced" },
+        { ingredient_id: "ing-tom", ingredient_name: "diced tomatoes", quantity: null, quantity_numeric: null, unit: "can", notes: "15 oz" },
+      ],
+    });
+  });
+
+  it("removes a new recipe and throws when its ingredients can't be saved", async () => {
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: "insert failed" } });
+
+    await expect(createRecipe(recipeInput)).rejects.toThrow("insert failed");
+
+    expect(db.from).toHaveBeenCalledWith("recipes");
+    expect(db.delete).toHaveBeenCalled();
+    expect(db.eq).toHaveBeenLastCalledWith("id", "recipe-1");
+  });
+
+  it("replaces an edited recipe's ingredients through the atomic save", async () => {
+    db.eq.mockReturnValueOnce(Promise.resolve({ data: null, error: null }));
+
+    await updateRecipe("recipe-7", recipeInput);
+
+    expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", { p_recipe_id: "recipe-7", p_rows: [] });
+    // No separate delete-then-insert any more.
+    expect(db.delete).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("throws when the atomic save fails on edit", async () => {
+    db.eq.mockReturnValueOnce(Promise.resolve({ data: null, error: null }));
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: "permission denied" } });
+
+    await expect(updateRecipe("recipe-7", recipeInput)).rejects.toThrow("permission denied");
+  });
+
+  it("loads ingredients in saved order", async () => {
+    db.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "recipe-1", title: "T" }, error: null });
+
+    await getRecipeById("recipe-1");
+
+    expect(db.order).toHaveBeenNthCalledWith(1, "position", { ascending: true });
+    expect(db.order).toHaveBeenNthCalledWith(2, "created_at", { ascending: true });
   });
 
   it("deletes a recipe by id", async () => {
