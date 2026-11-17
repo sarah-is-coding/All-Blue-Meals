@@ -88,11 +88,14 @@ async function buildGroceryItemsFromMeals(meals: PlannedMeal[]): Promise<Grocery
   );
   if (recipeIds.length === 0) return [];
 
-  // Batch-fetch all recipe ingredients (including category via ingredient FK)
+  // Batch-fetch all recipe ingredients (including category via ingredient FK).
+  // Main ingredients only: a substitute ("or avocado oil") is an alternative,
+  // not something to buy as well.
   const { data: ingRows, error: ingErr } = await supabase
     .from("recipe_ingredients")
     .select("recipe_id, ingredient_name, quantity, unit, ingredients(category)")
     .in("recipe_id", recipeIds)
+    .is("substitute_for", null)
     .returns<RecipeIngRow[]>();
 
   if (ingErr) throw new Error(ingErr.message);

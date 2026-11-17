@@ -228,6 +228,7 @@ export type Database = {
           quantity: string | null
           quantity_numeric: number | null
           recipe_id: string
+          substitute_for: string | null
           unit: string | null
         }
         Insert: {
@@ -240,6 +241,7 @@ export type Database = {
           quantity?: string | null
           quantity_numeric?: number | null
           recipe_id: string
+          substitute_for?: string | null
           unit?: string | null
         }
         Update: {
@@ -252,6 +254,7 @@ export type Database = {
           quantity?: string | null
           quantity_numeric?: number | null
           recipe_id?: string
+          substitute_for?: string | null
           unit?: string | null
         }
         Relationships: [
@@ -268,6 +271,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "recipes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_ingredients_substitute_for_fkey"
+            columns: ["recipe_id", "substitute_for"]
+            isOneToOne: false
+            referencedRelation: "recipe_ingredients"
+            referencedColumns: ["recipe_id", "id"]
           },
         ]
       }

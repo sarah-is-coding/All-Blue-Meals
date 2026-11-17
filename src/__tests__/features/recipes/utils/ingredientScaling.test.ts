@@ -14,6 +14,7 @@ describe("scaleRecipeFormIngredientQuantities", () => {
       unit: "lbs",
       notes: "",
       category: null,
+      substituteFor: null,
     },
     {
       id: "row-2",
@@ -23,6 +24,7 @@ describe("scaleRecipeFormIngredientQuantities", () => {
       unit: "",
       notes: "extra virgin",
       category: null,
+      substituteFor: null,
     },
   ];
 

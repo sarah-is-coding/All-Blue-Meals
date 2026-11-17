@@ -1,5 +1,6 @@
 import type { IngredientCategory } from "../../ingredients/types";
 import type { RecipeDetail, RecipeUpsertInput } from "../types";
+import { insertSubstitute, removeRowWithSubstitutes } from "./ingredientGroups";
 
 export type RecipeFormIngredient = {
   id: string;
@@ -9,6 +10,8 @@ export type RecipeFormIngredient = {
   unit: string;
   notes: string;
   category: IngredientCategory | null;
+  /** Row id of the main ingredient this is a substitute for; null for a main row. */
+  substituteFor: string | null;
 };
 
 export type RecipeFormValues = {
@@ -59,7 +62,7 @@ const createClientId = (): string => {
   return `tmp-${nowPart}-${randomPart}`;
 };
 
-export const createEmptyIngredient = (): RecipeFormIngredient => ({
+export const createEmptyIngredient = (substituteFor: string | null = null): RecipeFormIngredient => ({
   id: createClientId(),
   ingredientId: "",
   ingredientName: "",
@@ -67,7 +70,21 @@ export const createEmptyIngredient = (): RecipeFormIngredient => ({
   unit: "",
   notes: "",
   category: null,
+  substituteFor,
 });
+
+/** Add an empty "or …" row under a main ingredient row. */
+export const addSubstituteRow = (
+  ingredients: RecipeFormIngredient[],
+  mainRowId: string
+): RecipeFormIngredient[] =>
+  insertSubstitute(ingredients, mainRowId, createEmptyIngredient(mainRowId));
+
+/** Remove a row; removing a main ingredient also removes its substitutes. */
+export const removeIngredientRow = (
+  ingredients: RecipeFormIngredient[],
+  rowId: string
+): RecipeFormIngredient[] => removeRowWithSubstitutes(ingredients, rowId);
 
 export const createEmptyRecipeFormValues = (): RecipeFormValues => ({
   title: "",
@@ -100,6 +117,7 @@ export const mapRecipeDetailToFormValues = (recipe: RecipeDetail): RecipeFormVal
           unit: ingredient.unit,
           notes: ingredient.notes,
           category: null, // category lives on the ingredients table, not recipe_ingredients
+          substituteFor: ingredient.substituteFor,
         }))
       : [createEmptyIngredient()],
 });
@@ -116,11 +134,13 @@ export const mapRecipeFormValuesToInput = (
   tags: parseTags(values.tags),
   instructions: values.instructions,
   ingredients: values.ingredients.map((ingredient) => ({
+    clientId: ingredient.id,
     ingredientId: ingredient.ingredientId,
     ingredientName: ingredient.ingredientName,
     quantity: ingredient.quantity,
     unit: ingredient.unit,
     notes: ingredient.notes,
     category: ingredient.category,
+    substituteFor: ingredient.substituteFor,
   })),
 });

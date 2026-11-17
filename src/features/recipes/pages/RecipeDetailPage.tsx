@@ -8,9 +8,11 @@ import RecipeReadArticle from "../components/RecipeReadArticle";
 import StarRating from "../components/StarRating";
 import { useRecipe, useRecipeActions } from "../queries";
 import {
+  addSubstituteRow,
   createEmptyIngredient,
   mapRecipeDetailToFormValues,
   mapRecipeFormValuesToInput,
+  removeIngredientRow,
   type RecipeFormValues,
 } from "../utils/recipeForm";
 import { scaleRecipeFormIngredientQuantities } from "../utils/ingredientScaling";
@@ -167,15 +169,18 @@ export default function RecipeDetailPage() {
     );
   };
 
-  const handleRemoveIngredient = (ingredientId: string) => {
+  const handleAddSubstitute = (mainRowId: string) => {
     setFormValues((previousValues) =>
       previousValues
-        ? {
-            ...previousValues,
-            ingredients: previousValues.ingredients.filter(
-              (ingredient) => ingredient.id !== ingredientId
-            ),
-          }
+        ? { ...previousValues, ingredients: addSubstituteRow(previousValues.ingredients, mainRowId) }
+        : previousValues
+    );
+  };
+
+  const handleRemoveIngredient = (rowId: string) => {
+    setFormValues((previousValues) =>
+      previousValues
+        ? { ...previousValues, ingredients: removeIngredientRow(previousValues.ingredients, rowId) }
         : previousValues
     );
   };
@@ -450,6 +455,7 @@ export default function RecipeDetailPage() {
             onIngredientChange={handleIngredientChange}
             onIngredientSelect={handleIngredientSelect}
             onAddIngredient={handleAddIngredient}
+            onAddSubstitute={handleAddSubstitute}
             onRemoveIngredient={handleRemoveIngredient}
           />
           <section className="recipe-scale-tools">

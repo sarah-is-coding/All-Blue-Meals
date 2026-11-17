@@ -4,9 +4,11 @@ import RecipeFormFields from "../components/RecipeFormFields";
 import { useRecipeActions } from "../queries";
 import type { ImportedRecipe } from "../types";
 import {
+  addSubstituteRow,
   createEmptyIngredient,
   createEmptyRecipeFormValues,
   mapRecipeFormValuesToInput,
+  removeIngredientRow,
   type RecipeFormValues,
 } from "../utils/recipeForm";
 import { mapImportedRecipeToFormValues } from "../utils/recipeImport";
@@ -82,12 +84,17 @@ export default function RecipeCreatePage() {
     }));
   };
 
-  const handleRemoveIngredient = (ingredientId: string) => {
+  const handleAddSubstitute = (mainRowId: string) => {
     setValues((previousValues) => ({
       ...previousValues,
-      ingredients: previousValues.ingredients.filter(
-        (ingredient) => ingredient.id !== ingredientId
-      ),
+      ingredients: addSubstituteRow(previousValues.ingredients, mainRowId),
+    }));
+  };
+
+  const handleRemoveIngredient = (rowId: string) => {
+    setValues((previousValues) => ({
+      ...previousValues,
+      ingredients: removeIngredientRow(previousValues.ingredients, rowId),
     }));
   };
 
@@ -132,6 +139,7 @@ export default function RecipeCreatePage() {
           onIngredientChange={handleIngredientChange}
           onIngredientSelect={handleIngredientSelect}
           onAddIngredient={handleAddIngredient}
+          onAddSubstitute={handleAddSubstitute}
           onRemoveIngredient={handleRemoveIngredient}
         />
 

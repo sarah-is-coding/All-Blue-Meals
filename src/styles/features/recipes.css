@@ -542,6 +542,30 @@
   justify-self: flex-start;
 }
 
+.recipe-ingredient-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* A substitute ("or …") sits indented under its main ingredient. */
+.recipe-ingredient-card--substitute {
+  margin-left: 1.1rem;
+  border-style: dashed;
+}
+
+.recipe-ingredient-card__or {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted-soft);
+}
+
+.recipe-read__substitute {
+  color: var(--color-muted-soft);
+}
+
 .recipe-ingredients__add-bottom {
   justify-self: start;
   font-size: 0.88rem;

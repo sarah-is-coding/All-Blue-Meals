@@ -39,13 +39,16 @@ export const mapImportedRecipeToInput = (
   servings: recipe.servings,
   tags: recipe.tags,
   instructions: formatImportedInstructions(recipe.instructions),
-  ingredients: recipe.ingredients.map((ingredient) => ({
+  // Imports have no substitutes yet (step 5 adds them), so every row is a main row.
+  ingredients: recipe.ingredients.map((ingredient, index) => ({
+    clientId: `imported-${index}`,
     ingredientId: "",
     ingredientName: normalizeText(ingredient.ingredientName),
     quantity: normalizeText(ingredient.quantity),
     unit: normalizeText(ingredient.unit),
     notes: normalizeText(ingredient.notes),
     category: ingredient.category,
+    substituteFor: null,
   })),
 });
 
@@ -70,6 +73,7 @@ export const mapImportedRecipeToFormValues = (
           unit: normalizeText(ingredient.unit),
           notes: normalizeText(ingredient.notes),
           category: ingredient.category,
+          substituteFor: null,
         }))
       : [createEmptyIngredient()],
 });

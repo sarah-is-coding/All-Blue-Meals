@@ -593,7 +593,7 @@ Each is its own commit; the app works after every one.
    empty recipe is left behind. **Done.**
 4. **Substitutes.** Migration for `substitute_for` with the same-recipe
    composite key + index; save, load, recipe view, form, scaling, grocery
-   filter.
+   filter. **Done.**
 5. **Import/generate.** Edge function prompt and schema moved to their own
    module; prompt rules (cautious merge rule, prep and size in `notes`, no
    `"null"` text, brands in `notes`, no placeholders, list each ingredient

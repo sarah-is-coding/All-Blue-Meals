@@ -45,6 +45,7 @@ vi.mock("../../../lib/supabaseClient", () => {
 
 import { supabase } from "../../../lib/supabaseClient";
 import { resolveIngredients } from "../../../features/ingredients/api";
+import type { RecipeIngredientInput } from "../../../features/recipes/types";
 import {
   createRecipe,
   deleteRecipe,
@@ -74,6 +75,19 @@ const defaultFilters = {
   onlyWithSource: false,
   minRating: 0,
 };
+
+let lineCount = 0;
+const line = (overrides: Partial<RecipeIngredientInput>): RecipeIngredientInput => ({
+  clientId: `line-${(lineCount += 1)}`,
+  ingredientId: "",
+  ingredientName: "",
+  quantity: "",
+  unit: "",
+  notes: "",
+  category: null,
+  substituteFor: null,
+  ...overrides,
+});
 
 const recipeInput = {
   title: "Chicken Caesar Taco Salad",
@@ -124,9 +138,9 @@ describe("recipe api", () => {
     await createRecipe({
       ...recipeInput,
       ingredients: [
-        { ingredientId: "ing-oil", ingredientName: "Olive oil", quantity: "2", unit: "tbsp", notes: "", category: null },
-        { ingredientId: "", ingredientName: " Onions ", quantity: "1", unit: "", notes: "diced", category: "produce" },
-        { ingredientId: "", ingredientName: "  ", quantity: "", unit: "", notes: "", category: null },
+        line({ ingredientId: "ing-oil", ingredientName: "Olive oil", quantity: "2", unit: "tbsp" }),
+        line({ ingredientName: " Onions ", quantity: "1", notes: "diced", category: "produce" }),
+        line({ ingredientName: "  " }),
       ],
     });
 
@@ -147,20 +161,55 @@ describe("recipe api", () => {
     await createRecipe({
       ...recipeInput,
       ingredients: [
-        { ingredientId: "ing-oil", ingredientName: "olive oil", quantity: "2", unit: "Tablespoons", notes: "null", category: null },
-        { ingredientId: "ing-onion", ingredientName: "onion", quantity: "1", unit: "large", notes: "diced", category: null },
-        { ingredientId: "ing-tom", ingredientName: "diced tomatoes", quantity: "null", unit: "(15 ounce) can", notes: "", category: null },
+        line({ ingredientId: "ing-oil", ingredientName: "olive oil", quantity: "2", unit: "Tablespoons", notes: "null" }),
+        line({ ingredientId: "ing-onion", ingredientName: "onion", quantity: "1", unit: "large", notes: "diced" }),
+        line({ ingredientId: "ing-tom", ingredientName: "diced tomatoes", quantity: "null", unit: "(15 ounce) can" }),
       ],
     });
 
     expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", {
       p_recipe_id: "recipe-1",
       p_rows: [
-        { ingredient_id: "ing-oil", ingredient_name: "olive oil", quantity: "2", quantity_numeric: 2, unit: "tbsp", notes: null },
-        { ingredient_id: "ing-onion", ingredient_name: "onion", quantity: "1", quantity_numeric: 1, unit: null, notes: "large, diced" },
-        { ingredient_id: "ing-tom", ingredient_name: "diced tomatoes", quantity: null, quantity_numeric: null, unit: "can", notes: "15 oz" },
+        { ingredient_id: "ing-oil", ingredient_name: "olive oil", quantity: "2", quantity_numeric: 2, unit: "tbsp", notes: null, substitute_of: null },
+        { ingredient_id: "ing-onion", ingredient_name: "onion", quantity: "1", quantity_numeric: 1, unit: null, notes: "large, diced", substitute_of: null },
+        { ingredient_id: "ing-tom", ingredient_name: "diced tomatoes", quantity: null, quantity_numeric: null, unit: "can", notes: "15 oz", substitute_of: null },
       ],
     });
+  });
+
+  // Step 4: substitutes are saved right after their main row and point at
+  // its index in the list (save_recipe_ingredients links them).
+  it("saves substitutes after their main row with the main row's index", async () => {
+    await createRecipe({
+      ...recipeInput,
+      ingredients: [
+        line({ clientId: "a", ingredientId: "ing-oil", ingredientName: "olive oil" }),
+        line({ clientId: "b", ingredientId: "ing-salt", ingredientName: "salt" }),
+        // Out of order in the form: still saved directly under "a".
+        line({ clientId: "c", ingredientId: "ing-avo", ingredientName: "avocado oil", substituteFor: "a" }),
+      ],
+    });
+
+    const rows = vi.mocked(db.rpc).mock.calls[0][1].p_rows;
+    expect(rows.map((row: { ingredient_name: string; substitute_of: number | null }) => [row.ingredient_name, row.substitute_of])).toEqual([
+      ["olive oil", null],
+      ["avocado oil", 0],
+      ["salt", null],
+    ]);
+  });
+
+  it("saves a substitute as a main row when its main row was left blank", async () => {
+    await createRecipe({
+      ...recipeInput,
+      ingredients: [
+        line({ clientId: "a", ingredientName: "  " }),
+        line({ clientId: "b", ingredientId: "ing-avo", ingredientName: "avocado oil", substituteFor: "a" }),
+      ],
+    });
+
+    expect(vi.mocked(db.rpc).mock.calls[0][1].p_rows).toEqual([
+      expect.objectContaining({ ingredient_name: "avocado oil", substitute_of: null }),
+    ]);
   });
 
   it("removes a new recipe and throws when its ingredients can't be saved", async () => {

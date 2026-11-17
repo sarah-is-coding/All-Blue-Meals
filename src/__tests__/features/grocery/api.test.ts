@@ -17,7 +17,7 @@ vi.mock("../../../lib/supabaseClient", () => {
 
   const chained = [
     "from", "select", "insert", "update", "delete", "eq", "in",
-    "order", "limit", "not", "maybeSingle",
+    "order", "limit", "not", "is", "maybeSingle",
   ];
 
   for (const method of chained) {
@@ -63,7 +63,7 @@ beforeEach(() => {
   // Re-wire chained methods after clearAllMocks
   const chained = [
     "from", "select", "insert", "update", "delete", "eq", "in",
-    "order", "limit", "not", "maybeSingle",
+    "order", "limit", "not", "is", "maybeSingle",
   ];
   for (const method of chained) {
     builder[method].mockReturnValue(builder);
@@ -134,6 +134,14 @@ describe("buildGroceryItemsForSavedPlan", () => {
     await buildGroceryItemsForSavedPlan("plan-7");
     expect(builder.from).toHaveBeenCalledWith("recipe_ingredients");
     expect(builder.in).toHaveBeenCalledWith("recipe_id", ["r1", "r2", "r3"]);
+  });
+
+  // Step 4 of docs/ingredient-normalization.md: substitutes ("or avocado
+  // oil") are alternatives, so only main ingredients go on the list.
+  it("leaves substitute ingredients off the list", async () => {
+    vi.mocked(listSavedPlanMeals).mockResolvedValue([meal("r1")]);
+    await buildGroceryItemsForSavedPlan("plan-7");
+    expect(builder.is).toHaveBeenCalledWith("substitute_for", null);
   });
 
   it("includes every ingredient of every planned recipe, and nothing else", async () => {

@@ -1,10 +1,57 @@
 import {
+  addSubstituteRow,
   createEmptyIngredient,
   createEmptyRecipeFormValues,
   mapRecipeDetailToFormValues,
   mapRecipeFormValuesToInput,
+  removeIngredientRow,
 } from "../../../../features/recipes/utils/recipeForm";
 import type { RecipeDetail } from "../../../../features/recipes/types";
+
+// ─────────────────────────────────────────────────────────────
+// Substitute rows (step 4 of docs/ingredient-normalization.md)
+// ─────────────────────────────────────────────────────────────
+describe("substitute rows", () => {
+  it("adds an empty substitute row linked to its main row", () => {
+    const main = createEmptyIngredient();
+    const other = createEmptyIngredient();
+    const rows = addSubstituteRow([main, other], main.id);
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.id).toBe(main.id);
+    expect(rows[1]!.substituteFor).toBe(main.id);
+    expect(rows[1]!.ingredientName).toBe("");
+    expect(rows[2]!.id).toBe(other.id);
+  });
+
+  it("removes a main row together with its substitutes", () => {
+    const main = createEmptyIngredient();
+    const withSub = addSubstituteRow([main, createEmptyIngredient()], main.id);
+    expect(removeIngredientRow(withSub, main.id)).toHaveLength(1);
+  });
+
+  it("creates main rows by default", () => {
+    expect(createEmptyIngredient().substituteFor).toBeNull();
+    expect(createEmptyIngredient("main-1").substituteFor).toBe("main-1");
+  });
+
+  it("keeps the substitute link through detail → form → input", () => {
+    const recipe: RecipeDetail = {
+      id: "r", title: "T", description: null, sourceUrl: null, prepMinutes: null,
+      cookMinutes: null, servings: null, tags: [], instructions: null, rating: null,
+      createdAt: "2026-01-01T00:00:00Z",
+      ingredients: [
+        { id: "ri-1", ingredientId: "i-1", ingredientName: "olive oil", quantity: "2", unit: "tbsp", notes: "", substituteFor: null },
+        { id: "ri-2", ingredientId: "i-2", ingredientName: "avocado oil", quantity: "2", unit: "tbsp", notes: "", substituteFor: "ri-1" },
+      ],
+    };
+    const input = mapRecipeFormValuesToInput(mapRecipeDetailToFormValues(recipe));
+    expect(input.ingredients.map((i) => [i.clientId, i.substituteFor])).toEqual([
+      ["ri-1", null],
+      ["ri-2", "ri-1"],
+    ]);
+  });
+});
 
 // ─────────────────────────────────────────────────────────────
 // createEmptyIngredient
@@ -76,6 +123,7 @@ describe("mapRecipeDetailToFormValues", () => {
         quantity: "2",
         unit: "lbs",
         notes: "boneless",
+        substituteFor: null,
       },
     ],
   };
@@ -160,6 +208,7 @@ describe("mapRecipeFormValuesToInput", () => {
         unit: "g",
         notes: "",
         category: null,
+        substituteFor: null,
       },
     ],
   };

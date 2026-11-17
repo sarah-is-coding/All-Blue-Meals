@@ -80,6 +80,7 @@ const recipe = {
       quantity: "1",
       unit: "lb",
       notes: "",
+      substituteFor: null,
     },
   ],
 };

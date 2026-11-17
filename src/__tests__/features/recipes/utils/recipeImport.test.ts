@@ -38,14 +38,18 @@ describe("recipe import mapping", () => {
       servings: 4,
       tags: ["dinner", "quick"],
       instructions: "Season chicken. Assemble salad.",
+      // clientId and substituteFor were added in step 4 (substitutes);
+      // imports produce only main rows until step 5.
       ingredients: [
         {
+          clientId: "imported-0",
           ingredientId: "",
           ingredientName: "ground chicken",
           quantity: "1",
           unit: "lb",
           notes: "salted and peppered",
           category: "meat & seafood",
+          substituteFor: null,
         },
       ],
     });
