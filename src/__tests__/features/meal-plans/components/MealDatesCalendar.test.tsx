@@ -108,4 +108,66 @@ describe("MealDatesCalendar", () => {
       expect(screen.getByText(/no meals planned this month/i)).toBeInTheDocument(),
     { timeout: 1500 });
   });
+
+  describe("changing month", () => {
+    const monthLabel = (monthOffset: number) =>
+      new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(
+        new Date(today.getFullYear(), today.getMonth() + monthOffset)
+      );
+    const calendar = () => screen.getByRole("grid").parentElement!;
+    const swipe = (fromX: number, toX: number, fromY = 100, toY = 100) => {
+      fireEvent.touchStart(calendar(), { touches: [{ clientX: fromX, clientY: fromY }] });
+      fireEvent.touchEnd(calendar(), { changedTouches: [{ clientX: toX, clientY: toY }] });
+    };
+
+    it("moves a month with the arrow buttons, across a year end", () => {
+      renderCalendar();
+      fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+      expect(screen.getByText(monthLabel(1))).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
+      fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
+      expect(screen.getByText(monthLabel(-1))).toBeInTheDocument();
+
+      for (let i = 0; i < 13; i++) fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+      expect(screen.getByText(monthLabel(12))).toBeInTheDocument();
+    });
+
+    it("swiping left shows the next month, and right the previous", () => {
+      renderCalendar();
+      swipe(200, 100);
+      expect(screen.getByText(monthLabel(1))).toBeInTheDocument();
+      swipe(100, 200);
+      swipe(100, 200);
+      expect(screen.getByText(monthLabel(-1))).toBeInTheDocument();
+    });
+
+    it("doesn't change month when the finger moves up or down (scrolling the page)", () => {
+      renderCalendar();
+      swipe(200, 150, 100, 400);
+      expect(screen.getByText(monthLabel(0))).toBeInTheDocument();
+    });
+
+    it("loads the meals for the month swiped to", async () => {
+      renderCalendar();
+      swipe(200, 100);
+      const firstOfNext = toIsoDate(new Date(today.getFullYear(), today.getMonth() + 1, 1));
+      await waitFor(() => {
+        const ranges = vi.mocked(listPlannedMealsBetween).mock.calls;
+        expect(ranges.some(([start, end]) => start <= firstOfNext && end >= firstOfNext)).toBe(true);
+      }, { timeout: 1500 });
+    });
+
+    it("pages with sideways trackpad scrolling, one month per swipe", () => {
+      renderCalendar();
+      fireEvent.wheel(calendar(), { deltaX: 80, deltaY: 0 });
+      fireEvent.wheel(calendar(), { deltaX: 80, deltaY: 0 }); // the same swipe's momentum
+      expect(screen.getByText(monthLabel(1))).toBeInTheDocument();
+    });
+
+    it("ignores up/down wheel scrolling", () => {
+      renderCalendar();
+      fireEvent.wheel(calendar(), { deltaX: 0, deltaY: 300 });
+      expect(screen.getByText(monthLabel(0))).toBeInTheDocument();
+    });
+  });
 });

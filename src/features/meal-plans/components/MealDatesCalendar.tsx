@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { addDays, createDateFromIso, toIsoDate } from "../../../lib/utils/dates";
 import { usePlannedMealsBetween } from "../queries";
+import { createWheelPager, swipeStep } from "../utils/monthSwipe";
 
 // A month calendar for picking a date range to copy or save. Days with
 // planned meals are marked, read straight from the meals' dates (no plan
-// rows involved), and any day can start or end a range.
+// rows involved), and any day can start or end a range. Swiping sideways
+// (touch or trackpad) moves a month, like the ◀ ▶ buttons.
 
 /** Sunday-first day-of-week: 0 = Sun … 6 = Sat (what getDay already is). */
 function sunFirstDow(date: Date): number {
@@ -114,22 +116,47 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
     [viewYear, viewMonth, mealDates, rangeStartIso, rangeEndIso, todayIso]
   );
 
-  const prevMonth = () => {
-    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
-    else { setViewMonth((m) => m - 1); }
+  /** Move the view by `step` months (-1 or 1). */
+  const shiftMonth = (step: number) => {
+    const next = new Date(viewYear, viewMonth + step);
+    setViewYear(next.getFullYear());
+    setViewMonth(next.getMonth());
   };
-  const nextMonth = () => {
-    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
-    else { setViewMonth((m) => m + 1); }
+
+  // ── Sideways gestures ──
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [wheelStep] = useState(createWheelPager);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    const t = e.changedTouches[0];
+    if (!start || !t) return;
+    const step = swipeStep(t.clientX - start.x, t.clientY - start.y);
+    if (step !== 0) shiftMonth(step);
+  };
+  const handleWheel = (e: React.WheelEvent) => {
+    const step = wheelStep(e.deltaX, e.deltaY, e.timeStamp);
+    if (step !== 0) shiftMonth(step);
   };
 
   return (
-    <div className="meal-dates-cal">
+    <div
+      className="meal-dates-cal"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => { touchStart.current = null; }}
+      onWheel={handleWheel}
+    >
       <div className="meal-dates-cal__header">
         <button
           type="button"
           className="meal-dates-cal__nav"
-          onClick={prevMonth}
+          onClick={() => shiftMonth(-1)}
           aria-label="Previous month"
         >
           ◀
@@ -138,7 +165,7 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
         <button
           type="button"
           className="meal-dates-cal__nav"
-          onClick={nextMonth}
+          onClick={() => shiftMonth(1)}
           aria-label="Next month"
         >
           ▶

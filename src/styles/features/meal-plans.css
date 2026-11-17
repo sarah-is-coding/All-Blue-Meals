@@ -856,6 +856,9 @@
 .meal-dates-cal {
   display: grid;
   gap: 0.45rem;
+  /* Sideways swipes change the month (MealDatesCalendar); up/down still
+     scrolls the page. */
+  touch-action: pan-y;
 }
 
 .meal-dates-cal__header {
@@ -865,14 +868,21 @@
   gap: 0.5rem;
 }
 
+/* Thumb-sized: a ~40px square target. */
 .meal-dates-cal__nav {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 1.05rem;
   color: var(--color-muted-soft);
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.4rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 0.55rem;
   line-height: 1;
 }
 
@@ -981,9 +991,27 @@
   color: var(--color-muted-faint);
 }
 
+/* Today: an outlined circle with no fill, so it reads as a marker, not a
+   selection. Drawn as ::after so it paints over the range band (also
+   z-index 0, but earlier in the button) and under the number and meal dot
+   (z-index 1). */
+.meal-dates-cal__day--today::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.65rem;
+  height: 1.65rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--color-brand);
+  z-index: 0;
+  pointer-events: none;
+}
+
 .meal-dates-cal__day--today .meal-dates-cal__day-num {
-  font-weight: 800;
-  color: var(--color-brand-dark);
+  font-weight: 700;
+  color: var(--color-brand-deep);
 }
 
 .meal-dates-cal__day--in-range .meal-dates-cal__day-num {
