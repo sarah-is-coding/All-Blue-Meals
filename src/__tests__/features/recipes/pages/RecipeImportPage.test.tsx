@@ -3,7 +3,7 @@ import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import RecipeImportPage from "../../../../features/recipes/pages/RecipeImportPage";
-import type { ImportedRecipe } from "../../../../features/recipes/importTypes";
+import type { ImportedRecipe } from "../../../../features/recipes/types";
 import { SAMPLE_RECIPE_IMPORT_NOTES } from "../fixtures/sampleRecipeImportNotes";
 
 const navigate = vi.fn();
@@ -20,14 +20,10 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("../../../../features/recipes/api", () => ({
   createRecipe: vi.fn(),
-}));
-
-vi.mock("../../../../features/recipes/importApi", () => ({
   extractRecipesFromText: vi.fn(),
 }));
 
-import { createRecipe } from "../../../../features/recipes/api";
-import { extractRecipesFromText } from "../../../../features/recipes/importApi";
+import { createRecipe, extractRecipesFromText } from "../../../../features/recipes/api";
 
 const mockCreateRecipe = vi.mocked(createRecipe);
 const mockExtractRecipesFromText = vi.mocked(extractRecipesFromText);

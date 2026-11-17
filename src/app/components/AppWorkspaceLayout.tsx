@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import AdSlot from "../../components/ads/AdSlot";
 import LoadingModal from "../../components/feedback/LoadingModal";
-import { authService } from "../../features/auth/services/authService";
+import { authService } from "../../features/auth/api";
 import { clearRecipeListViewState } from "../../features/recipes/utils/recipeListViewState";
 
 const appNavItems = [

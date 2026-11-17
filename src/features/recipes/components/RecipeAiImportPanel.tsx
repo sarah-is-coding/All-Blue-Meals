@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { ImportedRecipe, RecipeImportResult } from "../importTypes";
+import type { ImportedRecipe, RecipeImportResult } from "../types";
 
 type RecipeAiImportPanelProps = {
   actionLabel?: string;

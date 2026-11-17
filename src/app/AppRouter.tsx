@@ -1,6 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import AuthPage from "../features/auth/AuthPage";
+import AuthPage from "../features/auth/pages/AuthPage";
 import GroceryPage from "../features/grocery/pages/GroceryPage";
 import SavedGroceryListsPage from "../features/grocery/pages/SavedGroceryListsPage";
 import MealPlansPage from "../features/meal-plans/pages/MealPlansPage";

@@ -16,7 +16,7 @@ vi.mock("../../../lib/supabaseClient", () => ({
 import {
   extractRecipesFromText,
   generateRecipesFromPrompt,
-} from "../../../features/recipes/importApi";
+} from "../../../features/recipes/api";
 
 describe("extractRecipesFromText", () => {
   beforeEach(() => {

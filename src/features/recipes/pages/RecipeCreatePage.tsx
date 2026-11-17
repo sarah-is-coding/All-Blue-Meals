@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import RecipeFormFields from "../components/RecipeFormFields";
 import { useRecipeActions } from "../queries";
-import type { ImportedRecipe } from "../importTypes";
+import type { ImportedRecipe } from "../types";
 import {
   createEmptyIngredient,
   createEmptyRecipeFormValues,

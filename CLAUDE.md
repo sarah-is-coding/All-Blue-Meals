@@ -180,6 +180,7 @@ to `main`.
 ```
 src/features/<feature>/
   types.ts       ← TypeScript types only, no logic
+  constants.ts   ← Fixed values (options lists, defaults), if the feature has any
   api.ts         ← All Supabase calls for this feature
   queries.ts     ← TanStack Query keys, hooks, and cache updates (see Data loading)
   components/    ← UI components
@@ -260,8 +261,15 @@ dependency, and never in a way that creates a cycle.
 
 - Use existing CSS variables from `src/styles/global.css`
   (`--color-brand`, `--alpha-brand-20`, `--color-muted-soft`, etc.)
-- Add component styles to `src/styles/app.css` with a BEM-style class
-  prefix matching the component name (e.g. `.ingredient-combobox__*`)
+- Styles are split by area, imported in cascade order by `src/styles/app.css`:
+  `src/styles/features/<feature>.css` for a feature's components,
+  `shared.css` for UI used across features (buttons, ads, loading modal,
+  form messages), `layout.css` for the app shell, `landing.css` for the
+  landing page
+- Add a component's styles to its area's file with a BEM-style class prefix
+  matching the component name (e.g. `.ingredient-combobox__*`). A new file
+  goes in the `app.css` import list, which sets which file wins when two
+  equally specific rules style the same element
 - No inline styles; no Tailwind utility classes in component files
 
 ## Code Style

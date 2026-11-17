@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useRecipeActions } from "../queries";
 import RecipeAiImportPanel from "../components/RecipeAiImportPanel";
-import { generateRecipesFromPrompt } from "../importApi";
-import type { ImportedRecipe } from "../importTypes";
+import { generateRecipesFromPrompt } from "../api";
+import type { ImportedRecipe } from "../types";
 import { mapImportedRecipeToInput } from "../utils/recipeImport";
 
 export default function RecipeGeneratePage() {

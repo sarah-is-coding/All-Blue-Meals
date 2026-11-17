@@ -1,0 +1,1020 @@
+/* Meal plans feature: the planner calendar, plan browser, saved plans pages,
+   add-to-plan modal, and the shared date-range picker and meal-dates calendar. */
+
+.meal-planner-route {
+  gap: 0.85rem;
+}
+
+.meal-planner-layout {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.meal-calendar {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.meal-calendar__header {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.meal-calendar__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
+}
+
+.meal-calendar__manage-link {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-muted-soft);
+}
+
+.meal-calendar__manage-link:hover {
+  color: var(--color-brand-dark);
+  text-decoration: underline;
+}
+
+.meal-calendar__actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.meal-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(190px, 1fr));
+  gap: 0.66rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+
+.meal-day {
+  border: 1px solid var(--alpha-brand-20);
+  border-radius: 0.9rem;
+  background: var(--alpha-bg-241-88);
+  padding: 0.58rem;
+  display: grid;
+  gap: 0.55rem;
+  min-width: 190px;
+}
+
+.meal-day__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  align-items: baseline;
+}
+
+.meal-day__header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+}
+
+.meal-day__header span {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.meal-day__slots {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.meal-slot {
+  border: 1px dashed var(--alpha-brand-22);
+  border-radius: 0.78rem;
+  background: var(--alpha-white-90);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.48rem;
+  min-height: 5.9rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.meal-slot--active {
+  border-color: var(--alpha-brand-dark-95);
+  box-shadow: 0 0 0 3px var(--alpha-brand-24);
+  background: var(--alpha-cyan-240-90);
+}
+
+.meal-slot[role="button"] {
+  cursor: pointer;
+}
+
+.meal-slot[role="button"]:hover {
+  border-color: var(--alpha-brand-dark-85);
+  background: var(--alpha-cyan-240-90);
+}
+
+.meal-slot[role="button"]:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.meal-slot--selected {
+  border-style: solid;
+  border-color: var(--alpha-brand-dark-95);
+  box-shadow: 0 0 0 3px var(--alpha-brand-24);
+  background: var(--alpha-cyan-240-90);
+}
+
+.meal-slot__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-dark);
+}
+
+.meal-slot__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted-soft);
+}
+
+.meal-slot__search-link {
+  justify-self: start;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-brand-dark);
+}
+
+.meal-slot__search-link:hover {
+  text-decoration: underline;
+}
+
+.meal-slot__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.meal-chip {
+  border-radius: 0.66rem;
+  border: 1px solid var(--alpha-brand-22);
+  background: var(--alpha-bg-241-88);
+  padding: 0.4rem 0.45rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.meal-chip > span {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-ink-strong);
+}
+
+.meal-chip__servings {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+}
+
+.meal-chip__servings > span {
+  color: var(--color-muted-soft);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.meal-chip--clickable {
+  cursor: grab;
+}
+
+.meal-chip--clickable:hover,
+.meal-chip--clickable:focus-visible {
+  border-color: var(--alpha-brand-dark-85);
+  box-shadow: 0 0 0 3px var(--alpha-brand-22);
+  outline: none;
+}
+
+.meal-chip--clickable:active {
+  cursor: grabbing;
+}
+
+.meal-chip--readonly {
+  gap: 0.15rem;
+}
+
+.meal-chip__servings-readout {
+  font-size: 0.76rem;
+  color: var(--color-muted-soft);
+}
+
+.meal-chip--moving {
+  opacity: 0.68;
+}
+
+.meal-chip__remove {
+  border: 0;
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 0.79rem;
+  font-weight: 700;
+  justify-self: start;
+  padding: 0;
+  cursor: pointer;
+}
+
+.meal-chip__remove:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Collapsible panel toggle (used by the Browse past weeks panel) ── */
+.plan-browser__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-brand-dark);
+}
+
+.plan-browser__toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.plan-browser__toggle:hover .plan-browser__toggle-label {
+  color: var(--color-brand-dark);
+}
+
+.plan-browser__chevron {
+  font-size: 0.7rem;
+  color: var(--color-muted-soft);
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+/* ── Browse past weeks panel ──────────────────────────────── */
+.plan-browser {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.plan-browser__body {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.plan-browser__preview-heading {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-soft);
+}
+
+.plan-browser__week-label {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plan-browser__current-badge {
+  background: var(--alpha-brand-12);
+  color: var(--color-brand-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan-browser__status {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-muted-soft);
+}
+
+.plan-browser__preview {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--alpha-slate-38);
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--alpha-bg-248-85);
+}
+
+.plan-browser__day {
+  display: grid;
+  grid-template-columns: 4.8rem 1fr;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 0.84rem;
+}
+
+.plan-browser__day-label {
+  font-weight: 700;
+  color: var(--color-muted-soft);
+  white-space: nowrap;
+}
+
+.plan-browser__day-empty {
+  color: var(--color-muted-faint);
+}
+
+.plan-browser__day-recipes {
+  color: var(--color-ink-soft);
+  line-height: 1.35;
+}
+
+.plan-browser__confirm {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-bg-warm);
+  border: 1px solid var(--alpha-accent-22);
+  border-radius: 0.7rem;
+}
+
+.plan-browser__confirm-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+
+.plan-browser__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Unlike an absolutely-positioned target anchor, this deliberately has no
+   `position`, so the popup's absolute positioning resolves against the
+   nearest positioned ancestor further up the tree (e.g. the button rail
+   it sits in) instead of hugging this trigger's own narrow width. */
+.add-to-plan-anchor {
+  min-height: 0;
+}
+
+.meal-target-popup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 0.9rem;
+  background: var(--alpha-cyan-240-94);
+  box-shadow: 0 18px 42px var(--alpha-ink-16);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.58rem;
+  max-height: min(65vh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.meal-target-popup--above {
+  bottom: calc(100% + 0.42rem);
+}
+
+.meal-target-popup--below {
+  top: calc(100% + 0.42rem);
+}
+
+.meal-target-popup__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-ink);
+  font-size: 0.9rem;
+}
+
+.meal-target-popup__recipe {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-ink-soft);
+}
+
+.meal-target-popup__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.48rem;
+  flex-wrap: wrap;
+}
+
+/* ── Add to plan modal ───────────────────────────────────── */
+
+.add-to-plan-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.add-to-plan-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--alpha-ink-48);
+  backdrop-filter: blur(2px);
+}
+
+.add-to-plan-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(1100px, 100%);
+  max-height: min(88vh, 900px);
+  overflow-y: auto;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.15rem;
+  border-radius: 1rem;
+  background: var(--alpha-cyan-240-94);
+  border: 1px solid var(--alpha-brand-20);
+  box-shadow: 0 20px 52px var(--alpha-ink-deep-28);
+}
+
+.add-to-plan-modal__header {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.add-to-plan-modal__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-ink);
+  font-size: 0.9rem;
+}
+
+.add-to-plan-modal__recipe {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-ink-strong);
+}
+
+.add-to-plan-modal__loading {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted-soft);
+}
+
+.add-to-plan-modal__calendar .meal-calendar {
+  gap: 0.6rem;
+}
+
+.add-to-plan-modal__servings {
+  max-width: 14rem;
+}
+
+.add-to-plan-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+
+  .meal-calendar__actions {
+    width: 100%;
+  }
+
+  .meal-calendar__actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ── Sidebar wrapper (stacks Browse + Find panels) ───────── */
+.meal-planner-sidebar {
+  display: grid;
+  gap: 0.85rem;
+  align-self: start;
+}
+
+@media (min-width: 1080px) {
+  .meal-planner-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: start;
+  }
+
+  .meal-planner-sidebar {
+    position: sticky;
+    top: 0.8rem;
+  }
+}
+
+.meal-planner-route__error {
+  margin-bottom: 0.5rem;
+}
+
+/* ── Browse-plans panel: tab switcher ────────────────────── */
+.plan-browser__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--alpha-slate-38);
+  margin-bottom: 0.2rem;
+}
+
+.plan-browser__tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.42rem 0.6rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-muted-soft);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.12s, border-color 0.12s;
+  margin-bottom: -1px;
+}
+
+.plan-browser__tab--active {
+  color: var(--color-brand-dark);
+  border-bottom-color: var(--color-brand-dark);
+}
+
+.plan-browser__tab:hover:not(.plan-browser__tab--active) {
+  color: var(--color-ink-soft);
+}
+
+/* ── Save-as-template inline flow ────────────────────────── */
+.plan-browser__save-btn {
+  align-self: start;
+  font-size: 0.83rem;
+}
+
+.plan-browser__save-done {
+  margin: 0;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--color-brand-dark);
+}
+
+.plan-browser__save-form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.plan-browser__save-input {
+  width: 100%;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid var(--alpha-slate-44);
+  border-radius: 0.55rem;
+  font-size: 0.9rem;
+  background: var(--color-bg-base);
+  color: var(--color-ink);
+  box-sizing: border-box;
+}
+
+.plan-browser__save-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+/* ── Saved-plans search row ──────────────────────────────── */
+.plan-browser__search-row {
+  display: grid;
+}
+
+.plan-browser__search-input {
+  width: 100%;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid var(--alpha-slate-44);
+  border-radius: 0.55rem;
+  font-size: 0.9rem;
+  background: var(--color-bg-base);
+  color: var(--color-ink);
+  box-sizing: border-box;
+}
+
+.plan-browser__search-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+/* ── Saved-plan list in Browse panel ─────────────────────── */
+.saved-plan-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.saved-plan-list__item {
+  border: 1px solid var(--alpha-slate-38);
+  border-radius: 0.65rem;
+  overflow: hidden;
+}
+
+.saved-plan-list__btn {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.52rem 0.7rem;
+  background: var(--alpha-bg-248-85);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.saved-plan-list__btn:hover {
+  background: var(--alpha-brand-12);
+}
+
+.saved-plan-list__btn--active {
+  background: var(--alpha-brand-12);
+}
+
+.saved-plan-list__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saved-plan-list__range {
+  font-size: 0.75rem;
+  color: var(--color-muted-soft);
+  white-space: nowrap;
+}
+
+.saved-plan-list__chevron {
+  font-size: 0.65rem;
+  color: var(--color-muted-soft);
+  margin-left: 0.25rem;
+}
+
+.saved-plan-list__detail {
+  padding: 0.6rem 0.7rem 0.7rem;
+  background: var(--color-bg-base);
+  border-top: 1px solid var(--alpha-slate-33);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.plan-browser__preview--compact {
+  font-size: 0.8rem;
+}
+
+/* ── Saved Meal Plans management page ────────────────────── */
+.saved-plans-route {
+  max-width: 680px;
+}
+
+.saved-plans-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.4rem;
+}
+
+.saved-plans-back {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-brand-dark);
+  text-decoration: none;
+  align-self: start;
+}
+
+.saved-plans-back:hover {
+  text-decoration: underline;
+}
+
+.saved-plans-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.saved-plans-empty {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.saved-plans-empty__hint {
+  margin-top: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--color-muted-soft);
+}
+
+.saved-plans-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.saved-plans-list__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+}
+
+.saved-plans-list__main {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.saved-plans-list__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.saved-plans-list__range {
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
+}
+
+.saved-plans-list__actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.saved-plans-list__confirm-label {
+  font-size: 0.84rem;
+  color: var(--color-ink-soft);
+}
+
+.saved-plans-list__rename {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.saved-plans-list__rename-input {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--alpha-slate-44);
+  border-radius: 0.55rem;
+  font-size: 0.95rem;
+  background: var(--color-bg-base);
+  color: var(--color-ink);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.saved-plans-list__rename-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+.saved-plans-list__rename-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+/* ── Plan-span calendar ───────────────────────────────────── */
+/* ── Date-range picker: From/To fields tied to the meal-dates calendar ── */
+.date-range-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.date-range-picker__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.date-range-picker__field {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-muted-soft);
+}
+
+.date-range-picker__field input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  background: var(--alpha-white-90);
+  color: var(--color-ink);
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.date-range-picker__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
+}
+
+/* ── Copy-dates calendar: pick a range; days with meals are dotted ── */
+.meal-dates-cal {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.meal-dates-cal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.meal-dates-cal__nav {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: var(--color-muted-soft);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.4rem;
+  line-height: 1;
+}
+
+.meal-dates-cal__nav:hover {
+  background: var(--alpha-slate-33);
+  color: var(--color-ink-soft);
+}
+
+.meal-dates-cal__month-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  flex: 1;
+  text-align: center;
+}
+
+.meal-dates-cal__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.meal-dates-cal__weekday {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-muted-faint);
+  text-align: center;
+  padding: 0.15rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Grid: zero column gap so the selection band flows continuously across
+   cells. A small row gap provides visual breathing room between weeks. */
+.meal-dates-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 3px;
+}
+
+/* Every day is a button: any day can start or end a range. */
+.meal-dates-cal__day {
+  position: relative;
+  height: 2.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* The selection band: absolutely positioned behind the day number.
+   No horizontal margins by default so adjacent cells merge into one bar. */
+.meal-dates-cal__day-band {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  border-radius: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.meal-dates-cal__day--in-range .meal-dates-cal__day-band {
+  background: var(--alpha-brand-20);
+}
+
+/* Left cap: indent the band's left edge and round it */
+.meal-dates-cal__day--band-left .meal-dates-cal__day-band {
+  left: 20%;
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+/* Right cap: indent the band's right edge and round it */
+.meal-dates-cal__day--band-right .meal-dates-cal__day-band {
+  right: 20%;
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+/* Single-day range or isolated cell: full pill */
+.meal-dates-cal__day--band-left.meal-dates-cal__day--band-right .meal-dates-cal__day-band {
+  left: 15%;
+  right: 15%;
+  border-radius: 999px;
+}
+
+.meal-dates-cal__day-num {
+  position: relative;
+  z-index: 1;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  line-height: 1;
+}
+
+/* Greyed-out padding days (prev / next month) */
+.meal-dates-cal__day--other-month .meal-dates-cal__day-num {
+  color: var(--color-muted-faint);
+}
+
+.meal-dates-cal__day--today .meal-dates-cal__day-num {
+  font-weight: 800;
+  color: var(--color-brand-dark);
+}
+
+.meal-dates-cal__day--in-range .meal-dates-cal__day-num {
+  font-weight: 700;
+}
+
+/* Days with planned meals: small dot under the number */
+.meal-dates-cal__day-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.meal-dates-cal__status {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
+}
+
+/* ── Selected-plan detail below the calendar ─────────────── */
+.plan-browser__selection {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--alpha-slate-33);
+  margin-top: 0.3rem;
+}

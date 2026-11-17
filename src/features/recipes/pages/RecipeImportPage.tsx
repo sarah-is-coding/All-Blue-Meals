@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useRecipeActions } from "../queries";
 import RecipeAiImportPanel from "../components/RecipeAiImportPanel";
-import { extractRecipesFromText } from "../importApi";
-import type { ImportedRecipe } from "../importTypes";
+import { extractRecipesFromText } from "../api";
+import type { ImportedRecipe } from "../types";
 import { mapImportedRecipeToInput } from "../utils/recipeImport";
 
 export default function RecipeImportPage() {

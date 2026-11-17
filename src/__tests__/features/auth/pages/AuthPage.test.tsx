@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import AuthPage from "../../../features/auth/AuthPage";
+import AuthPage from "../../../../features/auth/pages/AuthPage";
 
-vi.mock("../../../features/auth/services/authService", () => ({
+vi.mock("../../../../features/auth/api", () => ({
   authService: {
     signInWithEmail: vi.fn(),
     signUpWithEmail: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock("../../../features/auth/services/authService", () => ({
   },
 }));
 
-import { authService } from "../../../features/auth/services/authService";
+import { authService } from "../../../../features/auth/api";
 
 const T = { timeout: 1500 };
 

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RecipeAiImportPanel from "../../../../features/recipes/components/RecipeAiImportPanel";
-import type { ImportedRecipe } from "../../../../features/recipes/importTypes";
+import type { ImportedRecipe } from "../../../../features/recipes/types";
 import { SAMPLE_RECIPE_IMPORT_NOTES } from "../fixtures/sampleRecipeImportNotes";
 
 const runRequest = vi.fn();

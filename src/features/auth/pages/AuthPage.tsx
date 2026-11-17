@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { authService } from "./services/authService";
-import LoadingModal from "../../components/feedback/LoadingModal";
+import { authService } from "../api";
+import LoadingModal from "../../../components/feedback/LoadingModal";
 
 type AuthMode = "signIn" | "signUp" | "resetRequest" | "resetUpdate";
 

@@ -1,10 +1,9 @@
 import { INGREDIENT_CATEGORIES, type IngredientCategory } from "../../ingredients/types";
-import type { RecipeUpsertInput } from "../types";
+import type { ImportedRecipe, RecipeUpsertInput } from "../types";
 import {
   createEmptyIngredient,
   type RecipeFormValues,
 } from "./recipeForm";
-import type { ImportedRecipe } from "../importTypes";
 
 const normalizeNumberText = (value: number | null): string =>
   value && value > 0 ? String(value) : "";

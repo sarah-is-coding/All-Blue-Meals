@@ -3,7 +3,7 @@ import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import RecipeGeneratePage from "../../../../features/recipes/pages/RecipeGeneratePage";
-import type { ImportedRecipe } from "../../../../features/recipes/importTypes";
+import type { ImportedRecipe } from "../../../../features/recipes/types";
 
 const navigate = vi.fn();
 
@@ -19,14 +19,10 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("../../../../features/recipes/api", () => ({
   createRecipe: vi.fn(),
-}));
-
-vi.mock("../../../../features/recipes/importApi", () => ({
   generateRecipesFromPrompt: vi.fn(),
 }));
 
-import { createRecipe } from "../../../../features/recipes/api";
-import { generateRecipesFromPrompt } from "../../../../features/recipes/importApi";
+import { createRecipe, generateRecipesFromPrompt } from "../../../../features/recipes/api";
 
 const mockCreateRecipe = vi.mocked(createRecipe);
 const mockGenerateRecipesFromPrompt = vi.mocked(generateRecipesFromPrompt);

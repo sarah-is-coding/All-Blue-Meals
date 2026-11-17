@@ -3,7 +3,7 @@ import {
   formatImportedInstructions,
   mapImportedRecipeToInput,
 } from "../../../../features/recipes/utils/recipeImport";
-import type { ImportedRecipe } from "../../../../features/recipes/importTypes";
+import type { ImportedRecipe } from "../../../../features/recipes/types";
 
 const importedRecipe: ImportedRecipe = {
   title: "Chicken Caesar taco salad",

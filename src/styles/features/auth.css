@@ -1,0 +1,102 @@
+/* Auth feature: sign-in, sign-up and password reset pages. */
+
+.auth-page {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, var(--color-bg-base), var(--color-bg-aqua));
+  color: var(--ink);
+  padding: clamp(1rem, 4vw, 2.5rem);
+  display: grid;
+  place-items: center;
+}
+
+.auth-page__glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--alpha-teal-34), transparent 70%);
+  filter: blur(16px);
+  right: -100px;
+  top: -100px;
+  pointer-events: none;
+}
+
+.auth-shell {
+  position: relative;
+  z-index: 1;
+  width: min(980px, 100%);
+  background: var(--alpha-white-90);
+  border: 1px solid var(--alpha-slate-40);
+  border-radius: 1.3rem;
+  box-shadow: 0 24px 60px var(--alpha-ink-14);
+  padding: clamp(1rem, 3vw, 2rem);
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: 1.1fr 0.9fr;
+}
+
+.auth-intro h1 {
+  margin: 0.7rem 0 0.9rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
+  line-height: 1.08;
+}
+
+.auth-intro p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 42ch;
+}
+
+.back-link {
+  color: var(--brand-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-panel {
+  background: var(--alpha-bg-241-88);
+  border: 1px solid var(--alpha-brand-20);
+  border-radius: 1rem;
+  padding: clamp(1rem, 2.8vw, 1.4rem);
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.auth-form h2 {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-display);
+}
+
+.auth-form label {
+  font-weight: 700;
+  font-size: 0.93rem;
+  color: var(--color-ink-soft);
+}
+
+.auth-form input {
+  border: 1px solid var(--alpha-slate-62);
+  background: var(--color-white);
+  border-radius: 0.78rem;
+  padding: 0.72rem 0.82rem;
+  color: var(--ink);
+  font-size: 0.96rem;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--alpha-brand-dark-78);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+@media (max-width: 960px) {
+
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+}
