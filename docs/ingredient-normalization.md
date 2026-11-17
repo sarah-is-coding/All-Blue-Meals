@@ -601,7 +601,7 @@ Each is its own commit; the app works after every one.
    `canonicalName` in the response schema. Deploy the function first. Then
    the app: safety-net parsing in `recipeImport.ts`, `ai` alias rows from
    `canonicalName`, matched/new labels in the draft form, a "N new" count on
-   the Create path.
+   the Create path. **Done.**
 6. **Grocery merge on `ingredient_id` + normalized unit.** Update
    `mergeIngredients`, the grocery API select, tests, and AGENTS.md. Skip
    `water`. Substitutes as options: `grocery_items.substitutes` migration,

@@ -58,6 +58,8 @@ export type RecipeIngredientInput = {
   category: IngredientCategory | null;
   /** clientId of the main row this is a substitute for; null for a main ingredient. */
   substituteFor: string | null;
+  /** From AI import: the common name for the same item, used to link synonyms. */
+  canonicalName?: string | null;
 };
 
 export type RecipeUpsertInput = {
@@ -74,12 +76,21 @@ export type RecipeUpsertInput = {
 
 // ── Recipe import (AI extraction and generation) ─────────────────────────
 
-export type ImportedRecipeIngredient = {
+// Matches supabase/functions/import-recipes/schema.ts. canonicalName and
+// substitutes are optional: responses from an older deployed function lack them.
+export type ImportedIngredientOption = {
   ingredientName: string;
+  /** Common grocery name for the same item ("scallions" → "green onion"). */
+  canonicalName?: string;
   quantity: string;
   unit: string;
   notes: string;
   category: IngredientCategory | null;
+};
+
+export type ImportedRecipeIngredient = ImportedIngredientOption & {
+  /** Alternatives ("or avocado oil"), each with its own amount. */
+  substitutes?: ImportedIngredientOption[];
 };
 
 export type ImportedRecipe = {

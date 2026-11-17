@@ -1,5 +1,6 @@
 import { INGREDIENT_CATEGORIES, type IngredientCategory } from "../../ingredients/types";
 import type { ImportedRecipe, RecipeUpsertInput } from "../types";
+import { importedIngredientRows } from "./importedIngredients";
 import {
   createEmptyIngredient,
   type RecipeFormValues,
@@ -39,18 +40,15 @@ export const mapImportedRecipeToInput = (
   servings: recipe.servings,
   tags: recipe.tags,
   instructions: formatImportedInstructions(recipe.instructions),
-  // Imports have no substitutes yet (step 5 adds them), so every row is a main row.
-  ingredients: recipe.ingredients.map((ingredient, index) => ({
-    clientId: `imported-${index}`,
-    ingredientId: "",
-    ingredientName: normalizeText(ingredient.ingredientName),
-    quantity: normalizeText(ingredient.quantity),
-    unit: normalizeText(ingredient.unit),
-    notes: normalizeText(ingredient.notes),
-    category: ingredient.category,
-    substituteFor: null,
-  })),
+  ingredients: importedIngredientRows(recipe.ingredients, sequentialIds("imported")).map(
+    ({ id, ...row }) => ({ clientId: id, ingredientId: "", ...row })
+  ),
 });
+
+const sequentialIds = (prefix: string) => {
+  let next = 0;
+  return () => `${prefix}-${next++}`;
+};
 
 export const mapImportedRecipeToFormValues = (
   recipe: ImportedRecipe
@@ -63,17 +61,10 @@ export const mapImportedRecipeToFormValues = (
   servings: normalizeNumberText(recipe.servings),
   tags: recipe.tags.join(", "),
   instructions: formatImportedInstructions(recipe.instructions),
-  ingredients:
-    recipe.ingredients.length > 0
-      ? recipe.ingredients.map((ingredient) => ({
-          id: createEmptyIngredient().id,
-          ingredientId: "",
-          ingredientName: normalizeText(ingredient.ingredientName),
-          quantity: normalizeText(ingredient.quantity),
-          unit: normalizeText(ingredient.unit),
-          notes: normalizeText(ingredient.notes),
-          category: ingredient.category,
-          substituteFor: null,
-        }))
-      : [createEmptyIngredient()],
+  ingredients: (() => {
+    const rows = importedIngredientRows(recipe.ingredients, () => createEmptyIngredient().id);
+    return rows.length > 0
+      ? rows.map((row) => ({ ...row, ingredientId: "" }))
+      : [createEmptyIngredient()];
+  })(),
 });

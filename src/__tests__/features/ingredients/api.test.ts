@@ -1,5 +1,6 @@
 import {
   createIngredient,
+  findIngredientMatches,
   escapeLikePattern,
   resolveIngredients,
   searchIngredients,
@@ -16,7 +17,7 @@ import {
 // ─────────────────────────────────────────────────────────────
 vi.mock("../../../lib/supabaseClient", () => {
   const builder: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const method of ["from", "select", "insert", "eq", "ilike", "or", "in", "order", "limit"]) {
+  for (const method of ["from", "select", "insert", "upsert", "eq", "ilike", "or", "in", "order", "limit"]) {
     builder[method] = vi.fn().mockReturnValue(builder);
   }
   builder.returns = vi.fn().mockResolvedValue({ data: [], error: null });
@@ -39,7 +40,7 @@ const ok = (data: unknown) => ({ data, error: null });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const method of ["from", "select", "insert", "eq", "ilike", "or", "in", "order", "limit"]) {
+  for (const method of ["from", "select", "insert", "upsert", "eq", "ilike", "or", "in", "order", "limit"]) {
     db[method].mockReturnValue(db);
   }
   db.returns.mockResolvedValue(ok([]));
@@ -254,5 +255,96 @@ describe("createIngredient", () => {
 
     expect(db.insert).toHaveBeenCalledWith([{ name: "sumac", name_key: "sumac", category: "other" }]);
     expect(ingredient.id).toBe("n-1");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// AI canonical names → ingredient_aliases (step 5)
+// ─────────────────────────────────────────────────────────────
+describe("resolveIngredients with a canonical name", () => {
+  it("uses the canonical ingredient and adds an approved alias when the category matches", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([])) // "scallions" by key
+      .mockResolvedValueOnce(ok([])) // by alias
+      .mockResolvedValueOnce(ok([])) // by name
+      .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")])); // canonical by key
+
+    const result = await resolveIngredients([
+      { name: "Scallions", category: "produce", canonicalName: "green onion" },
+    ]);
+
+    expect(result.get("scallion")?.id).toBe("i-1");
+    expect(db.upsert).toHaveBeenCalledWith(
+      [{ alias_key: "scallion", alias_name: "scallions", ingredient_id: "i-1", source: "ai", status: "approved" }],
+      { onConflict: "alias_key", ignoreDuplicates: true }
+    );
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("saves a pending alias and creates the name as written when the category differs", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([row("i-1", "butter", "butter", "dairy & eggs")]))
+      .mockResolvedValueOnce(ok([row("n-1", "ghee", "ghee", "pantry")]));
+
+    const result = await resolveIngredients([{ name: "ghee", category: "pantry", canonicalName: "butter" }]);
+
+    expect(db.upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ alias_key: "ghee", ingredient_id: "i-1", status: "pending" })],
+      expect.anything()
+    );
+    expect(db.insert).toHaveBeenCalledWith([{ name: "ghee", name_key: "ghee", category: "pantry" }]);
+    expect(result.get("ghee")?.id).toBe("n-1");
+  });
+
+  it("adds no alias when the canonical name isn't in the catalog", async () => {
+    // Name: by key, alias, exact name; canonical: by key, alias, exact name; then the insert.
+    for (let lookup = 0; lookup < 6; lookup += 1) db.returns.mockResolvedValueOnce(ok([]));
+    db.returns.mockResolvedValueOnce(ok([row("n-1", "pak choi", "pakchoi")]));
+
+    await resolveIngredients([{ name: "pak choi", category: "produce", canonicalName: "bok choy" }]);
+
+    expect(db.upsert).not.toHaveBeenCalled();
+    expect(db.insert).toHaveBeenCalledWith([{ name: "pak choi", name_key: "pakchoi", category: "produce" }]);
+  });
+
+  it("ignores a canonical name with the same key as the name", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "onion", "onion")]));
+    await resolveIngredients([{ name: "onions", category: "produce", canonicalName: "Onion" }]);
+    expect(db.upsert).not.toHaveBeenCalled();
+  });
+
+  it("still saves when adding the alias fails", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")]));
+    db.upsert.mockRejectedValueOnce(new Error("network"));
+
+    const result = await resolveIngredients([
+      { name: "scallions", category: "produce", canonicalName: "green onion" },
+    ]);
+    expect(result.get("scallion")?.id).toBe("i-1");
+  });
+});
+
+describe("findIngredientMatches", () => {
+  it("looks names up by key without creating anything", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "onion", "onion")])).mockResolvedValue(ok([]));
+
+    const matches = await findIngredientMatches(["Onions", "sumac", "onion"]);
+
+    expect(db.in).toHaveBeenCalledWith("name_key", ["onion", "sumac"]);
+    expect(matches.get("onion")?.id).toBe("i-1");
+    expect(matches.has("sumac")).toBe(false);
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty map without querying for no names", async () => {
+    expect((await findIngredientMatches(["  "])).size).toBe(0);
+    expect(db.from).not.toHaveBeenCalled();
   });
 });

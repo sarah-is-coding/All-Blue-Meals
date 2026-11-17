@@ -52,6 +52,31 @@ describe("extractRecipesFromText", () => {
     );
     expect(invoke).not.toHaveBeenCalled();
   });
+
+  // Step 5: ingredient names a person should check become recipe warnings.
+  it("adds warnings for ingredient names to check, after the AI's own", async () => {
+    invoke.mockResolvedValueOnce({
+      data: {
+        recipes: [
+          {
+            title: "Tacos", description: "", sourceUrl: null, prepMinutes: null, cookMinutes: null,
+            servings: null, tags: [], instructions: "", confidence: "high",
+            warnings: ["Servings were missing."],
+            ingredients: [{ ingredientName: "toppings", quantity: "", unit: "", notes: "", category: "other" }],
+          },
+        ],
+        warnings: [],
+      },
+      error: null,
+    });
+
+    const result = await extractRecipesFromText("tacos");
+
+    expect(result.recipes[0]!.warnings).toEqual([
+      "Servings were missing.",
+      `"toppings" isn't something you can buy. Replace it with the actual ingredients.`,
+    ]);
+  });
 });
 
 describe("generateRecipesFromPrompt", () => {

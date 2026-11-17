@@ -102,6 +102,58 @@ export async function searchIngredients(term: string, limit = 8): Promise<Ingred
 export type IngredientRequest = {
   name: string;
   category: IngredientCategory;
+  /** From AI import: the common name for the same item ("scallions" → "green onion"). */
+  canonicalName?: string | null;
+};
+
+/**
+ * Link names to their canonical ingredient through ingredient_aliases (rule
+ * in docs/ingredient-normalization.md, "AI-created aliases"): when the
+ * canonical ingredient exists in the same category the alias is approved and
+ * the name resolves to it now; in a different category it's saved as pending
+ * for review and the name is created as written. Aliases are best effort: a
+ * failure never stops a recipe from saving.
+ */
+const linkCanonicalNames = async (
+  requests: Map<string, IngredientRequest>,
+  found: Map<string, Ingredient>
+): Promise<void> => {
+  const candidates = [...requests.entries()].filter(
+    ([key, request]) => !found.has(key) && request.canonicalName && ingredientKey(request.canonicalName) !== key
+  );
+  if (candidates.length === 0) return;
+
+  try {
+    const canonicalRequests = new Map(
+      candidates.map(([, request]) => [
+        ingredientKey(request.canonicalName ?? ""),
+        { name: request.canonicalName ?? "", category: request.category },
+      ])
+    );
+    const canonicals = await findByKeys(canonicalRequests);
+
+    const aliases = candidates.flatMap(([key, request]) => {
+      const canonical = canonicals.get(ingredientKey(request.canonicalName ?? ""));
+      if (!canonical) return [];
+      const approved = canonical.category === request.category;
+      if (approved) found.set(key, canonical);
+      return [{
+        alias_key: key,
+        alias_name: request.name.trim().toLowerCase(),
+        ingredient_id: canonical.id,
+        source: "ai",
+        status: approved ? "approved" : "pending",
+      }];
+    });
+    if (aliases.length > 0) {
+      // An alias someone else just added for the same name is fine to keep.
+      await supabase
+        .from("ingredient_aliases")
+        .upsert(aliases, { onConflict: "alias_key", ignoreDuplicates: true });
+    }
+  } catch {
+    // Best effort: without the alias, the name is simply created as written.
+  }
 };
 
 /** Existing ingredients for the given keys: by name_key, then alias, then exact name. */
@@ -171,6 +223,7 @@ export async function resolveIngredients(
   if (byKey.size === 0) return new Map();
 
   const found = await findByKeys(byKey);
+  await linkCanonicalNames(byKey, found);
   const toCreate = [...byKey.entries()].filter(([key]) => !found.has(key));
   if (toCreate.length === 0) return found;
 
@@ -200,6 +253,20 @@ export async function resolveIngredients(
     if (row.name_key) found.set(row.name_key, mapIngredientRow(row));
   }
   return found;
+}
+
+/**
+ * Which of these names already exist in the catalog (by key or approved
+ * alias), without creating anything. Map from ingredientKey(name) to the
+ * ingredient; names not in the map would be new.
+ */
+export async function findIngredientMatches(names: ReadonlyArray<string>): Promise<Map<string, Ingredient>> {
+  const requests = new Map<string, IngredientRequest>();
+  for (const name of names) {
+    const key = ingredientKey(name);
+    if (key && !requests.has(key)) requests.set(key, { name, category: "other" });
+  }
+  return requests.size > 0 ? findByKeys(requests) : new Map();
 }
 
 /** Find or create one ingredient. */

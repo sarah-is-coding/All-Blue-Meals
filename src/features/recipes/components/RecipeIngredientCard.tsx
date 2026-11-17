@@ -12,7 +12,11 @@ type RecipeIngredientCardProps = {
   onRemove: (rowId: string) => void;
   /** Only passed for main rows. */
   onAddSubstitute?: (mainRowId: string) => void;
+  /** For imported rows: whether the name is new to the catalog or matches an ingredient. */
+  matchStatus?: IngredientMatchStatus;
 };
+
+export type IngredientMatchStatus = { kind: "new" } | { kind: "matched"; name: string } | null;
 
 export default function RecipeIngredientCard({
   ingredient,
@@ -23,6 +27,7 @@ export default function RecipeIngredientCard({
   onIngredientSelect,
   onRemove,
   onAddSubstitute,
+  matchStatus = null,
 }: RecipeIngredientCardProps) {
   return (
     <article
@@ -43,6 +48,14 @@ export default function RecipeIngredientCard({
             onSelect={(ingredientId, name) => onIngredientSelect(ingredient.id, ingredientId, name)}
             readOnly={readOnly}
           />
+          {matchStatus?.kind === "new" ? (
+            <span className="recipe-ingredient-card__match recipe-ingredient-card__match--new">
+              New ingredient
+            </span>
+          ) : null}
+          {matchStatus?.kind === "matched" ? (
+            <span className="recipe-ingredient-card__match">{`Matches ${matchStatus.name}`}</span>
+          ) : null}
         </div>
 
         <label className="recipe-field">

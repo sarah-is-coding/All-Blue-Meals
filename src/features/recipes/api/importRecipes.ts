@@ -2,7 +2,14 @@
 
 import { FunctionsHttpError } from "@supabase/functions-js";
 import { supabase } from "../../../lib/supabaseClient";
-import type { RecipeImportResult } from "../types";
+import type { ImportedRecipe, RecipeImportResult } from "../types";
+import { importedIngredientWarnings } from "../utils/importedIngredients";
+
+/** Add warnings for ingredient names a person should check (brands, lists, placeholders). */
+const withIngredientWarnings = (recipe: ImportedRecipe): ImportedRecipe => ({
+  ...recipe,
+  warnings: [...(recipe.warnings ?? []), ...importedIngredientWarnings(recipe.ingredients ?? [])],
+});
 
 type ImportRecipesResponse = RecipeImportResult & {
   error?: string;
@@ -57,7 +64,7 @@ export async function extractRecipesFromText(text: string): Promise<RecipeImport
   }
 
   return {
-    recipes: data.recipes ?? [],
+    recipes: (data.recipes ?? []).map(withIngredientWarnings),
     warnings: data.warnings ?? [],
   };
 }
@@ -90,7 +97,7 @@ export async function generateRecipesFromPrompt(
   }
 
   return {
-    recipes: data.recipes ?? [],
+    recipes: (data.recipes ?? []).map(withIngredientWarnings),
     warnings: data.warnings ?? [],
   };
 }

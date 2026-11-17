@@ -28,16 +28,17 @@ vi.mock("../../../../features/ingredients/api", () => ({
     defaultUnit: null,
   }),
   searchIngredients: vi.fn().mockResolvedValue([]),
+  findIngredientMatches: vi.fn().mockResolvedValue(new Map()),
 }));
 
 import { createRecipe } from "../../../../features/recipes/api";
-import { searchIngredients } from "../../../../features/ingredients/api";
+import { findIngredientMatches, searchIngredients } from "../../../../features/ingredients/api";
 
 const mockCreateRecipe = vi.mocked(createRecipe);
 
-const renderPage = () =>
+const renderPage = (state?: unknown) =>
   renderWithProviders(
-    <MemoryRouter initialEntries={["/app/recipes/new"]}>
+    <MemoryRouter initialEntries={[{ pathname: "/app/recipes/new", state }]}>
       <Routes>
         <Route path="/app/recipes/new" element={<RecipeCreatePage />} />
       </Routes>
@@ -123,5 +124,37 @@ describe("RecipeCreatePage", () => {
     await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
     expect(screen.getAllByRole("combobox")).toHaveLength(1);
     expect(screen.queryByRole("article", { name: "Substitute ingredient" })).not.toBeInTheDocument();
+  });
+
+  // Step 5: an imported draft labels each ingredient as new or matched.
+  it("labels imported ingredients as new or matching an existing ingredient", async () => {
+    const greenOnion = { id: "i-1", name: "green onion", category: "produce" as const, defaultUnit: null };
+    const garlic = { id: "i-2", name: "garlic", category: "produce" as const, defaultUnit: null };
+    vi.mocked(findIngredientMatches).mockResolvedValue(
+      new Map([["greenonion", greenOnion], ["garlic", garlic]])
+    );
+    const ing = (ingredientName: string, canonicalName?: string) => ({
+      ingredientName, canonicalName, quantity: "1", unit: "", notes: "", category: "produce" as const,
+    });
+
+    renderPage({
+      importedRecipe: {
+        title: "Stir fry", description: "", sourceUrl: null, prepMinutes: null, cookMinutes: null,
+        servings: null, tags: [], instructions: "", confidence: "high", warnings: [],
+        ingredients: [ing("scallions", "green onion"), ing("garlic"), ing("sumac")],
+      },
+    });
+
+    // scallions → its canonical name is in the catalog; garlic matches exactly
+    // (nothing to say); sumac is new.
+    expect(await screen.findByText("Matches green onion")).toBeInTheDocument();
+    expect(screen.getAllByText("New ingredient")).toHaveLength(1);
+    expect(screen.queryByText("Matches garlic")).not.toBeInTheDocument();
+  });
+
+  it("doesn't label anything on a blank recipe", () => {
+    renderPage();
+    expect(screen.queryByText("New ingredient")).not.toBeInTheDocument();
+    expect(findIngredientMatches).not.toHaveBeenCalled();
   });
 });

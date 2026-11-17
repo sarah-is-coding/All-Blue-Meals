@@ -33,6 +33,7 @@ const getIngredientRows = async (input: RecipeUpsertInput) => {
     unresolved.map((ingredient) => ({
       name: ingredient.ingredientName.trim(),
       category: ingredient.category ?? "other",
+      canonicalName: ingredient.canonicalName ?? null,
     }))
   );
 

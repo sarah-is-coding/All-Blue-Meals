@@ -145,7 +145,7 @@ describe("recipe api", () => {
     });
 
     expect(resolveIngredients).toHaveBeenCalledTimes(1);
-    expect(resolveIngredients).toHaveBeenCalledWith([{ name: "Onions", category: "produce" }]);
+    expect(resolveIngredients).toHaveBeenCalledWith([{ name: "Onions", category: "produce", canonicalName: null }]);
     // Step 3: rows go to save_recipe_ingredients in display order (one
     // transaction) instead of a direct insert into recipe_ingredients.
     expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", {

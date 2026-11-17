@@ -1,11 +1,13 @@
-import type { RecipeFormValues } from "../utils/recipeForm";
+import type { RecipeFormIngredient, RecipeFormValues } from "../utils/recipeForm";
 import type { RecipeFormHandlers } from "../utils/recipeFormHandlers";
 import { groupSubstitutes } from "../utils/ingredientGroups";
-import RecipeIngredientCard from "./RecipeIngredientCard";
+import RecipeIngredientCard, { type IngredientMatchStatus } from "./RecipeIngredientCard";
 
 type RecipeFormFieldsProps = RecipeFormHandlers & {
   values: RecipeFormValues;
   readOnly: boolean;
+  /** Labels rows as new or matched (imported drafts); omitted elsewhere. */
+  matchStatusFor?: (row: RecipeFormIngredient) => IngredientMatchStatus;
 };
 
 export default function RecipeFormFields({
@@ -17,6 +19,7 @@ export default function RecipeFormFields({
   onAddIngredient,
   onAddSubstitute,
   onRemoveIngredient,
+  matchStatusFor,
 }: RecipeFormFieldsProps) {
   const groups = groupSubstitutes(values.ingredients);
   return (
@@ -147,6 +150,7 @@ export default function RecipeFormFields({
               onIngredientChange={onIngredientChange}
               onIngredientSelect={onIngredientSelect}
               onRemove={onRemoveIngredient}
+              matchStatus={matchStatusFor?.(main) ?? null}
               onAddSubstitute={onAddSubstitute}
             />,
             ...substitutes.map((substitute) => (
@@ -159,6 +163,7 @@ export default function RecipeFormFields({
                 onIngredientChange={onIngredientChange}
                 onIngredientSelect={onIngredientSelect}
                 onRemove={onRemoveIngredient}
+                matchStatus={matchStatusFor?.(substitute) ?? null}
               />
             )),
           ])}

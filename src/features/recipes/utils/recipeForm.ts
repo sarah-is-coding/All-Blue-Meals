@@ -12,6 +12,8 @@ export type RecipeFormIngredient = {
   category: IngredientCategory | null;
   /** Row id of the main ingredient this is a substitute for; null for a main row. */
   substituteFor: string | null;
+  /** From AI import: the common name for the same item, used to link synonyms. */
+  canonicalName?: string | null;
 };
 
 /** Ingredient fields edited as plain text (name and id change through the combobox). */
@@ -148,5 +150,6 @@ export const mapRecipeFormValuesToInput = (
     notes: ingredient.notes,
     category: ingredient.category,
     substituteFor: ingredient.substituteFor,
+    canonicalName: ingredient.canonicalName ?? null,
   })),
 });

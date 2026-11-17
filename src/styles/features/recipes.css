@@ -314,6 +314,21 @@
   color: var(--color-brand-dark);
 }
 
+/* "2 new ingredients" on an import result: created in the catalog on save. */
+.recipe-tag--new {
+  border-style: dashed;
+}
+
+/* "New ingredient" / "Matches green onion" under an imported row's name. */
+.recipe-ingredient-card__match {
+  font-size: 0.78rem;
+  color: var(--color-muted-soft);
+}
+
+.recipe-ingredient-card__match--new {
+  font-weight: 600;
+}
+
 .recipe-page-header {
   display: flex;
   justify-content: space-between;

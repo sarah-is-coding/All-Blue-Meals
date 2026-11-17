@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useIngredientMatches } from "../../ingredients/queries";
+import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import RecipeFormFields from "../components/RecipeFormFields";
+import type { IngredientMatchStatus } from "../components/RecipeIngredientCard";
 import { useRecipeActions } from "../queries";
 import type { ImportedRecipe } from "../types";
 import {
   createEmptyRecipeFormValues,
   mapRecipeFormValuesToInput,
+  type RecipeFormIngredient,
   type RecipeFormValues,
 } from "../utils/recipeForm";
 import { createRecipeFormHandlers } from "../utils/recipeFormHandlers";
@@ -41,6 +45,28 @@ export default function RecipeCreatePage() {
   const [error, setError] = useState<string | null>(null);
 
   const formHandlers = createRecipeFormHandlers((change) => setValues(change));
+
+  // An imported draft's rows aren't linked to the catalog yet: label each as
+  // matching an existing ingredient (or its canonical name) or as new.
+  const isImportedDraft = Boolean(locationState?.importedRecipe);
+  const unlinked = isImportedDraft
+    ? values.ingredients.filter((row) => !row.ingredientId && row.ingredientName.trim())
+    : [];
+  const matches = useIngredientMatches(
+    unlinked.flatMap((row) => [row.ingredientName, ...(row.canonicalName ? [row.canonicalName] : [])])
+  );
+  const matchStatusFor = (row: RecipeFormIngredient): IngredientMatchStatus => {
+    if (row.ingredientId || !row.ingredientName.trim()) return null;
+    const match =
+      matches.matchFor(row.ingredientName) ?? (row.canonicalName ? matches.matchFor(row.canonicalName) : null);
+    if (match) {
+      // Only worth saying when the catalog name differs from what's written.
+      return ingredientKey(match.name) === ingredientKey(row.ingredientName)
+        ? null
+        : { kind: "matched", name: match.name };
+    }
+    return matches.isNew(row.ingredientName) ? { kind: "new" } : null;
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -80,6 +106,7 @@ export default function RecipeCreatePage() {
           values={values}
           readOnly={false}
           {...formHandlers}
+          matchStatusFor={isImportedDraft ? matchStatusFor : undefined}
         />
 
         <div className="recipe-form__actions">
