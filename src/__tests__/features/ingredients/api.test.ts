@@ -1,244 +1,258 @@
-import { searchIngredients, createIngredient } from "../../../features/ingredients/api";
+import {
+  createIngredient,
+  escapeLikePattern,
+  resolveIngredients,
+  searchIngredients,
+} from "../../../features/ingredients/api";
+
+// Behavior changed in step 2 of docs/ingredient-normalization.md: matching
+// moved from an exact lowercase name to ingredientKey() (case, accents,
+// punctuation, spaces and plurals ignored) plus the ingredient_aliases
+// table, and new ingredients are created in one batch with their key.
 
 // ─────────────────────────────────────────────────────────────
-// Supabase chainable mock
-//
-// The Supabase query builder is a fluent API.  Every method returns
-// the same builder object; terminal methods (.returns(), .single())
-// return a Promise with { data, error }.  We expose each method as a
-// spy so individual tests can assert what was called.
+// Supabase chainable mock: every method returns the builder;
+// `.returns()` is the terminal call and resolves per test.
 // ─────────────────────────────────────────────────────────────
 vi.mock("../../../lib/supabaseClient", () => {
   const builder: Record<string, ReturnType<typeof vi.fn>> = {};
-
-  const chainedMethods = [
-    "from",
-    "select",
-    "insert",
-    "eq",
-    "ilike",
-    "order",
-    "limit",
-  ];
-
-  // All chained methods return the builder itself
-  for (const method of chainedMethods) {
+  for (const method of ["from", "select", "insert", "eq", "ilike", "or", "in", "order", "limit"]) {
     builder[method] = vi.fn().mockReturnValue(builder);
   }
-
-  // Terminal methods are reconfigured per-test via mockResolvedValue
   builder.returns = vi.fn().mockResolvedValue({ data: [], error: null });
-  builder.single = vi.fn().mockResolvedValue({ data: null, error: null });
-  builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-
   return { supabase: builder };
 });
 
 import { supabase } from "../../../lib/supabaseClient";
 
-// Convenience cast so TypeScript knows these are mocked
 const db = supabase as unknown as Record<string, ReturnType<typeof vi.fn>>;
+
+const row = (id: string, name: string, nameKey: string | null, category = "produce") => ({
+  id,
+  name,
+  name_key: nameKey,
+  category,
+  default_unit: null,
+});
+
+const ok = (data: unknown) => ({ data, error: null });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  for (const method of ["from", "select", "insert", "eq", "ilike", "or", "in", "order", "limit"]) {
+    db[method].mockReturnValue(db);
+  }
+  db.returns.mockResolvedValue(ok([]));
+});
+
+describe("escapeLikePattern", () => {
+  it("escapes LIKE wildcards and backslashes", () => {
+    expect(escapeLikePattern("50%_off\\")).toBe("50\\%\\_off\\\\");
+  });
+
+  it("leaves plain text alone", () => {
+    expect(escapeLikePattern("olive oil")).toBe("olive oil");
+    expect(escapeLikePattern("")).toBe("");
+  });
+});
 
 // ─────────────────────────────────────────────────────────────
 // searchIngredients
 // ─────────────────────────────────────────────────────────────
 describe("searchIngredients", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Reset chainability after clearAllMocks
-    for (const fn of ["from", "select", "ilike", "order", "limit"]) {
-      db[fn].mockReturnValue(db);
-    }
-    db.returns.mockResolvedValue({ data: [], error: null });
-  });
-
-  it("returns an empty array immediately when the term is empty", async () => {
-    const result = await searchIngredients("");
-    expect(result).toEqual([]);
+  it("returns an empty array without querying when the term is empty", async () => {
+    expect(await searchIngredients("   ")).toEqual([]);
     expect(db.from).not.toHaveBeenCalled();
   });
 
-  it("returns an empty array immediately when the term is only whitespace", async () => {
-    const result = await searchIngredients("   ");
-    expect(result).toEqual([]);
-    expect(db.from).not.toHaveBeenCalled();
-  });
+  it("matches the name or the key, and searches approved aliases", async () => {
+    await searchIngredients("Jalapeños");
 
-  it("queries the ingredients table", async () => {
-    await searchIngredients("chicken");
     expect(db.from).toHaveBeenCalledWith("ingredients");
-  });
-
-  it("selects the expected columns", async () => {
-    await searchIngredients("chicken");
-    expect(db.select).toHaveBeenCalledWith("id,name,category,default_unit");
-  });
-
-  it("filters with a case-insensitive LIKE on the lowercased term", async () => {
-    await searchIngredients("Chicken");
-    expect(db.ilike).toHaveBeenCalledWith("name", "%chicken%");
-  });
-
-  it("orders results alphabetically by name", async () => {
-    await searchIngredients("oil");
+    expect(db.or).toHaveBeenCalledWith('name.ilike."%jalapeños%",name_key.ilike."%jalapeno%"');
     expect(db.order).toHaveBeenCalledWith("name", { ascending: true });
-  });
-
-  it("applies the default limit of 8", async () => {
-    await searchIngredients("oil");
     expect(db.limit).toHaveBeenCalledWith(8);
+
+    expect(db.from).toHaveBeenCalledWith("ingredient_aliases");
+    expect(db.eq).toHaveBeenCalledWith("status", "approved");
+    expect(db.ilike).toHaveBeenCalledWith("alias_key", "%jalapeno%");
   });
 
-  it("applies a custom limit when provided", async () => {
-    await searchIngredients("oil", 4);
-    expect(db.limit).toHaveBeenCalledWith(4);
+  it("escapes wildcards and quotes the value so commas can't break the filter", async () => {
+    await searchIngredients('50% "dark", chocolate');
+    expect(db.or).toHaveBeenCalledWith(
+      'name.ilike."%50\\\\% \\"dark\\", chocolate%",name_key.ilike."%50darkchocolate%"'
+    );
   });
 
-  it("maps rows to Ingredient objects", async () => {
-    db.returns.mockResolvedValue({
-      data: [
-        { id: "1", name: "chicken breast", category: "meat & seafood", default_unit: "lbs" },
-        { id: "2", name: "olive oil", category: "pantry", default_unit: null },
-      ],
-      error: null,
-    });
+  it("returns direct and alias matches, exact key matches first, without duplicates", async () => {
+    db.returns
+      .mockResolvedValueOnce(
+        ok([row("i-2", "green onion sauce", "greenonionsauce"), row("i-1", "green onion", "greenonion")])
+      )
+      .mockResolvedValueOnce(
+        ok([
+          { alias_key: "scallion", alias_name: "scallions", ingredients: row("i-1", "green onion", "greenonion") },
+          { alias_key: "scallionoil", alias_name: "scallion oil", ingredients: row("i-3", "chili oil", "chilioil") },
+        ])
+      );
 
-    const results = await searchIngredients("c");
-    expect(results).toHaveLength(2);
-    expect(results[0]).toEqual({
-      id: "1",
-      name: "chicken breast",
-      category: "meat & seafood",
-      defaultUnit: "lbs",
-    });
-    expect(results[1]).toEqual({
-      id: "2",
-      name: "olive oil",
-      category: "pantry",
-      defaultUnit: null,
-    });
+    const results = await searchIngredients("scallion");
+
+    expect(results).toEqual([
+      { id: "i-3", name: "chili oil", category: "produce", defaultUnit: null, matchedAlias: "scallion oil" },
+      { id: "i-1", name: "green onion", category: "produce", defaultUnit: null, matchedAlias: null },
+      { id: "i-2", name: "green onion sauce", category: "produce", defaultUnit: null, matchedAlias: null },
+    ]);
+  });
+
+  it("puts an exact key match before other matches", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([row("a", "onion powder", "onionpowder"), row("b", "onion", "onion")]))
+      .mockResolvedValueOnce(ok([]));
+
+    const results = await searchIngredients("Onions");
+    expect(results.map((r) => r.name)).toEqual(["onion", "onion powder"]);
+  });
+
+  it("applies a custom limit", async () => {
+    await searchIngredients("oil", 3);
+    expect(db.limit).toHaveBeenCalledWith(3);
   });
 
   it("throws when supabase returns an error", async () => {
-    db.returns.mockResolvedValue({ data: null, error: { message: "DB error" } });
-    await expect(searchIngredients("oil")).rejects.toThrow("DB error");
+    db.returns.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+    await expect(searchIngredients("oil")).rejects.toThrow("boom");
   });
 });
 
 // ─────────────────────────────────────────────────────────────
-// createIngredient
+// resolveIngredients / createIngredient
 // ─────────────────────────────────────────────────────────────
-describe("createIngredient", () => {
-  const createdRow = {
-    id: "new-id",
-    name: "garlic",
-    category: "produce",
-    default_unit: null,
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    for (const fn of ["from", "select", "insert", "eq"]) {
-      db[fn].mockReturnValue(db);
-    }
-    db.maybeSingle.mockResolvedValue({ data: null, error: null });
-    db.single.mockResolvedValue({ data: createdRow, error: null });
-  });
-
-  it("throws immediately when name is empty", async () => {
-    await expect(createIngredient("")).rejects.toThrow(
-      "Ingredient name is required."
-    );
+describe("resolveIngredients", () => {
+  it("returns an empty map without querying when there are no names", async () => {
+    expect((await resolveIngredients([{ name: "  ", category: "other" }])).size).toBe(0);
     expect(db.from).not.toHaveBeenCalled();
   });
 
-  it("throws immediately when name is only whitespace", async () => {
-    await expect(createIngredient("   ")).rejects.toThrow(
-      "Ingredient name is required."
-    );
-    expect(db.from).not.toHaveBeenCalled();
-  });
+  it("finds existing ingredients by key without inserting", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "onion", "onion")]));
 
-  it("checks the ingredients table for an existing name before inserting", async () => {
-    await createIngredient("garlic");
-    expect(db.from).toHaveBeenCalledWith("ingredients");
-    expect(db.eq).toHaveBeenCalledWith("name", "garlic");
-    expect(db.maybeSingle).toHaveBeenCalled();
-  });
+    const result = await resolveIngredients([{ name: "Onions", category: "produce" }]);
 
-  it("normalises the name to lowercase before inserting", async () => {
-    await createIngredient("Chicken Breast");
-    const [payload] = db.insert.mock.calls[0] as [{ name: string }];
-    expect(payload.name).toBe("chicken breast");
-  });
-
-  it("trims surrounding whitespace from the name", async () => {
-    await createIngredient("  garlic  ");
-    const [payload] = db.insert.mock.calls[0] as [{ name: string }];
-    expect(payload.name).toBe("garlic");
-  });
-
-  it("uses 'other' as the default category when none is supplied", async () => {
-    await createIngredient("garlic");
-    const [payload] = db.insert.mock.calls[0] as [{ category: string }];
-    expect(payload.category).toBe("other");
-  });
-
-  it("passes the supplied category through", async () => {
-    await createIngredient("garlic", "produce");
-    const [payload] = db.insert.mock.calls[0] as [{ category: string }];
-    expect(payload.category).toBe("produce");
-  });
-
-  it("returns an existing ingredient without inserting", async () => {
-    db.maybeSingle.mockResolvedValue({ data: createdRow, error: null });
-
-    const result = await createIngredient("garlic", "produce");
-
+    expect(db.in).toHaveBeenCalledWith("name_key", ["onion"]);
     expect(db.insert).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      id: "new-id",
-      name: "garlic",
-      category: "produce",
-      defaultUnit: null,
-    });
+    expect(result.get("onion")).toEqual({ id: "i-1", name: "onion", category: "produce", defaultUnit: null });
   });
 
-  it("returns the existing ingredient when a concurrent insert creates it first", async () => {
-    db.maybeSingle
-      .mockResolvedValueOnce({ data: null, error: null })
-      .mockResolvedValueOnce({ data: createdRow, error: null });
-    db.single.mockResolvedValueOnce({
-      data: null,
-      error: {
-        code: "23505",
-        message:
-          'duplicate key value violates unique constraint "ingredients_name_key"',
-      },
-    });
-
-    const result = await createIngredient("garlic", "produce");
-
-    expect(result).toEqual({
-      id: "new-id",
-      name: "garlic",
-      category: "produce",
-      defaultUnit: null,
-    });
+  it("uses the oldest row when duplicates share a key", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("old", "onion", "onion"), row("new", "onions", "onion")]));
+    const result = await resolveIngredients([{ name: "onion", category: "produce" }]);
+    expect(db.order).toHaveBeenCalledWith("created_at", { ascending: true });
+    expect(result.get("onion")?.id).toBe("old");
   });
 
-  it("returns a mapped Ingredient from the database row", async () => {
-    const result = await createIngredient("garlic", "produce");
-    expect(result).toEqual({
-      id: "new-id",
-      name: "garlic",
-      category: "produce",
-      defaultUnit: null,
-    });
+  it("falls back to an approved alias when no name has the key", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(
+        ok([{ alias_key: "scallion", alias_name: "scallions", ingredients: row("i-1", "green onion", "greenonion") }])
+      );
+
+    const result = await resolveIngredients([{ name: "scallions", category: "produce" }]);
+
+    expect(db.from).toHaveBeenCalledWith("ingredient_aliases");
+    expect(db.eq).toHaveBeenCalledWith("status", "approved");
+    expect(db.in).toHaveBeenCalledWith("alias_key", ["scallion"]);
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(result.get("scallion")?.name).toBe("green onion");
   });
 
-  it("throws when supabase returns an error", async () => {
-    db.single.mockResolvedValue({ data: null, error: { message: "Unique violation" } });
-    await expect(createIngredient("garlic")).rejects.toThrow("Unique violation");
+  it("falls back to the exact name for rows saved before keys existed", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([row("i-9", "tomato", null)]));
+
+    const result = await resolveIngredients([{ name: "Tomatoes", category: "produce" }]);
+
+    // Both the name as written and the singular name a new row would get.
+    expect(db.in).toHaveBeenCalledWith("name", ["tomatoes", "tomato"]);
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(result.get("tomato")?.id).toBe("i-9");
+  });
+
+  it("creates every missing ingredient in one insert, with singular name, key and category", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([row("i-1", "garlic", "garlic")]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(
+        ok([row("n-1", "shallot", "shallot"), row("n-2", "black beans", "blackbean", "pantry")])
+      );
+
+    const result = await resolveIngredients([
+      { name: "garlic", category: "produce" },
+      { name: "Shallots", category: "produce" },
+      { name: "black beans", category: "pantry" },
+      { name: "shallot", category: "other" }, // same key as "Shallots": asked for once
+    ]);
+
+    expect(db.insert).toHaveBeenCalledTimes(1);
+    expect(db.insert).toHaveBeenCalledWith([
+      { name: "shallot", name_key: "shallot", category: "produce" },
+      { name: "black beans", name_key: "blackbean", category: "pantry" },
+    ]);
+    expect([...result.keys()].sort()).toEqual(["blackbean", "garlic", "shallot"]);
+  });
+
+  it("looks again when a concurrent insert created the ingredient first", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce({ data: null, error: { code: "23505", message: "duplicate key" } })
+      .mockResolvedValueOnce(ok([row("i-1", "leek", "leek")]));
+
+    const result = await resolveIngredients([{ name: "leeks", category: "produce" }]);
+    expect(result.get("leek")?.id).toBe("i-1");
+  });
+
+  it("throws other insert errors", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce({ data: null, error: { code: "42501", message: "permission denied" } });
+
+    await expect(resolveIngredients([{ name: "leek", category: "produce" }])).rejects.toThrow(
+      "permission denied"
+    );
+  });
+});
+
+describe("createIngredient", () => {
+  it("throws when the name is empty", async () => {
+    await expect(createIngredient("  ")).rejects.toThrow("Ingredient name is required.");
+  });
+
+  it("returns the existing ingredient for a variant spelling", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "all-purpose flour", "allpurposeflour", "pantry")]));
+    const ingredient = await createIngredient("All Purpose Flour", "pantry");
+    expect(ingredient).toEqual({ id: "i-1", name: "all-purpose flour", category: "pantry", defaultUnit: null });
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("creates a new ingredient with 'other' as the default category", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([row("n-1", "sumac", "sumac", "other")]));
+
+    const ingredient = await createIngredient("  Sumac ");
+
+    expect(db.insert).toHaveBeenCalledWith([{ name: "sumac", name_key: "sumac", category: "other" }]);
+    expect(ingredient.id).toBe("n-1");
   });
 });

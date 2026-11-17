@@ -1,7 +1,8 @@
 import { FunctionsHttpError } from "@supabase/functions-js";
 import { supabase } from "../../lib/supabaseClient";
 import type { Tables } from "../../lib/db/database.types";
-import { createIngredient } from "../ingredients/api";
+import { resolveIngredients } from "../ingredients/api";
+import { ingredientKey } from "../ingredients/utils/ingredientKey";
 import { parseQuantityNumber } from "../../lib/utils/quantities";
 import type {
   RecipeDetail,
@@ -82,35 +83,36 @@ const getRecipePayload = (input: RecipeUpsertInput, userId: string) => ({
 });
 
 const getIngredientPayload = async (recipeId: string, input: RecipeUpsertInput) => {
-  const payload = await Promise.all(
-    input.ingredients.map(async (ingredient) => {
+  // Ingredients typed or imported without a catalog id are found or created
+  // in one batch, matched by key (see ingredients/api.ts resolveIngredients).
+  const unresolved = input.ingredients.filter(
+    (ingredient) => !ingredient.ingredientId && ingredient.ingredientName.trim()
+  );
+  const resolved = await resolveIngredients(
+    unresolved.map((ingredient) => ({
+      name: ingredient.ingredientName.trim(),
+      category: ingredient.category ?? "other",
+    }))
+  );
+
+  return input.ingredients
+    .map((ingredient) => {
       const ingredientName = ingredient.ingredientName.trim();
-      const ingredientId = ingredient.ingredientId
-        ? ingredient.ingredientId
-        : ingredientName
-          ? (await createIngredient(ingredientName, ingredient.category ?? "other")).id
-          : "";
+      const ingredientId =
+        ingredient.ingredientId ||
+        (ingredientName ? resolved.get(ingredientKey(ingredientName))?.id ?? "" : "");
       const quantityText = cleanText(ingredient.quantity);
-      const quantityNumeric = quantityText
-        ? parseQuantityNumber(quantityText)
-        : null;
       return {
         recipe_id: recipeId,
         ingredient_id: ingredientId,
         ingredient_name: ingredientName,
         quantity: quantityText,
-        quantity_numeric: quantityNumeric,
+        quantity_numeric: quantityText ? parseQuantityNumber(quantityText) : null,
         unit: cleanText(ingredient.unit),
         notes: cleanText(ingredient.notes),
       };
     })
-  );
-
-  return payload
-    .filter(
-      (ingredient) =>
-        ingredient.ingredient_name.length > 0 && ingredient.ingredient_id
-    );
+    .filter((ingredient) => ingredient.ingredient_name.length > 0 && ingredient.ingredient_id);
 };
 
 async function requireUserId(): Promise<string> {

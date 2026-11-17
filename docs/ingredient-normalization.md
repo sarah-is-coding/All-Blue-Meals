@@ -585,7 +585,7 @@ Each is its own commit; the app works after every one.
    check approved aliases after names. Recipe saving resolves all its new
    ingredients in one batch. Combobox hides "Add new" on a key or alias
    match, showing e.g. "green onion (scallions)". AGENTS.md names the alias
-   table as part of the shared catalog. Regenerate types.
+   table as part of the shared catalog. Regenerate types. **Done.**
 3. **Ingredient order and atomic save.** Migration adding `position`
    (backfilled) and the `save_recipe_ingredients` function; recipes save
    through it and load sorted by `position`. Units normalized on save.

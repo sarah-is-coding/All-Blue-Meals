@@ -616,6 +616,11 @@
   white-space: nowrap;
 }
 
+/* The alias a match was found by: "green onion (scallions)" */
+.ingredient-combobox__alias {
+  color: var(--color-muted-soft);
+}
+
 .ingredient-combobox__hint {
   padding: 0.6rem 0.88rem;
   font-size: 0.88rem;

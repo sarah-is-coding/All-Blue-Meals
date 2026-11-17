@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createIngredient, searchIngredients } from "../../ingredients/api";
-import { INGREDIENT_CATEGORIES, type Ingredient, type IngredientCategory } from "../../ingredients/types";
+import {
+  INGREDIENT_CATEGORIES,
+  type Ingredient,
+  type IngredientCategory,
+  type IngredientMatch,
+} from "../../ingredients/types";
+import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 
 type Phase = "search" | "categorize";
 
@@ -17,7 +23,7 @@ export default function IngredientNameCombobox({
 }: Props) {
   const [query, setQuery] = useState(value);
   const [phase, setPhase] = useState<Phase>("search");
-  const [suggestions, setSuggestions] = useState<Ingredient[]>([]);
+  const [suggestions, setSuggestions] = useState<IngredientMatch[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -126,8 +132,19 @@ export default function IngredientNameCombobox({
     setActiveIndex(-1);
   };
 
+  // "Add new" is hidden when the text already names a suggestion by key or
+  // alias ("Onions" when onion exists, "scallions" when it's an alias), so
+  // the same ingredient isn't offered twice.
+  const queryKey = ingredientKey(query);
+  const matchesExisting = suggestions.some(
+    (match) =>
+      ingredientKey(match.name) === queryKey ||
+      (match.matchedAlias !== null && ingredientKey(match.matchedAlias) === queryKey)
+  );
+  const showAddNew = queryKey.length > 0 && !matchesExisting;
+
   // Keyboard nav — search phase
-  const totalSearchOptions = suggestions.length + 1; // +1 for "Add new"
+  const totalSearchOptions = suggestions.length + (showAddNew ? 1 : 0);
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     switch (event.key) {
       case "ArrowDown":
@@ -142,7 +159,7 @@ export default function IngredientNameCombobox({
         event.preventDefault();
         if (activeIndex >= 0 && activeIndex < suggestions.length) {
           commitExisting(suggestions[activeIndex]);
-        } else if (activeIndex === suggestions.length) {
+        } else if (showAddNew && activeIndex === suggestions.length) {
           enterCategorizePhase();
         }
         break;
@@ -182,7 +199,6 @@ export default function IngredientNameCombobox({
     }
   };
 
-  const showAddNew = query.trim().length > 0;
   const showSearchDropdown = isOpen && phase === "search" && (suggestions.length > 0 || showAddNew);
   const showCategorizeDropdown = isOpen && phase === "categorize";
 
@@ -225,7 +241,12 @@ export default function IngredientNameCombobox({
               onMouseDown={() => commitExisting(ingredient)}
               onMouseEnter={() => setActiveIndex(idx)}
             >
-              <span className="ingredient-combobox__name">{ingredient.name}</span>
+              <span className="ingredient-combobox__name">
+                {ingredient.name}
+                {ingredient.matchedAlias && (
+                  <span className="ingredient-combobox__alias">{` (${ingredient.matchedAlias})`}</span>
+                )}
+              </span>
               {ingredient.category && (
                 <span className="ingredient-combobox__category">
                   {ingredient.category}

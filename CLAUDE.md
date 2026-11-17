@@ -95,7 +95,7 @@ vi.mock("../../../lib/supabaseClient", () => {
 
   const chained = ["from", "select", "upsert", "insert", "update",
                    "delete", "ilike", "eq", "order", "limit", "not",
-                   "in", "contains", "gte", "lte", "range"];
+                   "in", "or", "contains", "gte", "lte", "range"];
 
   for (const method of chained) {
     builder[method] = vi.fn().mockReturnValue(builder);

@@ -93,6 +93,44 @@ export type Database = {
           },
         ]
       }
+      ingredient_aliases: {
+        Row: {
+          alias_key: string
+          alias_name: string
+          created_at: string
+          id: string
+          ingredient_id: string
+          source: string
+          status: string
+        }
+        Insert: {
+          alias_key: string
+          alias_name: string
+          created_at?: string
+          id?: string
+          ingredient_id: string
+          source: string
+          status?: string
+        }
+        Update: {
+          alias_key?: string
+          alias_name?: string
+          created_at?: string
+          id?: string
+          ingredient_id?: string
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_aliases_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
           category: string | null
@@ -100,6 +138,7 @@ export type Database = {
           default_unit: string | null
           id: string
           name: string
+          name_key: string | null
         }
         Insert: {
           category?: string | null
@@ -107,6 +146,7 @@ export type Database = {
           default_unit?: string | null
           id?: string
           name: string
+          name_key?: string | null
         }
         Update: {
           category?: string | null
@@ -114,6 +154,7 @@ export type Database = {
           default_unit?: string | null
           id?: string
           name?: string
+          name_key?: string | null
         }
         Relationships: []
       }

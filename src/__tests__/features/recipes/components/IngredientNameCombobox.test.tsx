@@ -22,6 +22,7 @@ const CHICKEN = {
   name: "chicken breast",
   category: "meat & seafood" as const,
   defaultUnit: "lbs",
+  matchedAlias: null,
 };
 
 const OLIVE_OIL = {
@@ -29,6 +30,7 @@ const OLIVE_OIL = {
   name: "olive oil",
   category: "pantry" as const,
   defaultUnit: null,
+  matchedAlias: null,
 };
 
 // How long to wait for the debounce + React re-render (debounce is 280ms)
@@ -178,6 +180,43 @@ describe("IngredientNameCombobox", () => {
           ).toBeInTheDocument(),
         AFTER_DEBOUNCE
       );
+    });
+
+    // Step 2 (docs/ingredient-normalization.md): "Add new" is hidden when the
+    // typed text already names a suggestion by key or by alias.
+    it("hides 'Add new' when the text matches a suggestion by key", async () => {
+      mockSearch.mockResolvedValue([{ ...CHICKEN, name: "onion", id: "ing-9" }]);
+      const { user, input } = setup();
+
+      await user.type(input, "Onions");
+
+      await waitFor(() => screen.getByText("onion"), AFTER_DEBOUNCE);
+      expect(screen.queryByText(/as new ingredient/i)).not.toBeInTheDocument();
+    });
+
+    it("shows the alias a suggestion was found by and hides 'Add new' for it", async () => {
+      mockSearch.mockResolvedValue([
+        { ...CHICKEN, id: "ing-7", name: "green onion", matchedAlias: "scallions" },
+      ]);
+      const onSelect = vi.fn();
+      const { user, input } = setup("", onSelect);
+
+      await user.type(input, "scallion");
+
+      await waitFor(() => screen.getByText("(scallions)", { exact: false }), AFTER_DEBOUNCE);
+      expect(screen.queryByText(/as new ingredient/i)).not.toBeInTheDocument();
+
+      await user.click(screen.getByText("green onion", { exact: false }));
+      expect(onSelect).toHaveBeenCalledWith("ing-7", "green onion");
+    });
+
+    it("still offers 'Add new' when suggestions only partly match", async () => {
+      mockSearch.mockResolvedValue([{ ...CHICKEN, name: "onion powder", id: "ing-8" }]);
+      const { user, input } = setup();
+
+      await user.type(input, "onion");
+
+      await waitFor(() => screen.getByText(/add "onion" as new ingredient/i), AFTER_DEBOUNCE);
     });
 
     it("resets input to last committed value and closes on Escape", async () => {

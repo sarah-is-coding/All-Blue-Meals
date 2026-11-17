@@ -25,3 +25,9 @@ export type Ingredient = {
   category: IngredientCategory | null;
   defaultUnit: string | null;
 };
+
+/** A search result: the ingredient, and the alias it was found by, if any. */
+export type IngredientMatch = Ingredient & {
+  /** e.g. "scallions" when searching "scall" finds green onion. */
+  matchedAlias: string | null;
+};

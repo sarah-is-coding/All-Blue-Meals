@@ -1,12 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+// Saving resolves ingredients in one batch (step 2 of
+// docs/ingredient-normalization.md) instead of one createIngredient per row.
 vi.mock("../../../features/ingredients/api", () => ({
-  createIngredient: vi.fn().mockResolvedValue({
-    id: "ingredient-1",
-    name: "ground chicken",
-    category: "meat & seafood",
-    defaultUnit: null,
-  }),
+  resolveIngredients: vi.fn().mockResolvedValue(new Map()),
 }));
 
 vi.mock("../../../lib/supabaseClient", () => {
@@ -46,6 +43,7 @@ vi.mock("../../../lib/supabaseClient", () => {
 });
 
 import { supabase } from "../../../lib/supabaseClient";
+import { resolveIngredients } from "../../../features/ingredients/api";
 import { createRecipe, deleteRecipe, listRecipes, rateRecipe } from "../../../features/recipes/api";
 
 const db = supabase as unknown as Record<string, ReturnType<typeof vi.fn>>;
@@ -107,6 +105,29 @@ describe("recipe api", () => {
     await expect(createRecipe(recipeInput)).rejects.toThrow(
       "A recipe with that title already exists. Rename it and try again."
     );
+  });
+
+  it("resolves ingredients without an id in one batch and saves their ids", async () => {
+    vi.mocked(resolveIngredients).mockResolvedValueOnce(
+      new Map([["onion", { id: "ing-onion", name: "onion", category: "produce", defaultUnit: null }]])
+    );
+
+    await createRecipe({
+      ...recipeInput,
+      ingredients: [
+        { ingredientId: "ing-oil", ingredientName: "Olive oil", quantity: "2", unit: "tbsp", notes: "", category: null },
+        { ingredientId: "", ingredientName: " Onions ", quantity: "1", unit: "", notes: "diced", category: "produce" },
+        { ingredientId: "", ingredientName: "  ", quantity: "", unit: "", notes: "", category: null },
+      ],
+    });
+
+    expect(resolveIngredients).toHaveBeenCalledTimes(1);
+    expect(resolveIngredients).toHaveBeenCalledWith([{ name: "Onions", category: "produce" }]);
+    expect(db.from).toHaveBeenCalledWith("recipe_ingredients");
+    expect(db.insert).toHaveBeenLastCalledWith([
+      expect.objectContaining({ ingredient_id: "ing-oil", ingredient_name: "Olive oil", quantity_numeric: 2 }),
+      expect.objectContaining({ ingredient_id: "ing-onion", ingredient_name: "Onions", notes: "diced" }),
+    ]);
   });
 
   it("deletes a recipe by id", async () => {
