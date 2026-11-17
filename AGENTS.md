@@ -242,7 +242,7 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 ## Commit & branch guidance
 
 - Small commits with clear messages  
-- Commit directly to `main`; CI must stay green  
+- Do work on a feature branch named after the change, then merge to `main`; CI must stay green  
 - Avoid drive-by refactors  
 
 ---
