@@ -12,7 +12,10 @@ export type GroceryItem = {
 export type GroceryList = {
   id: string;
   title: string;
-  mealPlanId: string | null;
+  savedPlanId: string | null;
+  /** The dates the list was built from (null for lists built from a saved plan). */
+  startDate: string | null;
+  endDate: string | null;
   createdAt: string;
   items: GroceryItem[];
 };
@@ -20,7 +23,9 @@ export type GroceryList = {
 export type GroceryListSummary = {
   id: string;
   title: string;
-  mealPlanId: string | null;
+  savedPlanId: string | null;
+  startDate: string | null;
+  endDate: string | null;
   createdAt: string;
 };
 
@@ -32,13 +37,19 @@ export type GroceryItemDraft = {
   category: IngredientCategory | null;
 };
 
-/** Which meal plan the grocery page is currently pointed at. */
+/** What the grocery page builds a list from: a date range on the calendar,
+ *  or a saved plan. */
 export type GrocerySource =
-  | { kind: "week"; weekStartIso: string }
+  | { kind: "range"; startIso: string; endIso: string }
   | {
       kind: "saved_plan";
       planId: string;
       planLabel: string;
       startDate: string;
-      endDate: string | null;
+      endDate: string;
     };
+
+/** What a saved grocery list remembers it was built from. */
+export type GroceryListOrigin =
+  | { kind: "range"; startDate: string; endDate: string }
+  | { kind: "saved_plan"; savedPlanId: string };

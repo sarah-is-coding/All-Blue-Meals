@@ -3,29 +3,29 @@ import { queryOptions, useQuery, useQueryClient, type QueryClient } from "@tanst
 import { useCurrentUserId } from "../../lib/auth/sessionContext";
 import { createDateFromIso, getWeekStartIso, shiftWeekStartIso } from "../../lib/utils/dates";
 import {
-  addMealPlanItem,
-  applySavedMealPlan,
-  clearWeekPlan,
-  deleteMealPlanItem,
+  addPlannedMeal,
+  applySavedPlan,
+  copyMealsBetween,
+  deletePlannedMeal,
   deleteSavedMealPlan,
-  listMealPlanItemsForWeek,
-  listMealPlanSpans,
+  listPlannedMealsBetween,
+  listPlannedMealsForWeek,
   listSavedMealPlans,
-  moveMealPlanItem,
+  movePlannedMeal,
   previewSavedMealPlan,
   renameSavedMealPlan,
-  savePlanById,
+  saveMealsAsPlan,
   searchSavedMealPlans,
-  updateMealPlanItemServings,
+  updatePlannedMealServings,
+  type CopiedMeals,
 } from "./api";
 import type {
-  AddMealPlanItemInput,
+  AddPlannedMealInput,
   MealPlanDayPreview,
-  MealPlanItem,
-  MealPlanSpan,
-  MoveMealPlanItemInput,
+  PlannedMeal,
+  MovePlannedMealInput,
   SavedMealPlan,
-  UpdateMealPlanItemServingsInput,
+  UpdatePlannedMealServingsInput,
 } from "./types";
 
 // The only module in meal-plans that talks to TanStack Query. Components use
@@ -38,8 +38,10 @@ export const mealPlanKeys = {
   weeks: (userId: string) => [...mealPlanKeys.user(userId), "week"] as const,
   week: (userId: string, weekStartIso: string) =>
     [...mealPlanKeys.weeks(userId), weekStartIso] as const,
-  /** Date ranges of every plan, for the past-weeks calendar. */
-  spans: (userId: string) => [...mealPlanKeys.user(userId), "spans"] as const,
+  /** Meals between two dates, for any range (e.g. the grocery page). */
+  ranges: (userId: string) => [...mealPlanKeys.user(userId), "range"] as const,
+  range: (userId: string, startIso: string, endIso: string) =>
+    [...mealPlanKeys.ranges(userId), startIso, endIso] as const,
   saved: (userId: string) => [...mealPlanKeys.user(userId), "saved"] as const,
   savedList: (userId: string) => [...mealPlanKeys.saved(userId), "all"] as const,
   savedSearch: (userId: string, term: string) =>
@@ -55,7 +57,7 @@ const errorMessage = (error: Error | null, fallback: string): string | null =>
 const weekQuery = (userId: string, weekStartIso: string) =>
   queryOptions({
     queryKey: mealPlanKeys.week(userId, weekStartIso),
-    queryFn: () => listMealPlanItemsForWeek(weekStartIso),
+    queryFn: () => listPlannedMealsForWeek(weekStartIso),
   });
 
 const weekOf = (isoDate: string): string => getWeekStartIso(createDateFromIso(isoDate));
@@ -91,7 +93,7 @@ export async function prefetchWeekThenNeighbours(
   await prefetchMealPlanWeeks(client, userId, adjacentWeeks(weekStartIso));
 }
 
-const NO_ITEMS: MealPlanItem[] = [];
+const NO_ITEMS: PlannedMeal[] = [];
 
 /** A week's meal plan items, from the cache when available. Once the week has
  *  loaded, prefetches the neighbouring weeks so stepping either way is instant. */
@@ -116,6 +118,22 @@ export function useMealPlanWeek(weekStartIso: string) {
     /** True only while there is nothing to show yet (not during background refreshes). */
     loading: query.isPending,
     error: query.error ? query.error.message || "Failed to load meal plan." : null,
+  };
+}
+
+/** The meals planned between two dates (inclusive), the same meals a grocery
+ *  list for those dates is built from. Pass `enabled: false` to skip loading. */
+export function usePlannedMealsBetween(startIso: string, endIso: string, enabled = true) {
+  const userId = useCurrentUserId();
+  const query = useQuery({
+    queryKey: mealPlanKeys.range(userId ?? "", startIso, endIso),
+    queryFn: () => listPlannedMealsBetween(startIso, endIso),
+    enabled: userId !== null && enabled,
+  });
+  return {
+    items: query.data ?? NO_ITEMS,
+    loading: enabled && query.isPending,
+    error: query.error ? query.error.message || "Failed to load planned meals." : null,
   };
 }
 
@@ -152,17 +170,17 @@ export function useMealPlanActions() {
       }
     };
 
-    const updateWeek = (weekStartIso: string, update: (items: MealPlanItem[]) => MealPlanItem[]) => {
+    const updateWeek = (weekStartIso: string, update: (items: PlannedMeal[]) => PlannedMeal[]) => {
       if (!userId) return;
       // Weeks that aren't cached are left alone; they'll load fresh when opened.
-      client.setQueryData<MealPlanItem[]>(mealPlanKeys.week(userId, weekStartIso), (prev) =>
+      client.setQueryData<PlannedMeal[]>(mealPlanKeys.week(userId, weekStartIso), (prev) =>
         prev ? update(prev) : prev
       );
     };
 
-    const updateCachedWeeks = (update: (weekStartIso: string, items: MealPlanItem[]) => MealPlanItem[]) => {
+    const updateCachedWeeks = (update: (weekStartIso: string, items: PlannedMeal[]) => PlannedMeal[]) => {
       if (!userId) return;
-      for (const [key, items] of client.getQueriesData<MealPlanItem[]>({
+      for (const [key, items] of client.getQueriesData<PlannedMeal[]>({
         queryKey: mealPlanKeys.weeks(userId),
       })) {
         const weekStartIso = key[3];
@@ -174,7 +192,7 @@ export function useMealPlanActions() {
 
     /** Put `item` in the week it now belongs to (in place if already there) and
      *  remove it from any other cached week. */
-    const placeItem = (item: MealPlanItem) => {
+    const placeItem = (item: PlannedMeal) => {
       const targetWeek = weekOf(item.plannedFor);
       updateCachedWeeks((weekStartIso, items) => {
         const hasItem = items.some((existing) => existing.id === item.id);
@@ -187,55 +205,77 @@ export function useMealPlanActions() {
       });
     };
 
-    // Adding to an empty week creates its plan, which the past-weeks calendar shows.
-    const refreshSpans = () => {
-      if (userId) void client.invalidateQueries({ queryKey: mealPlanKeys.spans(userId) });
+    // Week caches are updated precisely above; any other cached date range
+    // (the grocery page's meal count, the copy calendar's month, a selected
+    // range's preview) just reloads when next shown.
+    const refreshRanges = () => {
+      if (userId) void client.invalidateQueries({ queryKey: mealPlanKeys.ranges(userId) });
+    };
+
+    /** Write copied meals into the cached weeks they landed in. "replace"
+     *  first drops everything cached on the dates they cover, mirroring what
+     *  the copy did in the database. */
+    const placeCopiedMeals = async (copied: CopiedMeals, mode: "add" | "replace") => {
+      await settleInFlightRequests();
+      if (mode === "replace") {
+        updateCachedWeeks((_week, items) =>
+          items.filter((item) => item.plannedFor < copied.startIso || item.plannedFor > copied.endIso)
+        );
+      }
+      for (const item of copied.items) {
+        updateWeek(weekOf(item.plannedFor), (items) => [...items, item]);
+      }
+      refreshRanges();
     };
 
     return {
-      async addItem(input: AddMealPlanItemInput): Promise<MealPlanItem> {
-        const item = await addMealPlanItem(input);
+      async addItem(input: AddPlannedMealInput): Promise<PlannedMeal> {
+        const item = await addPlannedMeal(input);
         await settleInFlightRequests();
         placeItem(item);
-        refreshSpans();
+        refreshRanges();
         return item;
       },
 
       async removeItem(itemId: string): Promise<void> {
-        await deleteMealPlanItem(itemId);
+        await deletePlannedMeal(itemId);
         await settleInFlightRequests();
         updateCachedWeeks((_week, items) => items.filter((item) => item.id !== itemId));
+        refreshRanges();
       },
 
-      async moveItem(input: MoveMealPlanItemInput): Promise<MealPlanItem> {
-        const moved = await moveMealPlanItem(input);
+      async moveItem(input: MovePlannedMealInput): Promise<PlannedMeal> {
+        const moved = await movePlannedMeal(input);
         await settleInFlightRequests();
         placeItem(moved);
+        refreshRanges();
         return moved;
       },
 
-      async updateServings(input: UpdateMealPlanItemServingsInput): Promise<MealPlanItem> {
-        const updated = await updateMealPlanItemServings(input);
+      async updateServings(input: UpdatePlannedMealServingsInput): Promise<PlannedMeal> {
+        const updated = await updatePlannedMealServings(input);
         await settleInFlightRequests();
         placeItem(updated);
+        refreshRanges();
         return updated;
       },
 
-      /** Copy a saved or past plan into the week starting `weekStartIso`.
-       *  Multi-week plans add items to the following weeks too. */
-      async applyPlan(planId: string, weekStartIso: string, mode: "add" | "replace"): Promise<void> {
-        if (mode === "replace") {
-          await clearWeekPlan(weekStartIso);
-        }
-        const newItems = await applySavedMealPlan(planId, weekStartIso);
-        await settleInFlightRequests();
-        if (mode === "replace") {
-          updateWeek(weekStartIso, () => []);
-        }
-        for (const item of newItems) {
-          updateWeek(weekOf(item.plannedFor), (items) => [...items, item]);
-        }
-        refreshSpans();
+      /** Apply a saved plan starting at `targetStartIso`. Plans longer than
+       *  a week continue into the following weeks. */
+      async applyPlan(savedPlanId: string, targetStartIso: string, mode: "add" | "replace"): Promise<void> {
+        const copied = await applySavedPlan(savedPlanId, targetStartIso, mode);
+        await placeCopiedMeals(copied, mode);
+      },
+
+      /** Copy the meals planned between two dates so they start at `targetStartIso`. */
+      async copyRange(
+        sourceStartIso: string,
+        sourceEndIso: string,
+        targetStartIso: string,
+        mode: "add" | "replace"
+      ): Promise<void> {
+        const copied = await copyMealsBetween(sourceStartIso, sourceEndIso, targetStartIso, mode);
+        await placeCopiedMeals(copied, mode);
       },
     };
   }, [client, userId]);
@@ -254,26 +294,10 @@ export function useInvalidateMealPlanWeeks(): () => Promise<void> {
   }, [client, userId]);
 }
 
-// ── Past weeks, saved plans, and previews ───────────────────────────────
+// ── Saved plans and previews ───────────────────────────────
 
-const NO_SPANS: MealPlanSpan[] = [];
 const NO_SAVED_PLANS: SavedMealPlan[] = [];
 const NO_PREVIEW: MealPlanDayPreview[] = [];
-
-/** Every plan's date range, for the past-weeks calendar. */
-export function useMealPlanSpans() {
-  const userId = useCurrentUserId();
-  const query = useQuery({
-    queryKey: mealPlanKeys.spans(userId ?? ""),
-    queryFn: listMealPlanSpans,
-    enabled: userId !== null,
-  });
-  return {
-    spans: query.data ?? NO_SPANS,
-    loading: query.isPending,
-    error: errorMessage(query.error, "Failed to load plans."),
-  };
-}
 
 /** All of the user's saved (named) plans. */
 export function useSavedMealPlans() {
@@ -348,20 +372,23 @@ export function useSavedMealPlanActions() {
         return updated;
       },
 
-      /** Deletes the plan and its meals, so every view of meal-plan data refreshes. */
+      /** Deletes the saved copy only — meals on the calendar are separate and
+       *  stay (they were a frozen copy, not the plan's source of truth) — so
+       *  just saved-plan data refreshes. */
       async remove(planId: string): Promise<void> {
         await deleteSavedMealPlan(planId);
         if (userId) {
           client.setQueryData<SavedMealPlan[]>(mealPlanKeys.savedList(userId), (prev) =>
             prev?.filter((plan) => plan.id !== planId)
           );
-          refreshAllBut(mealPlanKeys.savedList(userId), mealPlanKeys.user(userId));
+          refreshAllBut(mealPlanKeys.savedList(userId), mealPlanKeys.saved(userId));
+          client.removeQueries({ queryKey: mealPlanKeys.preview(userId, planId) });
         }
       },
 
-      /** Name an existing plan so it shows up under saved plans. */
-      async saveAs(planId: string, savedName: string): Promise<SavedMealPlan> {
-        const saved = await savePlanById(planId, savedName);
+      /** Save the meals planned between two dates as a new named plan. */
+      async saveAs(name: string, startIso: string, endIso: string): Promise<SavedMealPlan> {
+        const saved = await saveMealsAsPlan(name, startIso, endIso);
         if (userId) void client.invalidateQueries({ queryKey: mealPlanKeys.saved(userId) });
         return saved;
       },

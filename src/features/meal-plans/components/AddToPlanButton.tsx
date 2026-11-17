@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMealPlanActions } from "../queries";
 import { MEAL_TYPE_OPTIONS } from "../constants";
-import { createDateFromIso, getWeekStartIso } from "../../../lib/utils/dates";
+import { createDateFromIso } from "../../../lib/utils/dates";
 import type { MealType } from "../types";
 import AddToPlanModal from "./AddToPlanModal";
 
@@ -53,7 +53,6 @@ export default function AddToPlanButton({
     setAddedTo(null);
     try {
       await addItem({
-        weekStartIso: getWeekStartIso(createDateFromIso(plannedFor)),
         plannedFor,
         mealType,
         recipeId,

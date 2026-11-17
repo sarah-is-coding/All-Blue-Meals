@@ -23,8 +23,9 @@ import {
 } from "../../../../features/grocery/api";
 
 const SUMMARIES: GroceryListSummary[] = [
-  { id: "list-1", title: "Week of May 25", mealPlanId: null, createdAt: "2026-05-25T12:00:00Z" },
-  { id: "list-2", title: "Party", mealPlanId: null, createdAt: "2026-06-01T12:00:00Z" },
+  { id: "list-1", title: "Week of May 25", savedPlanId: null, startDate: "2026-05-25", endDate: "2026-05-31", createdAt: "2026-05-25T12:00:00Z" },
+  // Built from a saved plan, so it has no date range.
+  { id: "list-2", title: "Party", savedPlanId: "plan-1", startDate: null, endDate: null, createdAt: "2026-06-01T12:00:00Z" },
 ];
 
 const LIST_1: GroceryList = {
@@ -83,6 +84,14 @@ describe("SavedGroceryListsPage — loading", () => {
     renderPage();
     expect(await screen.findByText("Network down", undefined, T)).toBeInTheDocument();
     expect(screen.queryByText(/haven't saved any/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("SavedGroceryListsPage — dates", () => {
+  it("shows the dates a list was built from, or when it was saved if it came from a saved plan", async () => {
+    renderPage();
+    expect(await screen.findByText("May 25, 2026 – May 31, 2026", undefined, T)).toBeInTheDocument();
+    expect(screen.getByText("Saved Jun 1, 2026")).toBeInTheDocument();
   });
 });
 

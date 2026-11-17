@@ -7,7 +7,7 @@ export type MealPlannerDay = {
   fullLabel: string;
 };
 
-export type MealPlanItem = {
+export type PlannedMeal = {
   id: string;
   recipeId: string | null;
   recipeTitle: string;
@@ -18,21 +18,20 @@ export type MealPlanItem = {
   effectiveServings: number | null;
 };
 
-export type AddMealPlanItemInput = {
-  weekStartIso: string;
+export type AddPlannedMealInput = {
   plannedFor: string;
   mealType: MealType;
   recipeId: string;
   servingsOverride: number | null;
 };
 
-export type MoveMealPlanItemInput = {
+export type MovePlannedMealInput = {
   itemId: string;
   plannedFor: string;
   mealType: MealType;
 };
 
-export type UpdateMealPlanItemServingsInput = {
+export type UpdatePlannedMealServingsInput = {
   itemId: string;
   servingsOverride: number | null;
 };
@@ -45,13 +44,7 @@ export type MealPlanDayPreview = {
 export type SavedMealPlan = {
   id: string;
   savedName: string;
+  /** The dates the plan was saved from (end is always set; day offsets count from start). */
   startDate: string;
-  endDate: string | null;
-};
-
-/** Lightweight record for rendering plan spans on the browse calendar. */
-export type MealPlanSpan = {
-  id: string;
-  startDate: string;
-  endDate: string; // always populated (legacy rows fall back to startDate + 6)
+  endDate: string;
 };

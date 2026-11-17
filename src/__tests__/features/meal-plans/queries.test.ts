@@ -5,9 +5,10 @@ import {
   prefetchWeekThenNeighbours,
   useInvalidateMealPlanWeeks,
   useMealPlanActions,
+  usePlannedMealsBetween,
   useMealPlanWeek,
 } from "../../../features/meal-plans/queries";
-import type { MealPlanItem } from "../../../features/meal-plans/types";
+import type { PlannedMeal } from "../../../features/meal-plans/types";
 import {
   createTestQueryClient,
   renderHookWithProviders,
@@ -15,30 +16,33 @@ import {
 } from "../../utils/renderWithProviders";
 
 vi.mock("../../../features/meal-plans/api", () => ({
-  listMealPlanItemsForWeek: vi.fn(),
-  addMealPlanItem: vi.fn(),
-  deleteMealPlanItem: vi.fn(),
-  moveMealPlanItem: vi.fn(),
-  updateMealPlanItemServings: vi.fn(),
-  clearWeekPlan: vi.fn(),
-  applySavedMealPlan: vi.fn(),
+  listPlannedMealsBetween: vi.fn(),
+  listPlannedMealsForWeek: vi.fn(),
+  addPlannedMeal: vi.fn(),
+  deletePlannedMeal: vi.fn(),
+  movePlannedMeal: vi.fn(),
+  updatePlannedMealServings: vi.fn(),
+  applySavedPlan: vi.fn(),
+  copyMealsBetween: vi.fn(),
 }));
 
 import {
-  addMealPlanItem,
-  applySavedMealPlan,
-  clearWeekPlan,
-  deleteMealPlanItem,
-  listMealPlanItemsForWeek,
-  moveMealPlanItem,
-  updateMealPlanItemServings,
+  listPlannedMealsBetween,
+  addPlannedMeal,
+  applySavedPlan,
+  copyMealsBetween,
+  deletePlannedMeal,
+  listPlannedMealsForWeek,
+  movePlannedMeal,
+  updatePlannedMealServings,
 } from "../../../features/meal-plans/api";
 
-const PREV = "2026-05-18";
-const WEEK = "2026-05-25";
-const NEXT = "2026-06-01";
+// Sundays, since weeks start on Sunday (redesign decision 8).
+const PREV = "2026-05-17";
+const WEEK = "2026-05-24";
+const NEXT = "2026-05-31";
 
-const item = (id: string, plannedFor: string, extra: Partial<MealPlanItem> = {}): MealPlanItem => ({
+const item = (id: string, plannedFor: string, extra: Partial<PlannedMeal> = {}): PlannedMeal => ({
   id,
   recipeId: `recipe-${id}`,
   recipeTitle: `Recipe ${id}`,
@@ -51,11 +55,11 @@ const item = (id: string, plannedFor: string, extra: Partial<MealPlanItem> = {})
 });
 
 const cachedWeek = (client: ReturnType<typeof createTestQueryClient>, weekStartIso: string) =>
-  client.getQueryData<MealPlanItem[]>(mealPlanKeys.week(TEST_USER_ID, weekStartIso));
+  client.getQueryData<PlannedMeal[]>(mealPlanKeys.week(TEST_USER_ID, weekStartIso));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(listMealPlanItemsForWeek).mockImplementation(async (weekStartIso) =>
+  vi.mocked(listPlannedMealsForWeek).mockImplementation(async (weekStartIso) =>
     weekStartIso === WEEK ? [item("a", WEEK)] : []
   );
 });
@@ -71,7 +75,7 @@ describe("prefetchMealPlanWeeks", () => {
   it("loads each week into the cache", async () => {
     const client = createTestQueryClient();
     await prefetchMealPlanWeeks(client, TEST_USER_ID, [PREV, WEEK, NEXT]);
-    expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(3);
+    expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3);
     expect(cachedWeek(client, WEEK)).toEqual([item("a", WEEK)]);
     expect(cachedWeek(client, PREV)).toEqual([]);
   });
@@ -80,7 +84,7 @@ describe("prefetchMealPlanWeeks", () => {
 describe("prefetchWeekThenNeighbours", () => {
   it("loads the week on its own first, and its neighbours only after it arrives", async () => {
     let releaseWeek!: () => void;
-    vi.mocked(listMealPlanItemsForWeek).mockImplementation((weekStartIso) =>
+    vi.mocked(listPlannedMealsForWeek).mockImplementation((weekStartIso) =>
       weekStartIso === WEEK
         ? new Promise((resolve) => {
             releaseWeek = () => resolve([item("a", WEEK)]);
@@ -90,12 +94,12 @@ describe("prefetchWeekThenNeighbours", () => {
     const client = createTestQueryClient();
 
     const done = prefetchWeekThenNeighbours(client, TEST_USER_ID, WEEK);
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(1));
-    expect(listMealPlanItemsForWeek).toHaveBeenCalledWith(WEEK);
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(1));
+    expect(listPlannedMealsForWeek).toHaveBeenCalledWith(WEEK);
 
     releaseWeek();
     await done;
-    expect(vi.mocked(listMealPlanItemsForWeek).mock.calls.map(([week]) => week)).toEqual([
+    expect(vi.mocked(listPlannedMealsForWeek).mock.calls.map(([week]) => week)).toEqual([
       WEEK,
       PREV,
       NEXT,
@@ -104,12 +108,12 @@ describe("prefetchWeekThenNeighbours", () => {
   });
 
   it("does not load the neighbours if the week itself fails", async () => {
-    vi.mocked(listMealPlanItemsForWeek).mockRejectedValue(new Error("offline"));
+    vi.mocked(listPlannedMealsForWeek).mockRejectedValue(new Error("offline"));
     const client = createTestQueryClient();
 
     await prefetchWeekThenNeighbours(client, TEST_USER_ID, WEEK);
 
-    expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(1);
+    expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -126,7 +130,7 @@ describe("useMealPlanWeek", () => {
 
   it("waits for the visible week before prefetching its neighbours", async () => {
     let releaseWeek!: () => void;
-    vi.mocked(listMealPlanItemsForWeek).mockImplementation((weekStartIso) =>
+    vi.mocked(listPlannedMealsForWeek).mockImplementation((weekStartIso) =>
       weekStartIso === WEEK
         ? new Promise((resolve) => {
             releaseWeek = () => resolve([item("a", WEEK)]);
@@ -134,12 +138,12 @@ describe("useMealPlanWeek", () => {
         : Promise.resolve([])
     );
     const { result } = renderHookWithProviders(() => useMealPlanWeek(WEEK));
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledWith(WEEK));
-    expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledWith(WEEK));
+    expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(1);
 
     await act(async () => releaseWeek());
     await waitFor(() => expect(result.current.items).toEqual([item("a", WEEK)]));
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
   });
 
   it("shows a week that is already cached immediately, without a loading state", async () => {
@@ -152,14 +156,14 @@ describe("useMealPlanWeek", () => {
   });
 
   it("exposes the load error", async () => {
-    vi.mocked(listMealPlanItemsForWeek).mockRejectedValue(new Error("Network down"));
+    vi.mocked(listPlannedMealsForWeek).mockRejectedValue(new Error("Network down"));
     const { result } = renderHookWithProviders(() => useMealPlanWeek(WEEK));
     await waitFor(() => expect(result.current.error).toBe("Network down"));
   });
 
   it("does not load anything without a signed-in user", () => {
     renderHookWithProviders(() => useMealPlanWeek(WEEK), { userId: null });
-    expect(listMealPlanItemsForWeek).not.toHaveBeenCalled();
+    expect(listPlannedMealsForWeek).not.toHaveBeenCalled();
   });
 });
 
@@ -173,11 +177,10 @@ describe("useMealPlanActions", () => {
 
   it("addItem saves, then adds the item to its week's cache", async () => {
     const { client, actions } = await setup();
-    vi.mocked(addMealPlanItem).mockResolvedValue(item("new", "2026-06-03"));
+    vi.mocked(addPlannedMeal).mockResolvedValue(item("new", "2026-06-03"));
 
     await act(() =>
       actions.addItem({
-        weekStartIso: NEXT,
         plannedFor: "2026-06-03",
         mealType: "dinner",
         recipeId: "recipe-new",
@@ -191,18 +194,18 @@ describe("useMealPlanActions", () => {
 
   it("removeItem deletes, then removes the item from the cache", async () => {
     const { client, actions } = await setup();
-    vi.mocked(deleteMealPlanItem).mockResolvedValue(undefined);
+    vi.mocked(deletePlannedMeal).mockResolvedValue(undefined);
 
     await act(() => actions.removeItem("a"));
 
-    expect(deleteMealPlanItem).toHaveBeenCalledWith("a");
+    expect(deletePlannedMeal).toHaveBeenCalledWith("a");
     expect(cachedWeek(client, WEEK)).toEqual([]);
   });
 
   it("moveItem updates the item in place within the same week", async () => {
     const { client, actions } = await setup();
     const moved = item("a", "2026-05-27", { mealType: "lunch" });
-    vi.mocked(moveMealPlanItem).mockResolvedValue(moved);
+    vi.mocked(movePlannedMeal).mockResolvedValue(moved);
 
     await act(() => actions.moveItem({ itemId: "a", plannedFor: "2026-05-27", mealType: "lunch" }));
 
@@ -212,7 +215,7 @@ describe("useMealPlanActions", () => {
   it("moveItem moves the item between cached weeks when it changes week", async () => {
     const { client, actions } = await setup();
     const moved = item("a", "2026-06-02");
-    vi.mocked(moveMealPlanItem).mockResolvedValue(moved);
+    vi.mocked(movePlannedMeal).mockResolvedValue(moved);
 
     await act(() => actions.moveItem({ itemId: "a", plannedFor: "2026-06-02", mealType: "dinner" }));
 
@@ -223,45 +226,65 @@ describe("useMealPlanActions", () => {
   it("updateServings replaces the item in the cache", async () => {
     const { client, actions } = await setup();
     const updated = item("a", WEEK, { servingsOverride: 2, effectiveServings: 2 });
-    vi.mocked(updateMealPlanItemServings).mockResolvedValue(updated);
+    vi.mocked(updatePlannedMealServings).mockResolvedValue(updated);
 
     await act(() => actions.updateServings({ itemId: "a", servingsOverride: 2 }));
 
     expect(cachedWeek(client, WEEK)).toEqual([updated]);
   });
 
-  it("applyPlan in replace mode clears the week, then adds items to each week they fall in", async () => {
+  it("applyPlan in replace mode drops the covered dates, then adds items to each week they fall in", async () => {
     const { client, actions } = await setup();
-    vi.mocked(clearWeekPlan).mockResolvedValue(undefined);
-    vi.mocked(applySavedMealPlan).mockResolvedValue([
-      item("p1", "2026-05-26"),
-      item("p2", "2026-06-02"),
-    ]);
+    // A 14-day saved plan: the database clear covered WEEK and NEXT, and the
+    // copy reports those dates back so the cache can mirror it.
+    vi.mocked(applySavedPlan).mockResolvedValue({
+      startIso: WEEK,
+      endIso: "2026-06-06",
+      items: [item("p1", "2026-05-26"), item("p2", "2026-06-01")],
+    });
 
     await act(() => actions.applyPlan("plan-1", WEEK, "replace"));
 
-    expect(clearWeekPlan).toHaveBeenCalledWith(WEEK);
+    expect(applySavedPlan).toHaveBeenCalledWith("plan-1", WEEK, "replace");
     expect(cachedWeek(client, WEEK)).toEqual([item("p1", "2026-05-26")]);
-    expect(cachedWeek(client, NEXT)).toEqual([item("p2", "2026-06-02")]);
+    expect(cachedWeek(client, NEXT)).toEqual([item("p2", "2026-06-01")]);
   });
 
   it("applyPlan in add mode keeps the week's existing items", async () => {
     const { client, actions } = await setup();
-    vi.mocked(applySavedMealPlan).mockResolvedValue([item("p1", "2026-05-26")]);
+    vi.mocked(applySavedPlan).mockResolvedValue({
+      startIso: WEEK,
+      endIso: "2026-05-30",
+      items: [item("p1", "2026-05-26")],
+    });
 
     await act(() => actions.applyPlan("plan-1", WEEK, "add"));
 
-    expect(clearWeekPlan).not.toHaveBeenCalled();
+    expect(applySavedPlan).toHaveBeenCalledWith("plan-1", WEEK, "add");
     expect(cachedWeek(client, WEEK)).toEqual([item("a", WEEK), item("p1", "2026-05-26")]);
+  });
+
+  it("copyRange copies the source dates to the target and updates the cache the same way", async () => {
+    const { client, actions } = await setup();
+    vi.mocked(copyMealsBetween).mockResolvedValue({
+      startIso: WEEK,
+      endIso: "2026-05-30",
+      items: [item("c1", "2026-05-27")],
+    });
+
+    await act(() => actions.copyRange(PREV, "2026-05-23", WEEK, "replace"));
+
+    expect(copyMealsBetween).toHaveBeenCalledWith(PREV, "2026-05-23", WEEK, "replace");
+    // Replace dropped what the covered dates held, then placed the copies.
+    expect(cachedWeek(client, WEEK)).toEqual([item("c1", "2026-05-27")]);
   });
 
   it("leaves weeks that were never loaded alone", async () => {
     const { client, actions } = await setup();
-    vi.mocked(addMealPlanItem).mockResolvedValue(item("far", "2026-09-01"));
+    vi.mocked(addPlannedMeal).mockResolvedValue(item("far", "2026-09-01"));
 
     await act(() =>
       actions.addItem({
-        weekStartIso: "2026-08-31",
         plannedFor: "2026-09-01",
         mealType: "dinner",
         recipeId: "recipe-far",
@@ -269,15 +292,15 @@ describe("useMealPlanActions", () => {
       })
     );
 
-    expect(cachedWeek(client, "2026-08-31")).toBeUndefined();
+    expect(cachedWeek(client, "2026-08-30")).toBeUndefined();
   });
 });
 
 describe("useMealPlanActions — requests already in flight", () => {
   /** The next request (for `week`) returns `data` only when released. */
-  function holdNextRequest(week: string, data: MealPlanItem[]) {
+  function holdNextRequest(week: string, data: PlannedMeal[]) {
     let release!: () => void;
-    vi.mocked(listMealPlanItemsForWeek).mockImplementationOnce(async (requested) => {
+    vi.mocked(listPlannedMealsForWeek).mockImplementationOnce(async (requested) => {
       expect(requested).toBe(week);
       await new Promise<void>((resolve) => (release = resolve));
       return data;
@@ -289,12 +312,12 @@ describe("useMealPlanActions — requests already in flight", () => {
     const client = createTestQueryClient();
     await prefetchMealPlanWeeks(client, TEST_USER_ID, [WEEK]);
     const { result } = renderHookWithProviders(() => useMealPlanActions(), { client });
-    vi.mocked(deleteMealPlanItem).mockResolvedValue(undefined);
+    vi.mocked(deletePlannedMeal).mockResolvedValue(undefined);
 
     // A background refresh starts, reading the week while item "a" still exists...
     const releaseStaleRefresh = holdNextRequest(WEEK, [item("a", WEEK)]);
     void client.refetchQueries({ queryKey: mealPlanKeys.week(TEST_USER_ID, WEEK) });
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(2));
 
     // ...then "a" is removed, and only afterwards does the old refresh finish.
     await act(() => result.current.removeItem("a"));
@@ -308,13 +331,13 @@ describe("useMealPlanActions — requests already in flight", () => {
     await prefetchMealPlanWeeks(client, TEST_USER_ID, [WEEK]);
     const { result } = renderHookWithProviders(() => useMealPlanActions(), { client });
     const moved = item("a", "2026-06-02");
-    vi.mocked(moveMealPlanItem).mockResolvedValue(moved);
+    vi.mocked(movePlannedMeal).mockResolvedValue(moved);
 
     // Next week starts loading (e.g. a neighbour prefetch) before the move is saved.
     const releaseStaleLoad = holdNextRequest(NEXT, []);
     void prefetchMealPlanWeeks(client, TEST_USER_ID, [NEXT]);
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledWith(NEXT));
-    vi.mocked(listMealPlanItemsForWeek).mockResolvedValue([moved]);
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledWith(NEXT));
+    vi.mocked(listPlannedMealsForWeek).mockResolvedValue([moved]);
 
     await act(() =>
       result.current.moveItem({ itemId: "a", plannedFor: "2026-06-02", mealType: "dinner" })
@@ -336,6 +359,49 @@ describe("useInvalidateMealPlanWeeks", () => {
 
     for (const week of [WEEK, NEXT]) {
       expect(client.getQueryState(mealPlanKeys.week(TEST_USER_ID, week))?.isInvalidated).toBe(true);
+    }
+  });
+});
+
+describe("usePlannedMealsBetween", () => {
+  it("loads the meals between two dates, cached per range", async () => {
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([item("a", WEEK)]);
+    const { result, client } = renderHookWithProviders(() => usePlannedMealsBetween(WEEK, "2026-06-03"));
+
+    await waitFor(() => expect(result.current.items).toEqual([item("a", WEEK)]));
+    expect(listPlannedMealsBetween).toHaveBeenCalledWith(WEEK, "2026-06-03");
+    expect(client.getQueryData(mealPlanKeys.range(TEST_USER_ID, WEEK, "2026-06-03"))).toEqual([item("a", WEEK)]);
+  });
+
+  it("loads nothing when disabled", () => {
+    const { result } = renderHookWithProviders(() => usePlannedMealsBetween(WEEK, NEXT, false));
+    expect(result.current).toMatchObject({ items: [], loading: false });
+    expect(listPlannedMealsBetween).not.toHaveBeenCalled();
+  });
+
+  it("is refreshed by every planner change, so counts never go stale", async () => {
+    const client = createTestQueryClient();
+    const rangeKey = mealPlanKeys.range(TEST_USER_ID, WEEK, "2026-06-03");
+    const { result } = renderHookWithProviders(() => useMealPlanActions(), { client });
+    vi.mocked(addPlannedMeal).mockResolvedValue(item("new", WEEK));
+    vi.mocked(deletePlannedMeal).mockResolvedValue(undefined);
+    vi.mocked(movePlannedMeal).mockResolvedValue(item("a", WEEK));
+    vi.mocked(updatePlannedMealServings).mockResolvedValue(item("a", WEEK));
+    vi.mocked(applySavedPlan).mockResolvedValue({ startIso: WEEK, endIso: "2026-05-30", items: [] });
+    vi.mocked(copyMealsBetween).mockResolvedValue({ startIso: WEEK, endIso: "2026-05-30", items: [] });
+
+    const changes: Array<() => Promise<unknown>> = [
+      () => result.current.addItem({ plannedFor: WEEK, mealType: "dinner", recipeId: "r", servingsOverride: null }),
+      () => result.current.removeItem("a"),
+      () => result.current.moveItem({ itemId: "a", plannedFor: WEEK, mealType: "lunch" }),
+      () => result.current.updateServings({ itemId: "a", servingsOverride: 2 }),
+      () => result.current.applyPlan("plan-1", WEEK, "add"),
+      () => result.current.copyRange(PREV, "2026-05-23", WEEK, "add"),
+    ];
+    for (const change of changes) {
+      client.setQueryData(rangeKey, []);
+      await act(change);
+      expect(client.getQueryState(rangeKey)?.isInvalidated).toBe(true);
     }
   });
 });

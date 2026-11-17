@@ -1,6 +1,6 @@
 import type { MealType } from "./types";
 
-export const MEAL_PLAN_ITEM_DRAG_MIME_TYPE =
+export const PLANNED_MEAL_DRAG_MIME_TYPE =
   "application/x-planmymeals-meal-plan-item-id";
 
 export const MEAL_TYPE_OPTIONS: Array<{ value: MealType; label: string }> = [

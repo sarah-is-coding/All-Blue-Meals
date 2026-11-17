@@ -10,7 +10,7 @@ import {
   toggleGroceryItem,
   uncheckAllGroceryItems,
 } from "./api";
-import type { GroceryItemDraft, GroceryList, GroceryListSummary } from "./types";
+import type { GroceryItemDraft, GroceryList, GroceryListOrigin, GroceryListSummary } from "./types";
 
 // The only module in grocery that talks to TanStack Query (see "Data loading"
 // in CLAUDE.md). Components use these hooks; cache keys and updates live here.
@@ -81,10 +81,10 @@ export function useGroceryListActions() {
     return {
       async save(
         title: string,
-        mealPlanId: string | null,
+        origin: GroceryListOrigin,
         items: GroceryItemDraft[]
       ): Promise<GroceryList> {
-        const list = await saveGroceryList(title, mealPlanId, items);
+        const list = await saveGroceryList(title, origin, items);
         if (userId) {
           client.setQueryData(groceryKeys.list(userId, list.id), list);
           void client.invalidateQueries({ queryKey: groceryKeys.savedLists(userId) });

@@ -1,15 +1,15 @@
 import { supabase } from "../../lib/supabaseClient";
 import type { Tables } from "../../lib/db/database.types";
 import type { IngredientCategory } from "../ingredients/types";
-import { getWeekEndIso } from "../../lib/utils/dates";
 import { scaleQuantityText } from "../../lib/utils/quantities";
-import { listMealPlanItemsBetween, listMealPlanItemsForPlan } from "../meal-plans/api";
-import type { MealPlanItem } from "../meal-plans/types";
+import { listPlannedMealsBetween, listSavedPlanMeals } from "../meal-plans/api";
+import type { PlannedMeal } from "../meal-plans/types";
 import { mergeIngredients } from "./utils/groceryGeneration";
 import type {
   GroceryItem,
   GroceryItemDraft,
   GroceryList,
+  GroceryListOrigin,
   GroceryListSummary,
 } from "./types";
 
@@ -19,7 +19,12 @@ type RecipeIngRow = Pick<Tables<"recipe_ingredients">, "recipe_id" | "ingredient
   ingredients: Pick<Tables<"ingredients">, "category"> | null;
 };
 
-type GroceryListRow = Pick<Tables<"grocery_lists">, "id" | "title" | "meal_plan_id" | "created_at">;
+type GroceryListRow = Pick<
+  Tables<"grocery_lists">,
+  "id" | "title" | "saved_plan_id" | "start_date" | "end_date" | "created_at"
+>;
+
+const LIST_COLUMNS = "id, title, saved_plan_id, start_date, end_date, created_at";
 
 type GroceryItemRow = Pick<Tables<"grocery_items">, "id" | "ingredient_name" | "quantity" | "unit" | "is_checked" | "category">;
 
@@ -40,7 +45,9 @@ function mapListRow(row: GroceryListRow, items: GroceryItem[]): GroceryList {
   return {
     id: row.id,
     title: row.title,
-    mealPlanId: row.meal_plan_id,
+    savedPlanId: row.saved_plan_id,
+    startDate: row.start_date,
+    endDate: row.end_date,
     createdAt: row.created_at,
     items,
   };
@@ -50,7 +57,9 @@ function mapSummaryRow(row: GroceryListRow): GroceryListSummary {
   return {
     id: row.id,
     title: row.title,
-    mealPlanId: row.meal_plan_id,
+    savedPlanId: row.saved_plan_id,
+    startDate: row.start_date,
+    endDate: row.end_date,
     createdAt: row.created_at,
   };
 }
@@ -65,29 +74,15 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-/** Returns the meal_plan id whose start_date matches the given week ISO, or null. */
-async function getPlanIdForWeek(weekStartIso: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("meal_plans")
-    .select("id")
-    .eq("start_date", weekStartIso)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle<{ id: string }>();
-
-  if (error) throw new Error(error.message);
-  return data?.id ?? null;
-}
-
 // ── Grocery generation ──────────────────────────────────────────────────────
 
 /**
  * Turn planned meals into a grocery list: fetch every planned recipe's
  * ingredients, scale each to that meal's servings, then merge duplicates.
- * Which meals count is decided by meal-plans (listMealPlanItemsBetween /
- * listMealPlanItemsForPlan), the same definition the planner uses.
+ * Which meals count is decided by meal-plans (listPlannedMealsBetween /
+ * listSavedPlanMeals), the same definition the planner uses.
  */
-async function buildGroceryItemsFromMeals(meals: MealPlanItem[]): Promise<GroceryItemDraft[]> {
+async function buildGroceryItemsFromMeals(meals: PlannedMeal[]): Promise<GroceryItemDraft[]> {
   const recipeIds = Array.from(
     new Set(meals.map((meal) => meal.recipeId).filter((id): id is string => id !== null))
   );
@@ -126,32 +121,27 @@ async function buildGroceryItemsFromMeals(meals: MealPlanItem[]): Promise<Grocer
   return mergeIngredients(scaled);
 }
 
-/** Grocery list for a plan: its own meals within its start and end dates. */
-export async function buildGroceryItemsForPlan(planId: string): Promise<GroceryItemDraft[]> {
-  return buildGroceryItemsFromMeals(await listMealPlanItemsForPlan(planId));
+/** Grocery list for a saved plan: its frozen copy of the meals it was saved with. */
+export async function buildGroceryItemsForSavedPlan(
+  savedPlanId: string
+): Promise<GroceryItemDraft[]> {
+  return buildGroceryItemsFromMeals(await listSavedPlanMeals(savedPlanId));
 }
 
-/**
- * Grocery list for a week: every meal planned in that week (exactly what the
- * planner shows), plus the week's plan id (if there is one) so the saved list
- * can link back to it.
- */
-export async function buildGroceryItemsForWeek(weekStartIso: string): Promise<{
-  items: GroceryItemDraft[];
-  planId: string | null;
-}> {
-  const [meals, planId] = await Promise.all([
-    listMealPlanItemsBetween(weekStartIso, getWeekEndIso(weekStartIso)),
-    getPlanIdForWeek(weekStartIso),
-  ]);
-  return { items: await buildGroceryItemsFromMeals(meals), planId };
+/** Grocery list for a date range: every meal planned between the two dates
+ *  (inclusive), exactly what the planner shows for those days. */
+export async function buildGroceryItemsForRange(
+  startIso: string,
+  endIso: string
+): Promise<GroceryItemDraft[]> {
+  return buildGroceryItemsFromMeals(await listPlannedMealsBetween(startIso, endIso));
 }
 
 // ── Persistence ─────────────────────────────────────────────────────────────
 
 export async function saveGroceryList(
   title: string,
-  mealPlanId: string | null,
+  origin: GroceryListOrigin,
   items: GroceryItemDraft[]
 ): Promise<GroceryList> {
   const userId = await requireUserId();
@@ -161,9 +151,11 @@ export async function saveGroceryList(
     .insert({
       user_id: userId,
       title: title.trim(),
-      meal_plan_id: mealPlanId,
+      saved_plan_id: origin.kind === "saved_plan" ? origin.savedPlanId : null,
+      start_date: origin.kind === "range" ? origin.startDate : null,
+      end_date: origin.kind === "range" ? origin.endDate : null,
     })
-    .select("id, title, meal_plan_id, created_at")
+    .select(LIST_COLUMNS)
     .single<GroceryListRow>();
 
   if (listErr) throw new Error(listErr.message);
@@ -195,7 +187,7 @@ export async function saveGroceryList(
 export async function getGroceryList(listId: string): Promise<GroceryList | null> {
   const { data: listRow, error: listErr } = await supabase
     .from("grocery_lists")
-    .select("id, title, meal_plan_id, created_at")
+    .select(LIST_COLUMNS)
     .eq("id", listId)
     .maybeSingle<GroceryListRow>();
 
@@ -217,7 +209,7 @@ export async function getGroceryList(listId: string): Promise<GroceryList | null
 export async function listSavedGroceryLists(): Promise<GroceryListSummary[]> {
   const { data, error } = await supabase
     .from("grocery_lists")
-    .select("id, title, meal_plan_id, created_at")
+    .select(LIST_COLUMNS)
     .order("created_at", { ascending: false })
     .returns<GroceryListRow[]>();
 
@@ -243,7 +235,7 @@ export async function renameGroceryList(
     .from("grocery_lists")
     .update({ title: newName.trim() })
     .eq("id", listId)
-    .select("id, title, meal_plan_id, created_at")
+    .select(LIST_COLUMNS)
     .single<GroceryListRow>();
 
   if (error) throw new Error(error.message);

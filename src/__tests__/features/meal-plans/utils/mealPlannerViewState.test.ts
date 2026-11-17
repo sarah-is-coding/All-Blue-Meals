@@ -6,7 +6,8 @@ import {
 } from "../../../../features/meal-plans/utils/mealPlannerViewState";
 
 const STORAGE_KEY = "planmymeals:meal-plans:view-state";
-// Wednesday 2026-05-27 → its week starts Monday 2026-05-25
+// Wednesday 2026-05-27 → its week starts Sunday 2026-05-24 (weeks start
+// on Sunday since redesign decision 8)
 const WEDNESDAY = new Date(2026, 4, 27);
 
 describe("mealPlannerViewState", () => {
@@ -41,16 +42,16 @@ describe("getPlannerStartWeek", () => {
   beforeEach(() => window.sessionStorage.clear());
 
   it("is the current week when no week has been viewed in this tab", () => {
-    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-05-25");
+    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-05-24");
   });
 
   it("is the last week viewed in this tab when there is one", () => {
-    saveMealPlannerViewState({ weekStartIso: "2026-06-15" });
-    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-06-15");
+    saveMealPlannerViewState({ weekStartIso: "2026-06-14" });
+    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-06-14");
   });
 
-  it("rounds a saved non-Monday date to its week's Monday", () => {
+  it("rounds a saved midweek date to its week's Sunday", () => {
     saveMealPlannerViewState({ weekStartIso: "2026-06-17" });
-    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-06-15");
+    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-06-14");
   });
 });

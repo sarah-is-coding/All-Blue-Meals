@@ -41,8 +41,8 @@ vi.mock("../../../../features/ingredients/api", () => ({
 }));
 
 vi.mock("../../../../features/meal-plans/api", () => ({
-  addMealPlanItem: vi.fn(),
-  listMealPlanItemsForWeek: vi.fn(),
+  addPlannedMeal: vi.fn(),
+  listPlannedMealsForWeek: vi.fn(),
 }));
 
 import {
@@ -51,14 +51,14 @@ import {
   rateRecipe,
   updateRecipe,
 } from "../../../../features/recipes/api";
-import { addMealPlanItem, listMealPlanItemsForWeek } from "../../../../features/meal-plans/api";
+import { addPlannedMeal, listPlannedMealsForWeek } from "../../../../features/meal-plans/api";
 
 const mockGetRecipeById = vi.mocked(getRecipeById);
 const mockUpdateRecipe = vi.mocked(updateRecipe);
 const mockDeleteRecipe = vi.mocked(deleteRecipe);
 const mockRateRecipe = vi.mocked(rateRecipe);
-const mockAddMealPlanItem = vi.mocked(addMealPlanItem);
-const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
+const mockAddPlannedMeal = vi.mocked(addPlannedMeal);
+const mockListPlannedMealsForWeek = vi.mocked(listPlannedMealsForWeek);
 
 const recipe = {
   id: "recipe-1",
@@ -117,11 +117,11 @@ describe("RecipeDetailPage", () => {
     mockUpdateRecipe.mockResolvedValue(undefined);
     mockDeleteRecipe.mockResolvedValue(undefined);
     mockRateRecipe.mockResolvedValue(undefined);
-    mockListMealPlanItemsForWeek.mockResolvedValue([]);
+    mockListPlannedMealsForWeek.mockResolvedValue([]);
   });
 
   it("adds the recipe to the meal plan from the detail page", async () => {
-    mockAddMealPlanItem.mockResolvedValue({
+    mockAddPlannedMeal.mockResolvedValue({
       id: "item-1",
       recipeId: "recipe-1",
       recipeTitle: "Chicken Caesar Taco Salad",
@@ -152,7 +152,7 @@ describe("RecipeDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Add recipe" }));
 
     await waitFor(() => {
-      expect(mockAddMealPlanItem).toHaveBeenCalledWith(
+      expect(mockAddPlannedMeal).toHaveBeenCalledWith(
         expect.objectContaining({
           recipeId: "recipe-1",
           plannedFor: targetDay.dateIso,

@@ -20,14 +20,14 @@ vi.mock("react-router-dom", async () => {
 });
 
 vi.mock("../../../../features/meal-plans/api", () => ({
-  addMealPlanItem: vi.fn(),
-  listMealPlanItemsForWeek: vi.fn(),
+  addPlannedMeal: vi.fn(),
+  listPlannedMealsForWeek: vi.fn(),
 }));
 
-import { addMealPlanItem, listMealPlanItemsForWeek } from "../../../../features/meal-plans/api";
+import { addPlannedMeal, listPlannedMealsForWeek } from "../../../../features/meal-plans/api";
 
-const mockAddMealPlanItem = vi.mocked(addMealPlanItem);
-const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
+const mockAddPlannedMeal = vi.mocked(addPlannedMeal);
+const mockListPlannedMealsForWeek = vi.mocked(listPlannedMealsForWeek);
 
 const renderButton = (props: Partial<React.ComponentProps<typeof AddToPlanButton>> = {}) =>
   renderWithProviders(
@@ -44,7 +44,7 @@ const renderButton = (props: Partial<React.ComponentProps<typeof AddToPlanButton
 describe("AddToPlanButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockListMealPlanItemsForWeek.mockResolvedValue([]);
+    mockListPlannedMealsForWeek.mockResolvedValue([]);
   });
 
   it("opens the Add to Plan modal with the recipe name", async () => {
@@ -60,7 +60,7 @@ describe("AddToPlanButton", () => {
   });
 
   it("assigns the recipe to a picked slot and offers to view it on the meal plan", async () => {
-    mockAddMealPlanItem.mockResolvedValue({
+    mockAddPlannedMeal.mockResolvedValue({
       id: "item-1",
       recipeId: "recipe-1",
       recipeTitle: "Pasta Bake",
@@ -84,8 +84,7 @@ describe("AddToPlanButton", () => {
     await user.click(screen.getByRole("button", { name: "Add recipe" }));
 
     await waitFor(() => {
-      expect(mockAddMealPlanItem).toHaveBeenCalledWith({
-        weekStartIso: expectedWeekStartIso,
+      expect(mockAddPlannedMeal).toHaveBeenCalledWith({
         plannedFor: targetDay.dateIso,
         mealType: "lunch",
         recipeId: "recipe-1",
@@ -109,7 +108,7 @@ describe("AddToPlanButton", () => {
   });
 
   it("dismisses the added-to-plan confirmation without navigating", async () => {
-    mockAddMealPlanItem.mockResolvedValue({
+    mockAddPlannedMeal.mockResolvedValue({
       id: "item-1",
       recipeId: "recipe-1",
       recipeTitle: "Pasta Bake",
@@ -161,7 +160,7 @@ describe("AddToPlanButton", () => {
   });
 
   it("shows an error message when assignment fails", async () => {
-    mockAddMealPlanItem.mockRejectedValue(new Error("Failed to add recipe to plan."));
+    mockAddPlannedMeal.mockRejectedValue(new Error("Failed to add recipe to plan."));
 
     const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
     const targetDay = getWeekDays(expectedWeekStartIso)[2];

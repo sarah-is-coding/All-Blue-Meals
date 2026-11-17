@@ -58,31 +58,37 @@ export type Database = {
       grocery_lists: {
         Row: {
           created_at: string
+          end_date: string | null
           id: string
-          meal_plan_id: string | null
+          saved_plan_id: string | null
+          start_date: string | null
           title: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          end_date?: string | null
           id?: string
-          meal_plan_id?: string | null
+          saved_plan_id?: string | null
+          start_date?: string | null
           title: string
           user_id: string
         }
         Update: {
           created_at?: string
+          end_date?: string | null
           id?: string
-          meal_plan_id?: string | null
+          saved_plan_id?: string | null
+          start_date?: string | null
           title?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "grocery_lists_meal_plan_id_fkey"
-            columns: ["meal_plan_id"]
+            foreignKeyName: "grocery_lists_saved_plan_id_fkey"
+            columns: ["saved_plan_id"]
             isOneToOne: false
-            referencedRelation: "meal_plans"
+            referencedRelation: "saved_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -111,86 +117,46 @@ export type Database = {
         }
         Relationships: []
       }
-      meal_plan_items: {
+      planned_meals: {
         Row: {
           created_at: string
           id: string
-          meal_plan_id: string
-          meal_type: string | null
+          meal_type: string
           notes: string | null
           planned_for: string
           recipe_id: string | null
           servings_override: number | null
+          user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          meal_plan_id: string
-          meal_type?: string | null
+          meal_type: string
           notes?: string | null
           planned_for: string
           recipe_id?: string | null
           servings_override?: number | null
+          user_id?: string
         }
         Update: {
           created_at?: string
           id?: string
-          meal_plan_id?: string
-          meal_type?: string | null
+          meal_type?: string
           notes?: string | null
           planned_for?: string
           recipe_id?: string | null
           servings_override?: number | null
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "meal_plan_items_meal_plan_id_fkey"
-            columns: ["meal_plan_id"]
-            isOneToOne: false
-            referencedRelation: "meal_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "meal_plan_items_recipe_id_fkey"
+            foreignKeyName: "planned_meals_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
             referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
         ]
-      }
-      meal_plans: {
-        Row: {
-          created_at: string
-          end_date: string | null
-          id: string
-          notes: string | null
-          saved_name: string | null
-          start_date: string
-          title: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          end_date?: string | null
-          id?: string
-          notes?: string | null
-          saved_name?: string | null
-          start_date: string
-          title: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          end_date?: string | null
-          id?: string
-          notes?: string | null
-          saved_name?: string | null
-          start_date?: string
-          title?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       profiles: {
         Row: {
@@ -302,6 +268,75 @@ export type Database = {
           source_url?: string | null
           tags?: string[] | null
           title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_plan_meals: {
+        Row: {
+          day_offset: number
+          id: string
+          meal_type: string
+          recipe_id: string | null
+          saved_plan_id: string
+          servings_override: number | null
+        }
+        Insert: {
+          day_offset: number
+          id?: string
+          meal_type: string
+          recipe_id?: string | null
+          saved_plan_id: string
+          servings_override?: number | null
+        }
+        Update: {
+          day_offset?: number
+          id?: string
+          meal_type?: string
+          recipe_id?: string | null
+          saved_plan_id?: string
+          servings_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_plan_meals_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_plan_meals_saved_plan_id_fkey"
+            columns: ["saved_plan_id"]
+            isOneToOne: false
+            referencedRelation: "saved_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_plans: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          source_end_date: string
+          source_start_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          source_end_date: string
+          source_start_date: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          source_end_date?: string
+          source_start_date?: string
           user_id?: string
         }
         Relationships: []

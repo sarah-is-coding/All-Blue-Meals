@@ -7,7 +7,7 @@ import {
 import { prefetchMealPlanWeeks } from "../../../../features/meal-plans/queries";
 import { MemoryRouter } from "react-router-dom";
 import MealPlansPage from "../../../../features/meal-plans/pages/MealPlansPage";
-import type { MealPlanItem } from "../../../../features/meal-plans/types";
+import type { PlannedMeal } from "../../../../features/meal-plans/types";
 import {
   createDateFromIso,
   getWeekStartIso,
@@ -15,26 +15,26 @@ import {
 } from "../../../../lib/utils/dates";
 
 vi.mock("../../../../features/meal-plans/api", () => ({
-  listMealPlanItemsForWeek: vi.fn().mockResolvedValue([]),
-  applySavedMealPlan: vi.fn(),
-  clearWeekPlan: vi.fn(),
-  deleteMealPlanItem: vi.fn(),
-  moveMealPlanItem: vi.fn(),
-  updateMealPlanItemServings: vi.fn(),
-  listMealPlanSpans: vi.fn().mockResolvedValue([]),
+  listPlannedMealsBetween: vi.fn().mockResolvedValue([]),
+  listPlannedMealsForWeek: vi.fn().mockResolvedValue([]),
+  applySavedPlan: vi.fn(),
+  copyMealsBetween: vi.fn(),
+  deletePlannedMeal: vi.fn(),
+  movePlannedMeal: vi.fn(),
+  updatePlannedMealServings: vi.fn(),
   previewSavedMealPlan: vi.fn(),
-  savePlanById: vi.fn(),
+  saveMealsAsPlan: vi.fn(),
   searchSavedMealPlans: vi.fn().mockResolvedValue([]),
 }));
 
-import { deleteMealPlanItem, listMealPlanItemsForWeek } from "../../../../features/meal-plans/api";
+import { deletePlannedMeal, listPlannedMealsForWeek } from "../../../../features/meal-plans/api";
 
-const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
+const mockListPlannedMealsForWeek = vi.mocked(listPlannedMealsForWeek);
 
 const THIS_WEEK = getWeekStartIso(new Date());
 const NEXT_WEEK = shiftWeekStartIso(THIS_WEEK, 1);
 
-const item = (id: string, recipeTitle: string, plannedFor: string): MealPlanItem => ({
+const item = (id: string, recipeTitle: string, plannedFor: string): PlannedMeal => ({
   id,
   recipeId: `recipe-${id}`,
   recipeTitle,
@@ -45,7 +45,7 @@ const item = (id: string, recipeTitle: string, plannedFor: string): MealPlanItem
   effectiveServings: 4,
 });
 
-const ITEMS_BY_WEEK: Record<string, MealPlanItem[]> = {
+const ITEMS_BY_WEEK: Record<string, PlannedMeal[]> = {
   [THIS_WEEK]: [item("a", "Tacos", THIS_WEEK)],
   [NEXT_WEEK]: [item("b", "Lasagna", NEXT_WEEK)],
 };
@@ -67,7 +67,7 @@ describe("MealPlansPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
-    mockListMealPlanItemsForWeek.mockResolvedValue([]);
+    mockListPlannedMealsForWeek.mockResolvedValue([]);
   });
 
   it("jumps to the week containing an incoming jumpToDate", async () => {
@@ -77,7 +77,7 @@ describe("MealPlansPage", () => {
     renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate } }]);
 
     await waitFor(() => {
-      expect(mockListMealPlanItemsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
+      expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
     });
   });
 
@@ -87,7 +87,7 @@ describe("MealPlansPage", () => {
     renderPage(["/app/meal-plans"]);
 
     await waitFor(() => {
-      expect(mockListMealPlanItemsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
+      expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
     });
   });
 });
@@ -100,7 +100,7 @@ describe("MealPlansPage — loading weeks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
-    mockListMealPlanItemsForWeek.mockImplementation(async (weekStartIso) => ITEMS_BY_WEEK[weekStartIso] ?? []);
+    mockListPlannedMealsForWeek.mockImplementation(async (weekStartIso) => ITEMS_BY_WEEK[weekStartIso] ?? []);
   });
 
   // Behavior change: the planner used to show its modal immediately and keep
@@ -116,7 +116,7 @@ describe("MealPlansPage — loading weeks", () => {
     // The planner also prefetches neighbouring weeks, so hold each week's
     // request separately and release only the one being viewed.
     const pending = new Map<string, () => void>();
-    mockListMealPlanItemsForWeek.mockImplementation(
+    mockListPlannedMealsForWeek.mockImplementation(
       (weekStartIso) =>
         new Promise((resolve) => {
           pending.set(weekStartIso, () => resolve(ITEMS_BY_WEEK[weekStartIso] ?? []));
@@ -139,14 +139,14 @@ describe("MealPlansPage — loading weeks", () => {
     // What sign-in prefetching gives the user: the planner opens fully drawn.
     const client = createTestQueryClient();
     await prefetchMealPlanWeeks(client, TEST_USER_ID, [THIS_WEEK, NEXT_WEEK]);
-    mockListMealPlanItemsForWeek.mockClear();
+    mockListPlannedMealsForWeek.mockClear();
 
     renderPage(["/app/meal-plans"], client);
     expect(screen.getByText("Tacos")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     expect(screen.getByText("Lasagna")).toBeInTheDocument();
-    expect(mockListMealPlanItemsForWeek).not.toHaveBeenCalledWith(THIS_WEEK);
+    expect(mockListPlannedMealsForWeek).not.toHaveBeenCalledWith(THIS_WEEK);
   });
 
   it("loads the next week, showing its meals once they arrive", async () => {
@@ -158,12 +158,12 @@ describe("MealPlansPage — loading weeks", () => {
     expect(screen.queryByText("Tacos")).not.toBeInTheDocument();
 
     expect(await screen.findByText("Lasagna", undefined, T)).toBeInTheDocument();
-    expect(mockListMealPlanItemsForWeek).toHaveBeenCalledWith(NEXT_WEEK);
+    expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(NEXT_WEEK);
   });
 
   it("ignores a slow response for a week the user has already left", async () => {
     let releaseThisWeek!: () => void;
-    mockListMealPlanItemsForWeek.mockImplementation((weekStartIso) =>
+    mockListPlannedMealsForWeek.mockImplementation((weekStartIso) =>
       weekStartIso === THIS_WEEK
         ? new Promise((resolve) => {
             releaseThisWeek = () => resolve(ITEMS_BY_WEEK[THIS_WEEK]);
@@ -181,18 +181,18 @@ describe("MealPlansPage — loading weeks", () => {
   });
 
   it("removes an item from the calendar after deleting it", async () => {
-    vi.mocked(deleteMealPlanItem).mockResolvedValue(undefined);
+    vi.mocked(deletePlannedMeal).mockResolvedValue(undefined);
     renderPage(["/app/meal-plans"]);
     await screen.findByText("Tacos", undefined, T);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Tacos" }));
 
     await waitFor(() => expect(screen.queryByText("Tacos")).not.toBeInTheDocument(), T);
-    expect(deleteMealPlanItem).toHaveBeenCalledWith("a");
+    expect(deletePlannedMeal).toHaveBeenCalledWith("a");
   });
 
   it("shows an action error, and clears it when changing weeks", async () => {
-    vi.mocked(deleteMealPlanItem).mockRejectedValue(new Error("Could not delete"));
+    vi.mocked(deletePlannedMeal).mockRejectedValue(new Error("Could not delete"));
     renderPage(["/app/meal-plans"]);
     await screen.findByText("Tacos", undefined, T);
 
@@ -205,7 +205,7 @@ describe("MealPlansPage — loading weeks", () => {
   });
 
   it("shows the error when a week fails to load", async () => {
-    mockListMealPlanItemsForWeek.mockRejectedValue(new Error("Network down"));
+    mockListPlannedMealsForWeek.mockRejectedValue(new Error("Network down"));
     renderPage(["/app/meal-plans"]);
     expect(await screen.findByText("Network down", undefined, T)).toBeInTheDocument();
   });

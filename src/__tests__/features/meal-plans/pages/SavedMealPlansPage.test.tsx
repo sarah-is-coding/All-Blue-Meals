@@ -164,7 +164,10 @@ describe("SavedMealPlansPage", () => {
     });
   });
 
-  it("marks cached planner weeks stale after deleting a plan (its meals are deleted too)", async () => {
+  // Changed with the move to saved_plans: a saved plan is a frozen copy, so
+  // deleting it no longer deletes calendar meals, and cached planner weeks
+  // keep their data instead of being marked stale.
+  it("leaves cached planner weeks alone after deleting a plan (calendar meals stay)", async () => {
     vi.mocked(deleteSavedMealPlan).mockResolvedValue(undefined);
     const client = createTestQueryClient();
     const cachedWeek = mealPlanKeys.week(TEST_USER_ID, "2026-05-25");
@@ -175,8 +178,7 @@ describe("SavedMealPlansPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /delete/i })[0]);
     fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
 
-    await waitFor(() => expect(client.getQueryState(cachedWeek)?.isInvalidated).toBe(true), {
-      timeout: 1500,
-    });
+    await waitFor(() => expect(deleteSavedMealPlan).toHaveBeenCalledWith("p1"), { timeout: 1500 });
+    expect(client.getQueryState(cachedWeek)?.isInvalidated).toBe(false);
   });
 });

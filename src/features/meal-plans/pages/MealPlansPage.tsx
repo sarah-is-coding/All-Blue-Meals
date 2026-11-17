@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import LoadingModal from "../../../components/feedback/LoadingModal";
 import MealPlannerCalendar from "../components/MealPlannerCalendar";
-import PastMealPlanPanel from "../components/PastMealPlanPanel";
+import PlanBrowserPanel from "../components/PlanBrowserPanel";
 import {
   createDateFromIso,
   formatWeekRangeLabel,
@@ -89,12 +89,20 @@ export default function MealPlansPage() {
     [items, actions]
   );
 
-  /** Unified handler for both "copy past week" and "apply saved plan".
-   *  Uses applySavedMealPlan so multi-week plans are handled correctly. */
-  const handleApplyPlan = useCallback(
-    async (planId: string, mode: "add" | "replace") => {
+  /** Copy the meals planned between two dates into the viewed week. */
+  const handleCopyRange = useCallback(
+    async (startIso: string, endIso: string, mode: "add" | "replace") => {
       setActionError(null);
-      await actions.applyPlan(planId, weekStartIso, mode);
+      await actions.copyRange(startIso, endIso, weekStartIso, mode);
+    },
+    [weekStartIso, actions]
+  );
+
+  /** Apply a saved plan starting at the viewed week. */
+  const handleApplySavedPlan = useCallback(
+    async (savedPlanId: string, mode: "add" | "replace") => {
+      setActionError(null);
+      await actions.applyPlan(savedPlanId, weekStartIso, mode);
     },
     [weekStartIso, actions]
   );
@@ -147,11 +155,12 @@ export default function MealPlansPage() {
         />
 
         <div className="meal-planner-sidebar">
-          <PastMealPlanPanel
+          <PlanBrowserPanel
             currentWeekStartIso={weekStartIso}
             currentWeekHasItems={items.length > 0}
             onJumpToWeek={changeWeek}
-            onApplyPlan={handleApplyPlan}
+            onCopyRange={handleCopyRange}
+            onApplySavedPlan={handleApplySavedPlan}
           />
         </div>
       </div>

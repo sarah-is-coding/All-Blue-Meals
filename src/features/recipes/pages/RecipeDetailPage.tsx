@@ -19,7 +19,7 @@ type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
 type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
 type RecipeDetailLocationState = {
   from?: "meal-planner";
-  mealPlanItemId?: string;
+  plannedMealId?: string;
   initialServings?: number | null;
   mealSlot?: { date: string; mealType: MealType };
 };

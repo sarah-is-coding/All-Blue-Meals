@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import MealPlannerCalendar from "../../../../features/meal-plans/components/MealPlannerCalendar";
-import type { MealPlanItem, MealPlannerDay } from "../../../../features/meal-plans/types";
+import type { PlannedMeal, MealPlannerDay } from "../../../../features/meal-plans/types";
 
 const weekDays: MealPlannerDay[] = [
   {
@@ -81,7 +81,7 @@ describe("MealPlannerCalendar", () => {
   });
 
   describe("picker mode", () => {
-    const pickerItems: MealPlanItem[] = [
+    const pickerItems: PlannedMeal[] = [
       {
         id: "item-1",
         recipeId: "recipe-1",

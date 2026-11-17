@@ -1,51 +1,17 @@
 import { useState } from "react";
 import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
-import PlanSpanCalendar from "../../meal-plans/components/PlanSpanCalendar";
-import { useMealPlanSpans, useSavedMealPlanSearch } from "../../meal-plans/queries";
+import { formatDateRange } from "../../../lib/utils/dates";
+import { useSavedMealPlanSearch } from "../../meal-plans/queries";
 import type { SavedMealPlan } from "../../meal-plans/types";
 
-type PanelTab = "past" | "saved";
+// Lets the grocery page build a list from a saved plan instead of the dates
+// on the calendar. (Past weeks used to be listed here too; the date range on
+// the grocery page replaces that.)
 
 type Props = {
-  /** Called when user picks a past week from the calendar. weekStartIso is the
-   *  plan's start_date (always a Monday). */
-  onSelectWeek: (weekStartIso: string) => void;
   /** Called when user picks a named saved plan. */
   onSelectSavedPlan: (plan: SavedMealPlan) => void;
 };
-
-// ── Past-weeks tab ────────────────────────────────────────────────────────
-
-function PastWeeksTab({ onSelectWeek }: { onSelectWeek: (iso: string) => void }) {
-  const { spans, loading: loadingSpans, error: spansError } = useMealPlanSpans();
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-
-  const handleSelectPlan = (planId: string | null) => {
-    setSelectedPlanId(planId);
-    if (!planId) return;
-    const span = spans.find((s) => s.id === planId);
-    if (span) {
-      onSelectWeek(span.startDate);
-    }
-  };
-
-  return (
-    <div className="past-plan-panel__body">
-      {spansError && <p className="error">{spansError}</p>}
-      <PlanSpanCalendar
-        spans={spans}
-        selectedPlanId={selectedPlanId}
-        onSelectPlan={handleSelectPlan}
-        isLoading={loadingSpans}
-      />
-      {!loadingSpans && spans.length > 0 && (
-        <p className="past-plan-panel__status">
-          Click a highlighted week to load it.
-        </p>
-      )}
-    </div>
-  );
-}
 
 // ── Saved-plans tab ───────────────────────────────────────────────────────
 
@@ -63,11 +29,11 @@ function SavedPlansTab({
   const listError = resultsQuery.error;
 
   return (
-    <div className="past-plan-panel__body">
-      <div className="past-plan-panel__search-row">
+    <div className="plan-browser__body">
+      <div className="plan-browser__search-row">
         <input
           type="search"
-          className="past-plan-panel__search-input"
+          className="plan-browser__search-input"
           placeholder="Search saved plans…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
@@ -76,11 +42,11 @@ function SavedPlansTab({
 
       {listError && <p className="error">{listError}</p>}
       {loadingList && (
-        <p className="past-plan-panel__status">Loading…</p>
+        <p className="plan-browser__status">Loading…</p>
       )}
 
       {!loadingList && results.length === 0 && (
-        <p className="past-plan-panel__status">
+        <p className="plan-browser__status">
           {searchInput.trim()
             ? "No saved plans match."
             : "No saved plans yet."}
@@ -100,7 +66,7 @@ function SavedPlansTab({
                   {plan.savedName}
                 </span>
                 <span className="saved-plan-list__range">
-                  {plan.startDate}
+                  {formatDateRange(plan.startDate, plan.endDate)}
                 </span>
                 <span
                   className="saved-plan-list__chevron"
@@ -119,72 +85,26 @@ function SavedPlansTab({
 
 // ── Main component ────────────────────────────────────────────────────────
 
-export default function GroceryPlanBrowser({
-  onSelectWeek,
-  onSelectSavedPlan,
-}: Props) {
-  const [isOpen, setIsOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<PanelTab>("past");
-
-  const handleSelectWeek = (iso: string) => {
-    onSelectWeek(iso);
-    // Keep the panel open so the user can see their selection is reflected
-    // in the parent and can change their mind without re-opening.
-  };
-
-  const handleSelectSavedPlan = (plan: SavedMealPlan) => {
-    onSelectSavedPlan(plan);
-    // Keep the panel open (same reason as above).
-  };
+export default function GroceryPlanBrowser({ onSelectSavedPlan }: Props) {
+  // Closed by default: building from dates is the usual path.
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <article className="workspace-card past-plan-panel">
+    <article className="workspace-card plan-browser">
       <button
         type="button"
-        className="past-plan-panel__toggle"
+        className="plan-browser__toggle"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
       >
-        <span className="past-plan-panel__toggle-label">Browse plans</span>
-        <span className="past-plan-panel__chevron" aria-hidden="true">
+        <span className="plan-browser__toggle-label">Or use a saved plan</span>
+        <span className="plan-browser__chevron" aria-hidden="true">
           {isOpen ? "▲" : "▼"}
         </span>
       </button>
 
-      {isOpen && (
-        <>
-          <div className="past-plan-panel__tabs" role="tablist">
-            <button
-              role="tab"
-              type="button"
-              aria-selected={activeTab === "past"}
-              className={`past-plan-panel__tab${
-                activeTab === "past" ? " past-plan-panel__tab--active" : ""
-              }`}
-              onClick={() => setActiveTab("past")}
-            >
-              Past weeks
-            </button>
-            <button
-              role="tab"
-              type="button"
-              aria-selected={activeTab === "saved"}
-              className={`past-plan-panel__tab${
-                activeTab === "saved" ? " past-plan-panel__tab--active" : ""
-              }`}
-              onClick={() => setActiveTab("saved")}
-            >
-              Saved plans
-            </button>
-          </div>
-
-          {activeTab === "past" ? (
-            <PastWeeksTab onSelectWeek={handleSelectWeek} />
-          ) : (
-            <SavedPlansTab onSelectSavedPlan={handleSelectSavedPlan} />
-          )}
-        </>
-      )}
+      {/* Keep the panel open after choosing, so the user can change their mind. */}
+      {isOpen && <SavedPlansTab onSelectSavedPlan={onSelectSavedPlan} />}
     </article>
   );
 }

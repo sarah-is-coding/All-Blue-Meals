@@ -8,15 +8,15 @@ import { saveMealPlannerViewState } from "../../features/meal-plans/utils/mealPl
 import { createTestQueryClient } from "../utils/renderWithProviders";
 
 vi.mock("../../features/meal-plans/api", () => ({
-  listMealPlanItemsForWeek: vi.fn().mockResolvedValue([]),
+  listPlannedMealsForWeek: vi.fn().mockResolvedValue([]),
 }));
 
-import { listMealPlanItemsForWeek } from "../../features/meal-plans/api";
+import { listPlannedMealsForWeek } from "../../features/meal-plans/api";
 
 const THIS_WEEK = getWeekStartIso(new Date());
 
 const requestedWeeks = () =>
-  vi.mocked(listMealPlanItemsForWeek).mock.calls.map(([week]) => week);
+  vi.mocked(listPlannedMealsForWeek).mock.calls.map(([week]) => week);
 
 describe("useSessionCache", () => {
   beforeEach(() => {
@@ -29,13 +29,13 @@ describe("useSessionCache", () => {
     const { rerender } = renderHook(({ userId }) => useSessionCache(userId, client), {
       initialProps: { userId: null as string | null },
     });
-    expect(listMealPlanItemsForWeek).not.toHaveBeenCalled();
+    expect(listPlannedMealsForWeek).not.toHaveBeenCalled();
 
     rerender({ userId: "user-1" });
 
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
     for (const week of [shiftWeekStartIso(THIS_WEEK, -1), THIS_WEEK, shiftWeekStartIso(THIS_WEEK, 1)]) {
-      expect(listMealPlanItemsForWeek).toHaveBeenCalledWith(week);
+      expect(listPlannedMealsForWeek).toHaveBeenCalledWith(week);
       await waitFor(() =>
         expect(client.getQueryData(mealPlanKeys.week("user-1", week))).toEqual([])
       );
@@ -46,7 +46,7 @@ describe("useSessionCache", () => {
     const client = createTestQueryClient();
     renderHook(() => useSessionCache("user-1", client));
 
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
     expect(requestedWeeks()).toEqual([
       THIS_WEEK,
       shiftWeekStartIso(THIS_WEEK, -1),
@@ -55,18 +55,18 @@ describe("useSessionCache", () => {
   });
 
   it("prefetches around the week last viewed in this tab (e.g. after a reload)", async () => {
-    saveMealPlannerViewState({ weekStartIso: "2026-01-05" });
+    saveMealPlannerViewState({ weekStartIso: "2026-01-04" });
     const client = createTestQueryClient();
     renderHook(() => useSessionCache("user-1", client));
 
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(3));
-    expect(requestedWeeks()).toEqual(["2026-01-05", "2025-12-29", "2026-01-12"]);
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
+    expect(requestedWeeks()).toEqual(["2026-01-04", "2025-12-28", "2026-01-11"]);
   });
 
   it("prefetches when the app opens with a saved session", async () => {
     const client = createTestQueryClient();
     renderHook(() => useSessionCache("user-1", client));
-    await waitFor(() => expect(listMealPlanItemsForWeek).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
   });
 
   it("clears the whole cache when the user signs out", async () => {
@@ -78,7 +78,7 @@ describe("useSessionCache", () => {
       expect(client.getQueryData(mealPlanKeys.week("user-1", THIS_WEEK))).toEqual([])
     );
 
-    saveMealPlannerViewState({ weekStartIso: "2026-01-05" });
+    saveMealPlannerViewState({ weekStartIso: "2026-01-04" });
     rerender({ userId: null });
 
     expect(client.getQueryCache().getAll()).toHaveLength(0);

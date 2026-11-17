@@ -1,7 +1,6 @@
 import { act, waitFor } from "@testing-library/react";
 import {
   mealPlanKeys,
-  useMealPlanSpans,
   useSavedMealPlanActions,
   useSavedMealPlanSearch,
   useSavedMealPlans,
@@ -15,22 +14,20 @@ import {
 } from "../../utils/renderWithProviders";
 
 vi.mock("../../../features/meal-plans/api", () => ({
-  listMealPlanSpans: vi.fn(),
   listSavedMealPlans: vi.fn(),
   searchSavedMealPlans: vi.fn(),
   previewSavedMealPlan: vi.fn(),
   renameSavedMealPlan: vi.fn(),
   deleteSavedMealPlan: vi.fn(),
-  savePlanById: vi.fn(),
+  saveMealsAsPlan: vi.fn(),
 }));
 
 import {
   deleteSavedMealPlan,
-  listMealPlanSpans,
   listSavedMealPlans,
   previewSavedMealPlan,
   renameSavedMealPlan,
-  savePlanById,
+  saveMealsAsPlan,
   searchSavedMealPlans,
 } from "../../../features/meal-plans/api";
 
@@ -47,16 +44,6 @@ const isStale = (client: ReturnType<typeof createTestQueryClient>, key: readonly
 beforeEach(() => vi.clearAllMocks());
 
 describe("meal-plan lookups", () => {
-  it("useMealPlanSpans loads every plan's date range", async () => {
-    vi.mocked(listMealPlanSpans).mockResolvedValue([
-      { id: "p1", startDate: "2026-05-25", endDate: "2026-05-31" },
-    ]);
-    const { result } = renderHookWithProviders(() => useMealPlanSpans());
-    expect(result.current.loading).toBe(true);
-    await waitFor(() => expect(result.current.spans).toHaveLength(1));
-    expect(result.current.loading).toBe(false);
-  });
-
   it("useSavedMealPlans loads the saved plans and reports errors", async () => {
     vi.mocked(listSavedMealPlans).mockRejectedValue(new Error("Network down"));
     const { result } = renderHookWithProviders(() => useSavedMealPlans());
@@ -102,7 +89,6 @@ describe("useSavedMealPlanActions", () => {
     client.setQueryData(mealPlanKeys.savedList(TEST_USER_ID), [plan("p1", "Lean week"), plan("p2", "Party")]);
     client.setQueryData(mealPlanKeys.savedSearch(TEST_USER_ID, "lean"), [plan("p1", "Lean week")]);
     client.setQueryData(mealPlanKeys.week(TEST_USER_ID, "2026-05-25"), []);
-    client.setQueryData(mealPlanKeys.spans(TEST_USER_ID), []);
     const { result } = renderHookWithProviders(() => useSavedMealPlanActions(), { client });
     return { client, actions: result.current };
   }
@@ -122,24 +108,30 @@ describe("useSavedMealPlanActions", () => {
     expect(isStale(client, mealPlanKeys.savedList(TEST_USER_ID))).toBe(false);
   });
 
-  it("remove deletes the plan and refreshes everything that could show its meals", async () => {
+  it("remove deletes only the saved copy: saved-plan data refreshes, the calendar doesn't", async () => {
     const { client, actions } = await setup();
     vi.mocked(deleteSavedMealPlan).mockResolvedValue(undefined);
+    client.setQueryData(mealPlanKeys.preview(TEST_USER_ID, "p1"), []);
 
     await act(() => actions.remove("p1"));
 
     expect(client.getQueryData(mealPlanKeys.savedList(TEST_USER_ID))).toEqual([plan("p2", "Party")]);
-    expect(isStale(client, mealPlanKeys.week(TEST_USER_ID, "2026-05-25"))).toBe(true);
-    expect(isStale(client, mealPlanKeys.spans(TEST_USER_ID))).toBe(true);
     expect(isStale(client, mealPlanKeys.savedSearch(TEST_USER_ID, "lean"))).toBe(true);
+    // A saved plan is a frozen copy, so deleting it doesn't change the
+    // calendar: its weeks and spans keep their data (changed with the move
+    // to the saved_plans table — deleting used to delete the plan's meals).
+    expect(isStale(client, mealPlanKeys.week(TEST_USER_ID, "2026-05-25"))).toBe(false);
+    // The deleted plan's preview is dropped entirely.
+    expect(client.getQueryData(mealPlanKeys.preview(TEST_USER_ID, "p1"))).toBeUndefined();
   });
 
-  it("saveAs names a plan and refreshes saved-plan lists", async () => {
+  it("saveAs saves the meals planned in a date range and refreshes saved-plan lists", async () => {
     const { client, actions } = await setup();
-    vi.mocked(savePlanById).mockResolvedValue(plan("p3", "New template"));
+    vi.mocked(saveMealsAsPlan).mockResolvedValue(plan("p3", "New template"));
 
-    const saved = await act(() => actions.saveAs("p3", "New template"));
+    const saved = await act(() => actions.saveAs("New template", "2026-05-25", "2026-05-31"));
 
+    expect(saveMealsAsPlan).toHaveBeenCalledWith("New template", "2026-05-25", "2026-05-31");
     expect(saved).toEqual(plan("p3", "New template"));
     expect(isStale(client, mealPlanKeys.savedList(TEST_USER_ID))).toBe(true);
     expect(isStale(client, mealPlanKeys.savedSearch(TEST_USER_ID, "lean"))).toBe(true);

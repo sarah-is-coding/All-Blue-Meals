@@ -35,7 +35,9 @@ import {
 const SUMMARY: GroceryListSummary = {
   id: "list-1",
   title: "Week of May 25",
-  mealPlanId: null,
+  savedPlanId: null,
+  startDate: "2026-05-25",
+  endDate: "2026-05-31",
   createdAt: "2026-05-25T12:00:00Z",
 };
 const LIST: GroceryList = {
@@ -86,7 +88,7 @@ describe("useGroceryListActions", () => {
     const saved: GroceryList = { ...LIST, id: "list-2", title: "Party" };
     vi.mocked(saveGroceryList).mockResolvedValue(saved);
 
-    await act(() => actions.save("Party", null, []));
+    await act(() => actions.save("Party", { kind: "saved_plan", savedPlanId: "plan-1" }, []));
 
     expect(client.getQueryData(groceryKeys.list(TEST_USER_ID, "list-2"))).toEqual(saved);
     expect(client.getQueryState(summariesKey)?.isInvalidated).toBe(true);

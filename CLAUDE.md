@@ -222,7 +222,7 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   the visible week) so it never shares bandwidth with speculative requests
 - Tests render with `renderWithProviders` / `renderHookWithProviders` from
   `src/__tests__/utils/renderWithProviders.tsx` (fresh cache + test user)
-- Query modules today: `meal-plans/queries.ts` (weeks, past-week spans,
+- Query modules today: `meal-plans/queries.ts` (weeks, date ranges,
   saved plans, previews), `grocery/queries.ts` (saved lists), and
   `recipes/queries.ts` (list pages, recipe detail). Recipe changes also
   refresh planner weeks, since the planner shows recipe titles/servings
@@ -231,14 +231,16 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
 
 Anything that needs "the meals planned for some dates" must use the shared
 functions in `src/features/meal-plans/api.ts` instead of querying
-`meal_plan_items` itself, so the planner, grocery lists, previews, and
+`planned_meals` itself, so the planner, grocery lists, previews, and
 copying plans always agree:
 
-- `listMealPlanItemsBetween(start, end)`: every meal dated in the range, from
+- `listPlannedMealsBetween(start, end)`: every meal dated in the range, from
   any plan (dates decide, not plan membership, so this works for plans longer
-  than a week). The planner week, grocery week, and "Replace existing" use it
-- `listMealPlanItemsForPlan(planId)`: a plan's own meals within its start and
-  end dates. Saved-plan previews, applying a plan, and grocery-by-plan use it
+  than a week). The planner week, grocery ranges, the copy-dates calendar,
+  and "Replace existing" use it
+- `listSavedPlanMeals(savedPlanId)`: a saved plan's frozen copy of its meals,
+  dated from the plan's first day. Saved-plan previews, applying a saved
+  plan, and grocery-by-saved-plan use it
 
 ### Feature boundaries (enforced by ESLint)
 

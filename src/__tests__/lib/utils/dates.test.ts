@@ -7,6 +7,7 @@ import {
   getWeekStartIso,
   shiftWeekStartIso,
   toIsoDate,
+  isValidIsoDate,
 } from "../../../lib/utils/dates";
 
 // ─────────────────────────────────────────────────────────────
@@ -55,22 +56,28 @@ describe("addDays", () => {
 // ─────────────────────────────────────────────────────────────
 // Week helpers (weeks start on Monday)
 // ─────────────────────────────────────────────────────────────
+// Weeks start on Sunday since redesign decision 8 (they used to start on
+// Monday, which these cases previously asserted).
 describe("getWeekStartIso", () => {
-  it("returns the same day for a Monday", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 25))).toBe("2026-05-25");
+  it("returns the same day for a Sunday", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 24))).toBe("2026-05-24");
   });
 
-  it("returns the previous Monday for a midweek day", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 28))).toBe("2026-05-25");
+  it("returns the previous Sunday for a midweek day", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 28))).toBe("2026-05-24");
   });
 
-  it("treats Sunday as the end of the week, not the start", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 31))).toBe("2026-05-25");
+  it("treats Monday as part of the week its Sunday started", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 25))).toBe("2026-05-24");
+  });
+
+  it("treats Saturday as the end of the week, not the start", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 30))).toBe("2026-05-24");
   });
 
   it("crosses a year boundary", () => {
-    // Fri Jan 1 2027 belongs to the week starting Mon Dec 28 2026
-    expect(getWeekStartIso(new Date(2027, 0, 1))).toBe("2026-12-28");
+    // Fri Jan 1 2027 belongs to the week starting Sun Dec 27 2026
+    expect(getWeekStartIso(new Date(2027, 0, 1))).toBe("2026-12-27");
   });
 });
 
@@ -103,5 +110,25 @@ describe("formatWeekRangeLabel", () => {
 describe("formatDateRange", () => {
   it("formats an arbitrary start/end range with an en dash", () => {
     expect(formatDateRange("2026-12-28", "2027-01-03")).toBe("Dec 28, 2026 – Jan 3, 2027");
+  });
+});
+
+describe("isValidIsoDate", () => {
+  it("accepts a complete, real date", () => {
+    expect(isValidIsoDate("2026-05-18")).toBe(true);
+    expect(isValidIsoDate("2024-02-29")).toBe(true); // leap day
+  });
+
+  it("rejects empty and half-typed values", () => {
+    expect(isValidIsoDate("")).toBe(false);
+    expect(isValidIsoDate("2026-0")).toBe(false);
+    expect(isValidIsoDate("2026-05-1")).toBe(false);
+    expect(isValidIsoDate("05/18/2026")).toBe(false);
+  });
+
+  it("rejects impossible dates", () => {
+    expect(isValidIsoDate("2026-02-31")).toBe(false);
+    expect(isValidIsoDate("2026-13-01")).toBe(false);
+    expect(isValidIsoDate("2026-00-10")).toBe(false);
   });
 });

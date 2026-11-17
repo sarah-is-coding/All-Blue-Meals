@@ -1843,7 +1843,17 @@
 }
 
 /* ── Collapsible panel toggle (used by the Browse past weeks panel) ── */
-.past-plan-panel__toggle {
+.plan-browser__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-brand-dark);
+}
+
+.plan-browser__toggle {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1859,11 +1869,11 @@
   text-align: left;
 }
 
-.past-plan-panel__toggle:hover .past-plan-panel__toggle-label {
+.plan-browser__toggle:hover .plan-browser__toggle-label {
   color: var(--color-brand-dark);
 }
 
-.past-plan-panel__chevron {
+.plan-browser__chevron {
   font-size: 0.7rem;
   color: var(--color-muted-soft);
   flex-shrink: 0;
@@ -1871,17 +1881,26 @@
 }
 
 /* ── Browse past weeks panel ──────────────────────────────── */
-.past-plan-panel {
+.plan-browser {
   display: grid;
   gap: 0.75rem;
 }
 
-.past-plan-panel__body {
+.plan-browser__body {
   display: grid;
   gap: 0.72rem;
 }
 
-.past-plan-panel__week-label {
+.plan-browser__preview-heading {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-soft);
+}
+
+.plan-browser__week-label {
   margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
@@ -1891,7 +1910,7 @@
   gap: 0.5rem;
 }
 
-.past-plan-panel__current-badge {
+.plan-browser__current-badge {
   background: var(--alpha-brand-12);
   color: var(--color-brand-dark);
   font-size: 0.72rem;
@@ -1902,13 +1921,13 @@
   letter-spacing: 0.04em;
 }
 
-.past-plan-panel__status {
+.plan-browser__status {
   margin: 0;
   font-size: 0.88rem;
   color: var(--color-muted-soft);
 }
 
-.past-plan-panel__preview {
+.plan-browser__preview {
   display: grid;
   gap: 0.3rem;
   border: 1px solid var(--alpha-slate-38);
@@ -1917,7 +1936,7 @@
   background: var(--alpha-bg-248-85);
 }
 
-.past-plan-panel__day {
+.plan-browser__day {
   display: grid;
   grid-template-columns: 4.8rem 1fr;
   gap: 0.4rem;
@@ -1925,22 +1944,22 @@
   font-size: 0.84rem;
 }
 
-.past-plan-panel__day-label {
+.plan-browser__day-label {
   font-weight: 700;
   color: var(--color-muted-soft);
   white-space: nowrap;
 }
 
-.past-plan-panel__day-empty {
+.plan-browser__day-empty {
   color: var(--color-muted-faint);
 }
 
-.past-plan-panel__day-recipes {
+.plan-browser__day-recipes {
   color: var(--color-ink-soft);
   line-height: 1.35;
 }
 
-.past-plan-panel__confirm {
+.plan-browser__confirm {
   display: grid;
   gap: 0.55rem;
   padding: 0.7rem 0.85rem;
@@ -1949,13 +1968,13 @@
   border-radius: 0.7rem;
 }
 
-.past-plan-panel__confirm-label {
+.plan-browser__confirm-label {
   margin: 0;
   font-size: 0.85rem;
   color: var(--color-ink-soft);
 }
 
-.past-plan-panel__actions {
+.plan-browser__actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
@@ -2259,14 +2278,14 @@
 }
 
 /* ── Browse-plans panel: tab switcher ────────────────────── */
-.past-plan-panel__tabs {
+.plan-browser__tabs {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--alpha-slate-38);
   margin-bottom: 0.2rem;
 }
 
-.past-plan-panel__tab {
+.plan-browser__tab {
   flex: 1;
   background: none;
   border: none;
@@ -2280,34 +2299,34 @@
   margin-bottom: -1px;
 }
 
-.past-plan-panel__tab--active {
+.plan-browser__tab--active {
   color: var(--color-brand-dark);
   border-bottom-color: var(--color-brand-dark);
 }
 
-.past-plan-panel__tab:hover:not(.past-plan-panel__tab--active) {
+.plan-browser__tab:hover:not(.plan-browser__tab--active) {
   color: var(--color-ink-soft);
 }
 
 /* ── Save-as-template inline flow ────────────────────────── */
-.past-plan-panel__save-btn {
+.plan-browser__save-btn {
   align-self: start;
   font-size: 0.83rem;
 }
 
-.past-plan-panel__save-done {
+.plan-browser__save-done {
   margin: 0;
   font-size: 0.83rem;
   font-weight: 600;
   color: var(--color-brand-dark);
 }
 
-.past-plan-panel__save-form {
+.plan-browser__save-form {
   display: grid;
   gap: 0.5rem;
 }
 
-.past-plan-panel__save-input {
+.plan-browser__save-input {
   width: 100%;
   padding: 0.42rem 0.65rem;
   border: 1px solid var(--alpha-slate-44);
@@ -2318,18 +2337,18 @@
   box-sizing: border-box;
 }
 
-.past-plan-panel__save-input:focus {
+.plan-browser__save-input:focus {
   outline: none;
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px var(--alpha-brand-20);
 }
 
 /* ── Saved-plans search row ──────────────────────────────── */
-.past-plan-panel__search-row {
+.plan-browser__search-row {
   display: grid;
 }
 
-.past-plan-panel__search-input {
+.plan-browser__search-input {
   width: 100%;
   padding: 0.42rem 0.65rem;
   border: 1px solid var(--alpha-slate-44);
@@ -2340,7 +2359,7 @@
   box-sizing: border-box;
 }
 
-.past-plan-panel__search-input:focus {
+.plan-browser__search-input:focus {
   outline: none;
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px var(--alpha-brand-20);
@@ -2411,7 +2430,7 @@
   gap: 0.6rem;
 }
 
-.past-plan-panel__preview--compact {
+.plan-browser__preview--compact {
   font-size: 0.8rem;
 }
 
@@ -2628,6 +2647,12 @@
   flex-wrap: wrap;
 }
 
+/* Date range: two date fields side by side */
+.grocery-source__range {
+  display: grid;
+  gap: 0.6rem;
+}
+
 .grocery-source__nav-btn {
   min-width: 2.1rem;
   min-height: 2.1rem;
@@ -2640,11 +2665,19 @@
 }
 
 .grocery-source__week-label {
+  margin: 0;
   flex: 1 1 auto;
   text-align: center;
   font-weight: 700;
   font-size: 0.88rem;
   color: var(--color-ink);
+}
+
+.grocery-source__meal-count {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
 }
 
 .grocery-source__plan-info {
@@ -2891,19 +2924,63 @@
 }
 
 /* ── Plan-span calendar ───────────────────────────────────── */
-.plan-cal {
+/* ── Date-range picker: From/To fields tied to the meal-dates calendar ── */
+.date-range-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.date-range-picker__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.date-range-picker__field {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-muted-soft);
+}
+
+.date-range-picker__field input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  background: var(--alpha-white-90);
+  color: var(--color-ink);
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.date-range-picker__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
+}
+
+/* ── Copy-dates calendar: pick a range; days with meals are dotted ── */
+.meal-dates-cal {
   display: grid;
   gap: 0.45rem;
 }
 
-.plan-cal__header {
+.meal-dates-cal__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
-.plan-cal__nav {
+.meal-dates-cal__nav {
   background: none;
   border: none;
   cursor: pointer;
@@ -2914,12 +2991,12 @@
   line-height: 1;
 }
 
-.plan-cal__nav:hover {
+.meal-dates-cal__nav:hover {
   background: var(--alpha-slate-33);
   color: var(--color-ink-soft);
 }
 
-.plan-cal__month-label {
+.meal-dates-cal__month-label {
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--color-ink);
@@ -2927,12 +3004,12 @@
   text-align: center;
 }
 
-.plan-cal__weekdays {
+.meal-dates-cal__weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
 }
 
-.plan-cal__weekday {
+.meal-dates-cal__weekday {
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--color-muted-faint);
@@ -2942,32 +3019,32 @@
   letter-spacing: 0.04em;
 }
 
-/* Grid: zero column gap so the band flows continuously across cells.
-   A small row gap provides visual breathing room between weeks. */
-.plan-cal__grid {
+/* Grid: zero column gap so the selection band flows continuously across
+   cells. A small row gap provides visual breathing room between weeks. */
+.meal-dates-cal__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   row-gap: 3px;
 }
 
-.plan-cal__day {
+/* Every day is a button: any day can start or end a range. */
+.meal-dates-cal__day {
   position: relative;
   height: 2.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: default;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
   user-select: none;
 }
 
-.plan-cal__day--in-span {
-  cursor: pointer;
-}
-
-/* The coloured band: absolutely positioned behind the day number.
-   No horizontal margins by default so adjacent bands merge into one bar.
-   Only add inset where caps are needed. */
-.plan-cal__day-band {
+/* The selection band: absolutely positioned behind the day number.
+   No horizontal margins by default so adjacent cells merge into one bar. */
+.meal-dates-cal__day-band {
   position: absolute;
   top: 3px;
   bottom: 3px;
@@ -2976,31 +3053,36 @@
   border-radius: 0;
   z-index: 0;
   pointer-events: none;
+  background: transparent;
   transition: background 0.1s;
 }
 
+.meal-dates-cal__day--in-range .meal-dates-cal__day-band {
+  background: var(--alpha-brand-20);
+}
+
 /* Left cap: indent the band's left edge and round it */
-.plan-cal__day--band-left .plan-cal__day-band {
+.meal-dates-cal__day--band-left .meal-dates-cal__day-band {
   left: 20%;
   border-top-left-radius: 999px;
   border-bottom-left-radius: 999px;
 }
 
 /* Right cap: indent the band's right edge and round it */
-.plan-cal__day--band-right .plan-cal__day-band {
+.meal-dates-cal__day--band-right .meal-dates-cal__day-band {
   right: 20%;
   border-top-right-radius: 999px;
   border-bottom-right-radius: 999px;
 }
 
-/* Single-day plan or isolated cell: full pill */
-.plan-cal__day--band-left.plan-cal__day--band-right .plan-cal__day-band {
+/* Single-day range or isolated cell: full pill */
+.meal-dates-cal__day--band-left.meal-dates-cal__day--band-right .meal-dates-cal__day-band {
   left: 15%;
   right: 15%;
   border-radius: 999px;
 }
 
-.plan-cal__day-num {
+.meal-dates-cal__day-num {
   position: relative;
   z-index: 1;
   font-size: 0.8rem;
@@ -3010,42 +3092,41 @@
 }
 
 /* Greyed-out padding days (prev / next month) */
-.plan-cal__day--other-month .plan-cal__day-num {
+.meal-dates-cal__day--other-month .meal-dates-cal__day-num {
   color: var(--color-muted-faint);
 }
 
-/* Today: small dot under the number */
-.plan-cal__day--today .plan-cal__day-num {
+.meal-dates-cal__day--today .meal-dates-cal__day-num {
   font-weight: 800;
   color: var(--color-brand-dark);
 }
 
-.plan-cal__day--today .plan-cal__day-num::after {
-  content: "";
+.meal-dates-cal__day--in-range .meal-dates-cal__day-num {
+  font-weight: 700;
+}
+
+/* Days with planned meals: small dot under the number */
+.meal-dates-cal__day-dot {
   position: absolute;
-  bottom: -4px;
+  bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
   width: 4px;
   height: 4px;
   border-radius: 50%;
   background: var(--color-brand);
+  z-index: 1;
+  pointer-events: none;
 }
 
-/* Selected state: day number white + bold so it reads on the darker band */
-.plan-cal__day--selected .plan-cal__day-num {
-  color: var(--color-ink);
-  font-weight: 800;
-}
-
-.plan-cal__status {
+.meal-dates-cal__status {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   color: var(--color-muted-soft);
 }
 
 /* ── Selected-plan detail below the calendar ─────────────── */
-.past-plan-panel__selection {
+.plan-browser__selection {
   display: grid;
   gap: 0.65rem;
   padding-top: 0.55rem;

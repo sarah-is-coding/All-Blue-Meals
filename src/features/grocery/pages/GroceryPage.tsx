@@ -1,31 +1,38 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { buildGroceryItemsForPlan, buildGroceryItemsForWeek } from "../api";
+import { buildGroceryItemsForRange, buildGroceryItemsForSavedPlan } from "../api";
 import { useGroceryListActions } from "../queries";
+import { usePlannedMealsBetween } from "../../meal-plans/queries";
+import DateRangePicker from "../../meal-plans/components/DateRangePicker";
 import GroceryPlanBrowser from "../components/GroceryPlanBrowser";
-import type { GroceryItemDraft, GroceryList, GrocerySource } from "../types";
+import type { GroceryItemDraft, GroceryList, GroceryListOrigin, GrocerySource } from "../types";
 import { groupItemsByCategory } from "../utils/groceryGeneration";
 import {
+  addDays,
+  createDateFromIso,
   formatDateRange,
-  formatWeekRangeLabel,
+  getWeekEndIso,
   getWeekStartIso,
-  shiftWeekStartIso,
+  toIsoDate,
 } from "../../../lib/utils/dates";
 import type { SavedMealPlan } from "../../meal-plans/types";
 
 export default function GroceryPage() {
   const groceryActions = useGroceryListActions();
   const currentWeekStartIso = useMemo(() => getWeekStartIso(new Date()), []);
-
-  // ── Source (which plan to generate from) ─────────────────────────────────
-  const [source, setSource] = useState<GrocerySource>({
-    kind: "week",
-    weekStartIso: currentWeekStartIso,
+  const weekRange = (weekStartIso: string): GrocerySource => ({
+    kind: "range",
+    startIso: weekStartIso,
+    endIso: getWeekEndIso(weekStartIso),
   });
+
+  // ── Source (dates or a saved plan to generate from) ──────────────────────
+  const [source, setSource] = useState<GrocerySource>(() => weekRange(currentWeekStartIso));
 
   // ── Generation state ──────────────────────────────────────────────────────
   const [draftItems, setDraftItems] = useState<GroceryItemDraft[] | null>(null);
-  const [draftMealPlanId, setDraftMealPlanId] = useState<string | null>(null);
+  // What the draft was built from, saved with the list.
+  const [draftOrigin, setDraftOrigin] = useState<GroceryListOrigin | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
@@ -45,43 +52,50 @@ export default function GroceryPage() {
   const saveInputRef = useRef<HTMLInputElement>(null);
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const isOnCurrentWeek =
-    source.kind === "week" && source.weekStartIso === currentWeekStartIso;
+  // How many meals are planned in the chosen dates (the ones the list will use).
+  // The picker never produces a backwards range, so the dates are always valid.
+  const rangeMeals = usePlannedMealsBetween(
+    source.kind === "range" ? source.startIso : "",
+    source.kind === "range" ? source.endIso : "",
+    source.kind === "range"
+  );
+  const plannedMealCount = rangeMeals.items.length;
 
   const sourceLabel = useMemo(() => {
-    if (source.kind === "week") return formatWeekRangeLabel(source.weekStartIso);
+    if (source.kind === "range") {
+      return formatDateRange(source.startIso, source.endIso);
+    }
     return source.planLabel;
   }, [source]);
 
   const sourceDateRange = useMemo(() => {
-    if (source.kind === "week") return null;
-    return formatDateRange(
-      source.startDate,
-      source.endDate ?? source.startDate
-    );
+    if (source.kind === "range") return null;
+    return formatDateRange(source.startDate, source.endDate);
   }, [source]);
 
-  const defaultSaveTitle = useMemo(() => {
-    if (source.kind === "week") {
-      return `Grocery – ${formatWeekRangeLabel(source.weekStartIso)}`;
-    }
-    return `Grocery – ${source.planLabel}`;
-  }, [source]);
+  const defaultSaveTitle = `Grocery – ${sourceLabel}`;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   function clearList() {
     setDraftItems(null);
-    setDraftMealPlanId(null);
+    setDraftOrigin(null);
     setSavedList(null);
     setLocalChecked(new Set());
     setShowSaveForm(false);
     setGenerateError(null);
   }
 
-  const handleSelectWeek = (weekStartIso: string) => {
-    setSource({ kind: "week", weekStartIso });
+  const selectRange = (next: GrocerySource) => {
+    setSource(next);
     clearList();
+  };
+
+  /** Move the whole range by `days`, keeping its length. */
+  const handleShiftRange = (days: number) => {
+    if (source.kind !== "range") return;
+    const shift = (iso: string) => toIsoDate(addDays(createDateFromIso(iso), days));
+    selectRange({ kind: "range", startIso: shift(source.startIso), endIso: shift(source.endIso) });
   };
 
   const handleSelectSavedPlan = (plan: SavedMealPlan) => {
@@ -95,18 +109,6 @@ export default function GroceryPage() {
     clearList();
   };
 
-  const handleShiftWeek = (offset: number) => {
-    if (source.kind !== "week") return;
-    setSource((prev) => {
-      if (prev.kind !== "week") return prev;
-      return {
-        kind: "week",
-        weekStartIso: shiftWeekStartIso(prev.weekStartIso, offset),
-      };
-    });
-    clearList();
-  };
-
   const handleGenerate = async () => {
     setGenerating(true);
     setGenerateError(null);
@@ -116,16 +118,14 @@ export default function GroceryPage() {
     setShowSaveForm(false);
 
     try {
-      if (source.kind === "week") {
-        const { items, planId } = await buildGroceryItemsForWeek(
-          source.weekStartIso
-        );
+      if (source.kind === "range") {
+        const items = await buildGroceryItemsForRange(source.startIso, source.endIso);
         setDraftItems(items);
-        setDraftMealPlanId(planId);
+        setDraftOrigin({ kind: "range", startDate: source.startIso, endDate: source.endIso });
       } else {
-        const items = await buildGroceryItemsForPlan(source.planId);
+        const items = await buildGroceryItemsForSavedPlan(source.planId);
         setDraftItems(items);
-        setDraftMealPlanId(source.planId);
+        setDraftOrigin({ kind: "saved_plan", savedPlanId: source.planId });
       }
     } catch (e) {
       setGenerateError(
@@ -144,13 +144,13 @@ export default function GroceryPage() {
   };
 
   const handleSave = async () => {
-    if (!draftItems || !saveTitle.trim()) return;
+    if (!draftItems || !draftOrigin || !saveTitle.trim()) return;
     setSaving(true);
     setSaveError(null);
     try {
       const list = await groceryActions.save(
         saveTitle.trim(),
-        draftMealPlanId,
+        draftOrigin,
         draftItems
       );
       setSavedList(list);
@@ -236,37 +236,42 @@ export default function GroceryPage() {
         {/* ── Left/top: source selector ── */}
         <div className="grocery-source">
           <article className="workspace-card grocery-source__card">
-            <h2 className="grocery-source__heading">Plan</h2>
+            <h2 className="grocery-source__heading">Dates</h2>
 
-            {source.kind === "week" ? (
-              <div className="grocery-source__week-nav">
-                <button
-                  type="button"
-                  className="btn btn--ghost grocery-source__nav-btn"
-                  onClick={() => handleShiftWeek(-1)}
-                  aria-label="Previous week"
-                >
-                  ←
-                </button>
-                <span className="grocery-source__week-label">
-                  {sourceLabel}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn--ghost grocery-source__nav-btn"
-                  onClick={() => handleShiftWeek(1)}
-                  aria-label="Next week"
-                >
-                  →
-                </button>
-                {!isOnCurrentWeek && (
+            {source.kind === "range" ? (
+              <div className="grocery-source__range">
+                <DateRangePicker
+                  startIso={source.startIso}
+                  endIso={source.endIso}
+                  onChange={(startIso, endIso) => selectRange({ kind: "range", startIso, endIso })}
+                />
+                <div className="grocery-source__week-nav">
                   <button
                     type="button"
-                    className="btn btn--ghost"
-                    onClick={() => handleSelectWeek(currentWeekStartIso)}
+                    className="btn btn--ghost grocery-source__nav-btn"
+                    onClick={() => handleShiftRange(-7)}
+                    aria-label="Move dates back a week"
                   >
-                    This week
+                    ←
                   </button>
+                  <p className="grocery-source__week-label">{sourceLabel}</p>
+                  <button
+                    type="button"
+                    className="btn btn--ghost grocery-source__nav-btn"
+                    onClick={() => handleShiftRange(7)}
+                    aria-label="Move dates forward a week"
+                  >
+                    →
+                  </button>
+                </div>
+                {!rangeMeals.error && (
+                  <p className="grocery-source__meal-count" aria-live="polite">
+                    {rangeMeals.loading
+                      ? "Counting planned meals…"
+                      : plannedMealCount === 0
+                        ? "No meals planned for these dates"
+                        : `${plannedMealCount} planned meal${plannedMealCount === 1 ? "" : "s"} in these dates`}
+                  </p>
                 )}
               </div>
             ) : (
@@ -280,17 +285,14 @@ export default function GroceryPage() {
                 <button
                   type="button"
                   className="btn btn--ghost"
-                  onClick={() => handleSelectWeek(currentWeekStartIso)}
+                  onClick={() => selectRange(weekRange(currentWeekStartIso))}
                 >
-                  ← Back to weeks
+                  ← Back to dates
                 </button>
               </div>
             )}
 
-            <GroceryPlanBrowser
-              onSelectWeek={handleSelectWeek}
-              onSelectSavedPlan={handleSelectSavedPlan}
-            />
+            <GroceryPlanBrowser onSelectSavedPlan={handleSelectSavedPlan} />
 
             <button
               type="button"

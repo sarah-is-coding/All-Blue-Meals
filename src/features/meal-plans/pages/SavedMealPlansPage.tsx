@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { formatWeekRangeLabel } from "../../../lib/utils/dates";
+import { formatDateRange } from "../../../lib/utils/dates";
 import { useSavedMealPlanActions, useSavedMealPlans } from "../queries";
 import type { SavedMealPlan } from "../types";
 
@@ -49,7 +49,7 @@ export default function SavedMealPlansPage() {
   const handleDelete = (id: string) => {
     setDeleting(true);
     setDeleteError(null);
-    // Deleting a plan deletes its meals too; the action refreshes the planner.
+    // Deletes only the saved copy; meals on the calendar stay.
     actions
       .remove(id)
       .then(() => setConfirmDeleteId(null))
@@ -128,7 +128,7 @@ export default function SavedMealPlansPage() {
                       <>
                         <span className="saved-plans-list__name">{plan.savedName}</span>
                         <span className="saved-plans-list__range">
-                          {formatWeekRangeLabel(plan.startDate)}
+                          {formatDateRange(plan.startDate, plan.endDate)}
                         </span>
                       </>
                     )}

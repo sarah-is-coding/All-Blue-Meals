@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDateRange } from "../../../lib/utils/dates";
 import { useGroceryList, useGroceryListActions, useSavedGroceryLists } from "../queries";
 import type { GroceryListSummary } from "../types";
 import { groupItemsByCategory } from "../utils/groceryGeneration";
@@ -215,7 +216,9 @@ export default function SavedGroceryListsPage() {
                             {list.title}
                           </span>
                           <span className="saved-plans-list__range">
-                            {formatDate(list.createdAt)}
+                            {list.startDate && list.endDate
+                              ? formatDateRange(list.startDate, list.endDate)
+                              : `Saved ${formatDate(list.createdAt)}`}
                           </span>
                         </>
                       )}

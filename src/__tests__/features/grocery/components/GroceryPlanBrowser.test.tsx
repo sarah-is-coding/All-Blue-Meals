@@ -7,16 +7,11 @@ import type { SavedMealPlan } from "../../../../features/meal-plans/types";
 // ── Mock the meal-plans API ──────────────────────────────────────────────────
 
 vi.mock("../../../../features/meal-plans/api", () => ({
-  listMealPlanSpans: vi.fn().mockResolvedValue([]),
   searchSavedMealPlans: vi.fn().mockResolvedValue([]),
 }));
 
-import {
-  listMealPlanSpans,
-  searchSavedMealPlans,
-} from "../../../../features/meal-plans/api";
+import { searchSavedMealPlans } from "../../../../features/meal-plans/api";
 
-const mockListSpans = vi.mocked(listMealPlanSpans);
 const mockSearch = vi.mocked(searchSavedMealPlans);
 
 // Enough headroom for the 220 ms saved-plans debounce (mock resolves instantly)
@@ -31,172 +26,89 @@ const SAVED_PLAN: SavedMealPlan = {
   endDate: "2026-06-07",
 };
 
-const SPAN = {
-  id: "plan-span-1",
-  startDate: "2026-05-19",
-  endDate: "2026-05-25",
-};
-
 // ── Helper ────────────────────────────────────────────────────────────────────
 
-function setup({
-  onSelectWeek = vi.fn(),
-  onSelectSavedPlan = vi.fn(),
-} = {}) {
+const toggle = () => screen.getByRole("button", { name: /or use a saved plan/i });
+
+/** Render, then open the panel (it starts closed). */
+async function setup({ onSelectSavedPlan = vi.fn() } = {}) {
   const user = userEvent.setup();
-  renderWithProviders(
-    <GroceryPlanBrowser
-      onSelectWeek={onSelectWeek}
-      onSelectSavedPlan={onSelectSavedPlan}
-    />
-  );
-  return { user, onSelectWeek, onSelectSavedPlan };
+  renderWithProviders(<GroceryPlanBrowser onSelectSavedPlan={onSelectSavedPlan} />);
+  await user.click(toggle());
+  return { user, onSelectSavedPlan };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// Behavior change: this panel used to have "Past weeks" and "Saved plans"
+// tabs. The grocery page now picks dates directly (a date range), so only
+// saved plans remain here.
 describe("GroceryPlanBrowser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockListSpans.mockResolvedValue([]);
-    mockSearch.mockResolvedValue([]);
+    mockSearch.mockResolvedValue([SAVED_PLAN]);
   });
 
-  // ── Default state ──────────────────────────────────────────────────────────
-
-  it("is open by default — both tabs are visible without any user interaction", () => {
-    setup();
-    expect(screen.getByRole("tab", { name: "Past weeks" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Saved plans" })).toBeInTheDocument();
+  // Behavior change: the panel used to start open. Building from dates is the
+  // usual path, so it now starts closed and opens on demand.
+  it("starts closed, without loading saved plans", () => {
+    renderWithProviders(<GroceryPlanBrowser onSelectSavedPlan={vi.fn()} />);
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByPlaceholderText(/search saved plans/i)).not.toBeInTheDocument();
+    expect(mockSearch).not.toHaveBeenCalled();
   });
 
-  it("toggle button shows the collapse chevron when open by default", () => {
-    setup();
-    const toggle = screen.getByRole("button", { name: /browse plans/i });
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  it("lists saved plans once opened", async () => {
+    await setup();
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(await screen.findByText(SAVED_PLAN.savedName, undefined, AFTER_DEBOUNCE)).toBeInTheDocument();
   });
 
-  // ── Saved-plans tab: row click ────────────────────────────────────────────
-
-  describe("Saved plans tab", () => {
-    async function openSavedTab(
-      user: ReturnType<typeof userEvent.setup>,
-      plans: SavedMealPlan[] = [SAVED_PLAN]
-    ) {
-      mockSearch.mockResolvedValue(plans);
-      await user.click(screen.getByRole("tab", { name: "Saved plans" }));
-      // Wait for the debounced search to resolve and the rows to render
-      await waitFor(
-        () => expect(screen.getByText(SAVED_PLAN.savedName)).toBeInTheDocument(),
-        AFTER_DEBOUNCE
-      );
-    }
-
-    it("calls onSelectSavedPlan with the plan when a row is clicked", async () => {
-      const onSelectSavedPlan = vi.fn();
-      const { user } = setup({ onSelectSavedPlan });
-      await openSavedTab(user);
-
-      await user.click(screen.getByText(SAVED_PLAN.savedName).closest("button")!);
-
-      expect(onSelectSavedPlan).toHaveBeenCalledOnce();
-      expect(onSelectSavedPlan).toHaveBeenCalledWith(SAVED_PLAN);
-    });
-
-    it("keeps the panel open after clicking a row", async () => {
-      const { user } = setup();
-      await openSavedTab(user);
-
-      await user.click(screen.getByText(SAVED_PLAN.savedName).closest("button")!);
-
-      // Tabs are still visible — panel has not collapsed
-      expect(screen.getByRole("tab", { name: "Past weeks" })).toBeInTheDocument();
-      expect(screen.getByRole("tab", { name: "Saved plans" })).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /browse plans/i })
-      ).toHaveAttribute("aria-expanded", "true");
-    });
-
-    it("does not close the panel even after multiple row clicks", async () => {
-      const plans: SavedMealPlan[] = [
-        SAVED_PLAN,
-        { id: "plan-2", savedName: "Winter Soups", startDate: "2026-12-01", endDate: null },
-      ];
-      mockSearch.mockResolvedValue(plans);
-      const { user } = setup();
-      await user.click(screen.getByRole("tab", { name: "Saved plans" }));
-      await waitFor(
-        () => expect(screen.getByText("Summer Meals")).toBeInTheDocument(),
-        AFTER_DEBOUNCE
-      );
-
-      await user.click(screen.getByText("Summer Meals").closest("button")!);
-      await user.click(screen.getByText("Winter Soups").closest("button")!);
-
-      expect(screen.getByRole("tab", { name: "Saved plans" })).toBeInTheDocument();
-    });
-  });
-
-  // ── Past-weeks tab: calendar span click ──────────────────────────────────
-
-  describe("Past weeks tab (calendar)", () => {
-    beforeEach(() => {
-      mockListSpans.mockResolvedValue([SPAN]);
-    });
-
-    it("calls onSelectWeek with the span's startDate when a calendar cell is clicked", async () => {
-      const onSelectWeek = vi.fn();
-      setup({ onSelectWeek });
-
-      // Wait for the calendar to load the span and auto-navigate to May 2026
-      await waitFor(
-        () =>
-          expect(
-            screen.getByRole("gridcell", { name: SPAN.startDate })
-          ).toBeInTheDocument(),
-        AFTER_DEBOUNCE
-      );
-
-      await userEvent.click(
-        screen.getByRole("gridcell", { name: SPAN.startDate })
-      );
-
-      expect(onSelectWeek).toHaveBeenCalledOnce();
-      expect(onSelectWeek).toHaveBeenCalledWith(SPAN.startDate);
-    });
-
-    it("keeps the panel open after clicking a calendar span", async () => {
-      const { user } = setup();
-
-      await waitFor(
-        () =>
-          expect(
-            screen.getByRole("gridcell", { name: SPAN.startDate })
-          ).toBeInTheDocument(),
-        AFTER_DEBOUNCE
-      );
-
-      await user.click(screen.getByRole("gridcell", { name: SPAN.startDate }));
-
-      expect(screen.getByRole("tab", { name: "Past weeks" })).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /browse plans/i })
-      ).toHaveAttribute("aria-expanded", "true");
-    });
-  });
-
-  // ── Toggle still works ────────────────────────────────────────────────────
-
-  it("can still be manually collapsed via the toggle button", async () => {
-    const { user } = setup();
-    // Tabs visible initially (open by default)
-    expect(screen.getByRole("tab", { name: "Past weeks" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /browse plans/i }));
-
+  it("no longer offers past weeks (the grocery page's date range replaces them)", async () => {
+    await setup();
     expect(screen.queryByRole("tab", { name: "Past weeks" })).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /browse plans/i })
-    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("grid")).not.toBeInTheDocument();
+  });
+
+  it("calls onSelectSavedPlan with the plan when a row is clicked", async () => {
+    const onSelectSavedPlan = vi.fn();
+    const { user } = await setup({ onSelectSavedPlan });
+    await screen.findByText(SAVED_PLAN.savedName, undefined, AFTER_DEBOUNCE);
+
+    await user.click(screen.getByText(SAVED_PLAN.savedName).closest("button")!);
+
+    expect(onSelectSavedPlan).toHaveBeenCalledOnce();
+    expect(onSelectSavedPlan).toHaveBeenCalledWith(SAVED_PLAN);
+  });
+
+  it("keeps the panel open after choosing, even after several clicks", async () => {
+    mockSearch.mockResolvedValue([
+      SAVED_PLAN,
+      { id: "plan-2", savedName: "Winter Soups", startDate: "2026-12-01", endDate: "2026-12-07" },
+    ]);
+    const { user } = await setup();
+    await screen.findByText("Summer Meals", undefined, AFTER_DEBOUNCE);
+
+    await user.click(screen.getByText("Summer Meals").closest("button")!);
+    await user.click(screen.getByText("Winter Soups").closest("button")!);
+
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Summer Meals")).toBeInTheDocument();
+  });
+
+  it("searches saved plans by name", async () => {
+    const { user } = await setup();
+    await user.type(screen.getByPlaceholderText(/search saved plans/i), "summer");
+    await waitFor(() => expect(mockSearch).toHaveBeenLastCalledWith("summer"), AFTER_DEBOUNCE);
+  });
+
+  it("can be collapsed via the toggle button", async () => {
+    const { user } = await setup();
+    await screen.findByText(SAVED_PLAN.savedName, undefined, AFTER_DEBOUNCE);
+
+    await user.click(toggle());
+
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(SAVED_PLAN.savedName)).not.toBeInTheDocument();
   });
 });

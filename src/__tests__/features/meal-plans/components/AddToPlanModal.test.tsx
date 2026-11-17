@@ -10,15 +10,15 @@ import {
   toIsoDate,
 } from "../../../../lib/utils/dates";
 import { getWeekDays } from "../../../../features/meal-plans/utils/weekDays";
-import type { MealPlanItem } from "../../../../features/meal-plans/types";
+import type { PlannedMeal } from "../../../../features/meal-plans/types";
 
 vi.mock("../../../../features/meal-plans/api", () => ({
-  listMealPlanItemsForWeek: vi.fn(),
+  listPlannedMealsForWeek: vi.fn(),
 }));
 
-import { listMealPlanItemsForWeek } from "../../../../features/meal-plans/api";
+import { listPlannedMealsForWeek } from "../../../../features/meal-plans/api";
 
-const mockListMealPlanItemsForWeek = vi.mocked(listMealPlanItemsForWeek);
+const mockListPlannedMealsForWeek = vi.mocked(listPlannedMealsForWeek);
 
 const renderModal = (
   props: Partial<React.ComponentProps<typeof AddToPlanModal>> = {}
@@ -43,7 +43,7 @@ const renderModal = (
 describe("AddToPlanModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockListMealPlanItemsForWeek.mockResolvedValue([]);
+    mockListPlannedMealsForWeek.mockResolvedValue([]);
   });
 
   it("defaults to next week and disables Add recipe until a slot is picked", async () => {
@@ -51,7 +51,7 @@ describe("AddToPlanModal", () => {
     renderModal();
 
     await waitFor(() => {
-      expect(mockListMealPlanItemsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
+      expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
     });
     expect(
       screen.getByText(formatWeekRangeLabel(expectedWeekStartIso))
@@ -71,7 +71,7 @@ describe("AddToPlanModal", () => {
     renderModal({ initialDay, initialMealType: "breakfast" });
 
     await waitFor(() => {
-      expect(mockListMealPlanItemsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
+      expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
     });
 
     const slot = screen.getByRole("button", {
@@ -113,7 +113,7 @@ describe("AddToPlanModal", () => {
     const nextWeekDays = getWeekDays(nextWeekStartIso);
 
     await waitFor(() => {
-      expect(mockListMealPlanItemsForWeek).toHaveBeenCalledWith(nextWeekStartIso);
+      expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(nextWeekStartIso);
     });
     expect(screen.getByText(formatWeekRangeLabel(nextWeekStartIso))).toBeInTheDocument();
     expect(
@@ -124,7 +124,7 @@ describe("AddToPlanModal", () => {
   it("shows existing items for the week in the embedded calendar", async () => {
     const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
     const weekDays = getWeekDays(expectedWeekStartIso);
-    const existingItem: MealPlanItem = {
+    const existingItem: PlannedMeal = {
       id: "item-1",
       recipeId: "recipe-1",
       recipeTitle: "Already Planned Soup",
@@ -134,7 +134,7 @@ describe("AddToPlanModal", () => {
       recipeServings: 2,
       effectiveServings: 2,
     };
-    mockListMealPlanItemsForWeek.mockResolvedValue([existingItem]);
+    mockListPlannedMealsForWeek.mockResolvedValue([existingItem]);
 
     renderModal();
 
@@ -143,7 +143,7 @@ describe("AddToPlanModal", () => {
   });
 
   it("shows an error when loading the week's items fails", async () => {
-    mockListMealPlanItemsForWeek.mockRejectedValue(new Error("Failed to load your meal plan."));
+    mockListPlannedMealsForWeek.mockRejectedValue(new Error("Failed to load your meal plan."));
     renderModal();
 
     expect(

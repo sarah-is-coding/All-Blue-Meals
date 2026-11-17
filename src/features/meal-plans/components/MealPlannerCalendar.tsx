@@ -1,16 +1,16 @@
 import { useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  MEAL_PLAN_ITEM_DRAG_MIME_TYPE,
+  PLANNED_MEAL_DRAG_MIME_TYPE,
   MEAL_TYPE_OPTIONS,
   RECIPE_DETAIL_MEAL_PLANNER_STATE,
 } from "../constants";
-import type { MealPlanItem, MealPlannerDay, MealType } from "../types";
+import type { PlannedMeal, MealPlannerDay, MealType } from "../types";
 
 type MealPlannerCalendarProps = {
   weekLabel: string;
   weekDays: MealPlannerDay[];
-  items: MealPlanItem[];
+  items: PlannedMeal[];
   heading?: string;
   headingTag?: "h1" | "h2";
   removingItemId?: string | null;
@@ -66,7 +66,7 @@ export default function MealPlannerCalendar({
   const HeadingTag = headingTag;
 
   const slotMap = useMemo(() => {
-    const map = new Map<string, MealPlanItem[]>();
+    const map = new Map<string, PlannedMeal[]>();
 
     for (const item of items) {
       const slotKey = getSlotKey(item.plannedFor, item.mealType);
@@ -85,19 +85,19 @@ export default function MealPlannerCalendar({
     event.preventDefault();
     setDragOverSlotKey(null);
 
-    let mealPlanItemId = event.dataTransfer.getData(MEAL_PLAN_ITEM_DRAG_MIME_TYPE);
-    if (!mealPlanItemId) {
+    let plannedMealId = event.dataTransfer.getData(PLANNED_MEAL_DRAG_MIME_TYPE);
+    if (!plannedMealId) {
       const plainTextPayload = event.dataTransfer.getData("text/plain");
       if (plainTextPayload.startsWith("meal-plan-item:")) {
-        mealPlanItemId = plainTextPayload.replace("meal-plan-item:", "");
+        plannedMealId = plainTextPayload.replace("meal-plan-item:", "");
       }
     }
-    if (mealPlanItemId) {
-      void onMoveItem?.(mealPlanItemId, dayIso, mealType);
+    if (plannedMealId) {
+      void onMoveItem?.(plannedMealId, dayIso, mealType);
     }
   };
 
-  const openRecipeDetail = (item: MealPlanItem) => {
+  const openRecipeDetail = (item: PlannedMeal) => {
     if (!item.recipeId) {
       return;
     }
@@ -105,7 +105,7 @@ export default function MealPlannerCalendar({
     navigate(`/app/recipes/${item.recipeId}`, {
       state: {
         ...RECIPE_DETAIL_MEAL_PLANNER_STATE,
-        mealPlanItemId: item.id,
+        plannedMealId: item.id,
         initialServings: item.effectiveServings,
       },
     });
@@ -225,7 +225,7 @@ export default function MealPlannerCalendar({
                             tabIndex={item.recipeId ? 0 : undefined}
                             draggable
                             onDragStart={(event) => {
-                              event.dataTransfer.setData(MEAL_PLAN_ITEM_DRAG_MIME_TYPE, item.id);
+                              event.dataTransfer.setData(PLANNED_MEAL_DRAG_MIME_TYPE, item.id);
                               event.dataTransfer.setData("text/plain", `meal-plan-item:${item.id}`);
                               event.dataTransfer.effectAllowed = "copyMove";
                             }}

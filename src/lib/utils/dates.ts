@@ -1,5 +1,5 @@
 // Date helpers that work on local-time "YYYY-MM-DD" strings. Weeks start
-// on Monday.
+// on Sunday (decision 8 of docs/meal-planning-redesign.md).
 
 const monthDayYearFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -10,6 +10,12 @@ const monthDayYearFormatter = new Intl.DateTimeFormat("en-US", {
 export function createDateFromIso(isoDate: string): Date {
   const [yearPart, monthPart, dayPart] = isoDate.split("-").map(Number);
   return new Date(yearPart, monthPart - 1, dayPart);
+}
+
+/** True only for a complete, real "YYYY-MM-DD" date (so not 2026-02-31). */
+export function isValidIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return toIsoDate(createDateFromIso(value)) === value;
 }
 
 export function addDays(date: Date, dayOffset: number): Date {
@@ -24,9 +30,8 @@ export function toIsoDate(date: Date): string {
 }
 
 export function getWeekStartIso(referenceDate: Date = new Date()): string {
-  const day = referenceDate.getDay();
-  const offsetToMonday = day === 0 ? -6 : 1 - day;
-  return toIsoDate(addDays(referenceDate, offsetToMonday));
+  // getDay() is 0 for Sunday, so it is also the distance back to the week's start.
+  return toIsoDate(addDays(referenceDate, -referenceDate.getDay()));
 }
 
 export function getWeekEndIso(weekStartIso: string): string {
