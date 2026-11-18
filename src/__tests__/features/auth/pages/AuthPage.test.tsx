@@ -28,6 +28,9 @@ describe("AuthPage", () => {
 
   it("shows the sign-in form by default", () => {
     renderPage();
+    // The welcome copy speaks to home cooks in everyday language.
+    expect(screen.getByRole("heading", { level: 1, name: "What’s for dinner?" })).toBeInTheDocument();
+    expect(screen.getByText(/save the recipes you love/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
@@ -35,6 +38,30 @@ describe("AuthPage", () => {
     renderPage({ linkError: "This email link has expired or was already used." });
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByText("This email link has expired or was already used.")).toBeInTheDocument();
+  });
+
+  it("keeps the compact actions in the same row when switching account modes", () => {
+    renderPage();
+    const signUp = screen.getByRole("button", { name: "Sign up" });
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+    const forgotPassword = screen.getByRole("button", { name: "Forgot password?" });
+
+    expect(signIn).toHaveAttribute("type", "submit");
+    expect(signUp).toHaveAttribute("type", "button");
+    expect(signIn.parentElement).toHaveClass("auth-form__account-actions");
+    expect(signIn.parentElement?.children).toHaveLength(3);
+
+    fireEvent.click(signUp);
+    expect(screen.getByRole("heading", { name: "Create account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign up" })).toBe(signIn);
+    expect(screen.getByRole("button", { name: "Sign in" })).toBe(signUp);
+    expect(screen.getByRole("button", { name: "Forgot password?" })).toBe(forgotPassword);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "new-password");
+
+    fireEvent.click(signUp);
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBe(signIn);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
   });
 
   it("reports the link message as shown, and keeps it on screen after the parent forgets it", () => {
@@ -106,6 +133,9 @@ describe("AuthPage", () => {
         ),
       T
     );
-    expect(await screen.findByText(/reset link has been sent/i, undefined, T)).toBeInTheDocument();
+    // A reset confirmation gives the next step without revealing whether the account exists.
+    expect(
+      await screen.findByText("If there’s an account with that email, you’ll get a link to reset your password.", undefined, T)
+    ).toBeInTheDocument();
   });
 });

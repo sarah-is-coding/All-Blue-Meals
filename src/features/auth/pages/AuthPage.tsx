@@ -5,7 +5,7 @@ import LoadingModal from "../../../components/feedback/LoadingModal";
 
 type AuthMode = "signIn" | "signUp" | "resetRequest" | "resetUpdate";
 
-const RECOVERY_MESSAGE = "Recovery link detected. Enter a new password.";
+const RECOVERY_MESSAGE = "Enter a new password, then sign in again.";
 
 type AuthPageProps = {
   /** The user followed a valid password-reset link: show "Set a new password". */
@@ -45,10 +45,10 @@ export default function AuthPage({
     }
   }
   const loadingMessageByMode: Record<AuthMode, string> = {
-    signIn: "Signing you in securely.",
-    signUp: "Creating your account securely.",
-    resetRequest: "Preparing your password reset email.",
-    resetUpdate: "Updating your password securely.",
+    signIn: "Signing you in…",
+    signUp: "Creating your account…",
+    resetRequest: "Sending your reset link…",
+    resetUpdate: "Updating your password…",
   };
 
   const handleAuth = async (event: React.FormEvent) => {
@@ -72,7 +72,7 @@ export default function AuthPage({
     if (authError) {
       setError(authError.message);
     } else if (mode === "signUp" && !data.session) {
-      setMessage("Account created. Check your email for the confirmation link.");
+      setMessage("Check your inbox for a link to confirm your email.");
     }
 
     setLoading(false);
@@ -98,7 +98,7 @@ export default function AuthPage({
     if (resetError) {
       setError(resetError.message);
     } else {
-      setMessage("If this email exists, a reset link has been sent.");
+      setMessage("If there’s an account with that email, you’ll get a link to reset your password.");
     }
 
     setLoading(false);
@@ -149,11 +149,9 @@ export default function AuthPage({
           <Link to="/" className="back-link">
             Back to home
           </Link>
-          <p className="kicker">Secure account access</p>
-          <h1>Welcome to your meal planning workspace.</h1>
+          <h1>What’s for dinner?</h1>
           <p>
-            Sign in to access your recipes, weekly plans, and grocery lists.
-            Your data is scoped per account with Supabase Auth + RLS.
+            Save the recipes you love, plan your meals, and make a grocery list for the week.
           </p>
         </section>
 
@@ -259,17 +257,13 @@ export default function AuthPage({
               {error ? <p className="error">{error}</p> : null}
               {message ? <p className="message">{message}</p> : null}
 
-              <div className="actions">
-                <button type="submit" className="btn btn--primary" disabled={loading}>
-                  {loading
-                    ? "Working..."
-                    : mode === "signUp"
-                    ? "Create account"
-                    : "Sign in"}
+              <div className="auth-form__account-actions">
+                <button type="submit" className="btn btn--primary btn--small" disabled={loading}>
+                  {mode === "signUp" ? "Sign up" : "Sign in"}
                 </button>
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--ghost btn--small"
                   onClick={() => {
                     setMode(mode === "signUp" ? "signIn" : "signUp");
                     setError(null);
@@ -277,13 +271,11 @@ export default function AuthPage({
                   }}
                   disabled={loading}
                 >
-                  {mode === "signUp"
-                    ? "Have an account? Sign in"
-                    : "Need an account? Sign up"}
+                  {mode === "signUp" ? "Sign in" : "Sign up"}
                 </button>
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--ghost btn--small"
                   onClick={() => {
                     setMode("resetRequest");
                     setPassword("");
