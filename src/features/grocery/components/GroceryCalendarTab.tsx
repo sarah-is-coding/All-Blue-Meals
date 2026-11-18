@@ -28,7 +28,6 @@ export default function GroceryCalendarTab({ startIso, endIso, onChange, actions
   return (
     <div className="plan-browser__body">
       <DateRangePicker startIso={startIso} endIso={endIso} onChange={onChange} />
-      {/* The arrows sit at either end, as they did around the old range label. */}
       <div className="grocery-source__week-nav">
         <button
           type="button"
@@ -38,6 +37,13 @@ export default function GroceryCalendarTab({ startIso, endIso, onChange, actions
         >
           ←
         </button>
+        {!meals.error && (meals.loading || mealCount > 0) && (
+          <p className="grocery-source__meal-count" aria-live="polite">
+            {meals.loading
+              ? "Counting planned meals…"
+              : `${mealCount} planned meal${mealCount === 1 ? "" : "s"} in these dates`}
+          </p>
+        )}
         <button
           type="button"
           className="btn btn--ghost grocery-source__nav-btn"
@@ -49,15 +55,6 @@ export default function GroceryCalendarTab({ startIso, endIso, onChange, actions
       </div>
 
       {meals.error && <p className="error">{meals.error}</p>}
-      {!meals.error && (
-        <p className="grocery-source__meal-count" aria-live="polite">
-          {meals.loading
-            ? "Counting planned meals…"
-            : mealCount === 0
-              ? "No meals planned for these dates"
-              : `${mealCount} planned meal${mealCount === 1 ? "" : "s"} in these dates`}
-        </p>
-      )}
 
       {actions}
     </div>

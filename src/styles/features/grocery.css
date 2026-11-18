@@ -14,6 +14,11 @@
   margin-top: 0.2rem;
 }
 
+.grocery-route__build-actions {
+  display: grid;
+  gap: 0.4rem;
+}
+
 /* Two-column layout (source | list) */
 .grocery-layout {
   display: grid;
@@ -47,7 +52,6 @@
   }
 }
 
-/* The arrows sit at either end, as they did around the old range label. */
 .grocery-source__week-nav {
   display: flex;
   align-items: center;
@@ -71,12 +75,6 @@
   text-align: center;
   font-size: 0.82rem;
   color: var(--color-muted-soft);
-}
-
-/* Empty state */
-.grocery-empty-state p {
-  margin: 0;
-  color: var(--muted);
 }
 
 /* Generated grocery list card */

@@ -260,7 +260,7 @@ describe("GroceryPage — building from a saved plan", () => {
 
     await user.click(screen.getByRole("tab", { name: "Saved plans" }));
     expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeDisabled();
-    expect(screen.getByText("Pick a saved plan to build from.")).toBeInTheDocument();
+    expect(screen.queryByText("Pick a saved plan to build from.")).not.toBeInTheDocument();
 
     // Behavior change: clicking a plan only picks it (aria-pressed); its
     // meals preview opens from the separate arrow button instead.
@@ -346,6 +346,8 @@ describe("GroceryPage — Browse plans card", () => {
     const user = userEvent.setup();
     renderPage();
     expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeInTheDocument();
+    // The builder no longer puts an instruction card in the checklist area.
+    expect(screen.queryByText(/pick dates or a saved plan under/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Saved plans" }));
     expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeInTheDocument();
   });
@@ -363,7 +365,7 @@ describe("GroceryPage — planned meal count", () => {
     effectiveServings: 4,
   });
 
-  it("shows how many meals are planned in the chosen dates", async () => {
+  it("shows the meal count between the week arrows, above Build Grocery List", async () => {
     vi.mocked(listPlannedMealsBetween).mockResolvedValue([
       plannedMeal("a", THIS_WEEK),
       plannedMeal("b", THIS_WEEK),
@@ -371,12 +373,18 @@ describe("GroceryPage — planned meal count", () => {
     ]);
     renderPage();
 
-    expect(await screen.findByText("3 planned meals in these dates", undefined, T)).toBeInTheDocument();
+    const count = await screen.findByText("3 planned meals in these dates", undefined, T);
+    const back = screen.getByRole("button", { name: "Move dates back a week" });
+    const forward = screen.getByRole("button", { name: "Move dates forward a week" });
+    const buildButton = screen.getByRole("button", { name: "Build Grocery List" });
+    expect(count.previousElementSibling).toBe(back);
+    expect(count.nextElementSibling).toBe(forward);
+    expect(count.parentElement?.nextElementSibling).toContainElement(buildButton);
     // The same meals the grocery list will be built from.
     expect(listPlannedMealsBetween).toHaveBeenCalledWith(THIS_WEEK, getWeekEndIso(THIS_WEEK));
   });
 
-  it("uses the singular for one meal, and says when there are none", async () => {
+  it("uses the singular for one meal and omits the count for empty dates", async () => {
     vi.mocked(listPlannedMealsBetween).mockImplementation(async (start) =>
       start === THIS_WEEK ? [plannedMeal("a", THIS_WEEK)] : []
     );
@@ -385,7 +393,11 @@ describe("GroceryPage — planned meal count", () => {
 
     expect(await screen.findByText("1 planned meal in these dates", undefined, T)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Move dates forward a week" }));
-    expect(await screen.findByText("No meals planned for these dates", undefined, T)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(listPlannedMealsBetween).toHaveBeenCalledWith(NEXT_WEEK, getWeekEndIso(NEXT_WEEK));
+      expect(screen.queryByText(/counting planned meals|planned meals? in these dates/i)).not.toBeInTheDocument();
+    }, T);
+    expect(screen.queryByText(/no meals planned for these dates/i)).not.toBeInTheDocument();
   });
 
   it("updates when the dates change", async () => {
@@ -400,9 +412,10 @@ describe("GroceryPage — planned meal count", () => {
 
   // (The backwards-range case is gone: the picker can't produce one.)
   it("isn't shown for a saved plan", async () => {
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([plannedMeal("a", THIS_WEEK)]);
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("No meals planned for these dates", undefined, T);
+    await screen.findByText("1 planned meal in these dates", undefined, T);
 
     await user.click(screen.getByRole("tab", { name: "Saved plans" }));
     await user.click(await screen.findByRole("button", { name: /^Lean week/ }, T));
@@ -431,12 +444,11 @@ describe("GroceryPage — picking the dates on a calendar", () => {
     // First tap: a single-day range, waiting for the last day.
     expect(screen.getByLabelText("From")).toHaveValue("2026-05-18");
     expect(screen.getByLabelText("To")).toHaveValue("2026-05-18");
-    expect(screen.getByText(/tap the last day/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tap the last day/i)).not.toBeInTheDocument();
 
     pickDay("2026-05-24");
     expect(screen.getByLabelText("From")).toHaveValue("2026-05-18");
     expect(screen.getByLabelText("To")).toHaveValue("2026-05-24");
-    expect(screen.queryByText(/tap the last day/i)).not.toBeInTheDocument();
     // The calendar highlights what the inputs hold.
     expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute(
       "data-range",
@@ -450,7 +462,6 @@ describe("GroceryPage — picking the dates on a calendar", () => {
     pickDay("2026-05-18");
     expect(screen.getByLabelText("From")).toHaveValue("2026-05-18");
     expect(screen.getByLabelText("To")).toHaveValue("2026-05-18");
-    expect(screen.getByText(/tap the last day/i)).toBeInTheDocument();
   });
 
   it("builds the grocery list from the picked dates", async () => {
@@ -468,9 +479,10 @@ describe("GroceryPage — picking the dates on a calendar", () => {
   it("editing a date input forgets a pending first tap", () => {
     renderPage();
     pickDay("2026-05-20");
-    expect(screen.getByText(/tap the last day/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-06-01" } });
-    expect(screen.queryByText(/tap the last day/i)).not.toBeInTheDocument();
+    pickDay("2026-05-24");
+    expect(screen.getByLabelText("From")).toHaveValue("2026-05-24");
+    expect(screen.getByLabelText("To")).toHaveValue("2026-05-24");
   });
 });

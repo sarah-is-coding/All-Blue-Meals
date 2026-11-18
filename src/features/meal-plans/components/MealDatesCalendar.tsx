@@ -210,9 +210,6 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
 
       {monthMeals.loading && <p className="meal-dates-cal__status">Loading…</p>}
       {monthMeals.error && <p className="error">{monthMeals.error}</p>}
-      {!monthMeals.loading && !monthMeals.error && mealDates.size === 0 && (
-        <p className="meal-dates-cal__status">No meals planned this month.</p>
-      )}
     </div>
   );
 }

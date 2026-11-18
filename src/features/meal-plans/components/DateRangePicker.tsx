@@ -28,6 +28,7 @@ export default function DateRangePicker({ startIso, endIso, onChange }: Props) {
     setPrevRange({ startIso, endIso });
     setStartDraft(startIso ?? "");
     setEndDraft(endIso ?? "");
+    if (startIso === null) setAnchor(null);
   }
 
   const handleSelectDay = (dateIso: string) => {
@@ -89,12 +90,6 @@ export default function DateRangePicker({ startIso, endIso, onChange }: Props) {
         rangeEndIso={endIso}
         onSelectDay={handleSelectDay}
       />
-
-      {anchor !== null && (
-        <p className="date-range-picker__hint" aria-live="polite">
-          Tap the last day of the range.
-        </p>
-      )}
     </div>
   );
 }

@@ -101,22 +101,13 @@ describe("PlanBrowserPanel — always open", () => {
 
   it("shows every action up front, disabled until dates are picked", () => {
     renderPanel();
-    expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /apply, starting/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /view week/i })).toBeDisabled();
-    // Behavior change: the Calendar tab's "Copy, starting …" now reads
-    // "Apply, starting …" like the Saved plans tab, and says what it's
-    // waiting for.
-    expect(screen.getByText("Pick dates to apply.")).toBeInTheDocument();
-  });
-
-  it("drops the hint once dates are picked", async () => {
-    renderPanel();
-    pickDay("2026-05-18");
-    pickDay("2026-05-24");
-    await waitFor(() => expect(screen.queryByText("Pick dates to apply.")).not.toBeInTheDocument(), {
-      timeout: 1500,
-    });
+    for (const name of [/save as meal plan/i, /apply, starting/i, /view week/i]) {
+      const action = screen.getByRole("button", { name });
+      expect(action).toBeDisabled();
+      expect(action).toHaveClass("btn--small");
+    }
+    // The disabled actions now stand on their own.
+    expect(screen.queryByText("Pick dates to apply.")).not.toBeInTheDocument();
   });
 });
 
@@ -135,19 +126,17 @@ describe("PlanBrowserPanel — Calendar tab", () => {
   it("picks a range in two taps and highlights it on the calendar", () => {
     renderPanel();
     pickDay("2026-05-18");
-    // The first tap starts a single-day range and asks for the last day.
+    // The first tap starts a single-day range.
     expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute(
       "data-range",
       "2026-05-18..2026-05-18"
     );
-    expect(screen.getByText(/tap the last day/i)).toBeInTheDocument();
 
     pickDay("2026-05-24");
     expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute(
       "data-range",
       "2026-05-18..2026-05-24"
     );
-    expect(screen.queryByText(/tap the last day/i)).not.toBeInTheDocument();
   });
 
   it("an earlier tap starts the range over", () => {
@@ -165,18 +154,24 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     renderPanel();
     pickDay("2026-05-18");
     pickDay("2026-05-24");
+    // The planner can load the preview without inserting a status message.
+    expect(screen.queryByText("Loading preview…")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Pasta/)).toBeInTheDocument(), { timeout: 1500 });
     expect(screen.getByText(/meals in these dates/i)).toBeInTheDocument();
     expect(listPlannedMealsBetween).toHaveBeenCalledWith("2026-05-18", "2026-05-24");
   });
 
-  it("says when the picked dates have no meals", async () => {
+  it("keeps save and apply disabled when the picked dates have no meals", async () => {
     renderPanel();
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByText(/no meals planned on these dates/i)).toBeInTheDocument(),
+      expect(listPlannedMealsBetween).toHaveBeenCalledWith("2026-05-18", "2026-05-24"),
     { timeout: 1500 });
+    expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /apply, starting/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /view week/i })).toBeEnabled();
+    expect(screen.queryByText(/no meals planned on these dates/i)).not.toBeInTheDocument();
   });
 
   it("Clear forgets the selection", async () => {
@@ -186,9 +181,22 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-24");
     await waitFor(() => expect(screen.getByText(/Pasta/)).toBeInTheDocument(), { timeout: 1500 });
 
-    fireEvent.click(screen.getByRole("button", { name: /^clear$/i }));
+    const clear = screen.getByRole("button", { name: /^clear$/i });
+    expect(clear).toHaveClass("btn--small");
+    fireEvent.click(clear);
     expect(screen.queryByText(/Pasta/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeDisabled();
+  });
+
+  it("starts a new single-day range after clearing a pending first tap", () => {
+    renderPanel();
+    pickDay("2026-05-18");
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    pickDay("2026-05-24");
+    expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute(
+      "data-range",
+      "2026-05-24..2026-05-24"
+    );
   });
 
   it("walks the whole journey: pick dates → preview → copy with 'add'", async () => {
@@ -334,13 +342,13 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
     openSavedTab();
     const plan = await screen.findByRole("button", { name: /^Healthy Week/ }, T);
     expect(applyButton()).toBeDisabled();
-    expect(screen.getByText("Pick a saved plan to apply.")).toBeInTheDocument();
+    expect(applyButton()).toHaveClass("btn--small");
+    expect(screen.queryByText("Pick a saved plan to apply.")).not.toBeInTheDocument();
     expect(applyButton().compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
 
     fireEvent.click(plan);
     expect(plan).toHaveAttribute("aria-pressed", "true");
     expect(applyButton()).toBeEnabled();
-    expect(screen.queryByText("Pick a saved plan to apply.")).not.toBeInTheDocument();
   });
 
   it("previews a plan's meals from its arrow, without picking it", async () => {
@@ -348,6 +356,7 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
     vi.mocked(previewSavedMealPlan).mockResolvedValue([{ dateIso: "2026-05-18", recipes: ["Pasta"] }]);
     openSavedTab();
     fireEvent.click(await screen.findByRole("button", { name: "Show meals in Healthy Week" }, T));
+    expect(screen.queryByText("Loading preview…")).not.toBeInTheDocument();
     expect(await screen.findByText("Pasta", undefined, T)).toBeInTheDocument();
     expect(applyButton()).toBeDisabled();
   });

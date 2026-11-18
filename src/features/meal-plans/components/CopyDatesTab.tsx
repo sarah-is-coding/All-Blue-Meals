@@ -61,8 +61,10 @@ export default function CopyDatesTab({
     range !== null
   );
   const preview = useMemo(() => groupMealsByDay(previewQuery.items), [previewQuery.items]);
-  const loadingPreview = range !== null && previewQuery.loading;
   const isEmpty = preview.length === 0;
+  const savedNotice = isEmpty ? null : savedLabel;
+  const showSelectionDetails =
+    showSaveInput || showConfirm || previewQuery.error || savedNotice;
   const rangeIsCurrentWeek =
     range !== null && getWeekStartIso(createDateFromIso(range.startIso)) === currentWeekStartIso;
 
@@ -105,10 +107,10 @@ export default function CopyDatesTab({
       {/* The actions sit above the (possibly long) meal list so they never
           scroll out of reach; they enable once a range is chosen. The From/To
           fields already show the chosen dates, so there's no range label. */}
-      {range !== null && (
+      {range !== null && showSelectionDetails && (
         <div className="plan-browser__selection">
-          {!isEmpty && savedLabel && (
-            <p className="plan-browser__save-done">✓ {savedLabel}</p>
+          {savedNotice && (
+            <p className="plan-browser__save-done">✓ {savedNotice}</p>
           )}
           {showSaveInput && (
             <SaveNameForm
@@ -122,11 +124,6 @@ export default function CopyDatesTab({
           {showConfirm && <CopyModeConfirm onChoose={executeCopy} />}
 
           {previewQuery.error && <p className="error">{previewQuery.error}</p>}
-          {loadingPreview && <p className="plan-browser__status">Loading preview…</p>}
-
-          {!loadingPreview && isEmpty && !previewQuery.error && (
-            <p className="plan-browser__status">No meals planned on these dates.</p>
-          )}
         </div>
       )}
 
@@ -134,14 +131,14 @@ export default function CopyDatesTab({
         <>
           <div className="plan-browser__actions">
             {range !== null && (
-              <button type="button" className="btn btn--ghost" onClick={clearSelection}>
+              <button type="button" className="btn btn--ghost btn--small" onClick={clearSelection}>
                 Clear
               </button>
             )}
             {!rangeIsCurrentWeek && (
               <button
                 type="button"
-                className="btn btn--ghost"
+                className="btn btn--ghost btn--small"
                 disabled={range === null}
                 onClick={() => {
                   if (range) onJumpToWeek(getWeekStartIso(createDateFromIso(range.startIso)));
@@ -152,7 +149,7 @@ export default function CopyDatesTab({
             )}
             <button
               type="button"
-              className="btn btn--ghost"
+              className="btn btn--ghost btn--small"
               disabled={range === null || isEmpty || showSaveInput || savedLabel !== null}
               onClick={() => setShowSaveInput(true)}
             >
@@ -161,10 +158,10 @@ export default function CopyDatesTab({
           </div>
           {/* The main action. It reads "Apply" like the Saved plans tab's,
               since both put meals onto the planner starting that day. */}
-          <div className="plan-browser__main-action">
+          <div className="plan-browser__actions">
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--primary btn--small"
               disabled={range === null || isEmpty || copying || copyDone}
               onClick={handleCopyClick}
             >
@@ -174,12 +171,11 @@ export default function CopyDatesTab({
                   ? "✓ Applied"
                   : `Apply, starting ${formatMonthDay(currentWeekStartIso)}`}
             </button>
-            {range === null && <p className="plan-browser__status">Pick dates to apply.</p>}
           </div>
         </>
       )}
 
-      {range !== null && !loadingPreview && !isEmpty && (
+      {range !== null && !previewQuery.loading && !isEmpty && (
         <>
           <h3 className="plan-browser__preview-heading">Meals in these dates</h3>
           <MealPreviewDays preview={preview} />

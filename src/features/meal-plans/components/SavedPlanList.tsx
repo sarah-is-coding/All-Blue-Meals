@@ -10,6 +10,7 @@ import SavedPlanPreview from "./SavedPlanPreview";
 type Props = {
   selectedPlanId: string | null;
   onSelectedPlanChange: (plan: SavedMealPlan) => void;
+  showPreviewLoading?: boolean;
   /** Shown under the list: the page's action for the picked plan (Apply, Build). */
   belowList?: ReactNode;
 };
@@ -22,7 +23,12 @@ type Props = {
  * the search rather than near the action. Used by the Saved plans tab on the
  * meal planner and the grocery page.
  */
-export default function SavedPlanList({ selectedPlanId, onSelectedPlanChange, belowList }: Props) {
+export default function SavedPlanList({
+  selectedPlanId,
+  onSelectedPlanChange,
+  showPreviewLoading,
+  belowList,
+}: Props) {
   // Lets the Saved Meal Plans page link back here, with this tab open.
   const { pathname } = useLocation();
   const [searchInput, setSearchInput] = useState("");
@@ -93,9 +99,7 @@ export default function SavedPlanList({ selectedPlanId, onSelectedPlanChange, be
                 </div>
 
                 {isOpen && (
-                  <div className="saved-plan-list__detail">
-                    <SavedPlanPreview planId={plan.id} />
-                  </div>
+                  <SavedPlanPreview planId={plan.id} showLoading={showPreviewLoading} />
                 )}
               </li>
             );

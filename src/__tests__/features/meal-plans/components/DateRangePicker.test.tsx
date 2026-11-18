@@ -63,16 +63,15 @@ describe("DateRangePicker", () => {
     expect(calendarRange()).toBe("null..null");
   });
 
-  it("picks a range in two taps, hinting between them", () => {
+  it("picks a range in two taps using the fields and highlight as feedback", () => {
     renderPicker(null);
     pickDay("2026-05-18");
     expect(screen.getByLabelText("From")).toHaveValue("2026-05-18");
     expect(screen.getByLabelText("To")).toHaveValue("2026-05-18");
-    expect(screen.getByText(/tap the last day/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tap the last day/i)).not.toBeInTheDocument();
 
     pickDay("2026-05-24");
     expect(screen.getByLabelText("To")).toHaveValue("2026-05-24");
-    expect(screen.queryByText(/tap the last day/i)).not.toBeInTheDocument();
     expect(calendarRange()).toBe("2026-05-18..2026-05-24");
   });
 
@@ -81,7 +80,6 @@ describe("DateRangePicker", () => {
     pickDay("2026-05-20");
     pickDay("2026-05-18");
     expect(calendarRange()).toBe("2026-05-18..2026-05-18");
-    expect(screen.getByText(/tap the last day/i)).toBeInTheDocument();
   });
 
   it("typing a complete date moves the calendar highlight too", () => {

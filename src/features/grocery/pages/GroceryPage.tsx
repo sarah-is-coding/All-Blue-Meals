@@ -105,7 +105,7 @@ export default function GroceryPage() {
   // Build sits at the end of each tab: under the dates, or under the saved
   // plans list once you've picked one.
   const buildActions = (
-    <div className="plan-browser__main-action">
+    <div className="grocery-route__build-actions">
       <button
         type="button"
         className="btn btn--primary"
@@ -114,9 +114,6 @@ export default function GroceryPage() {
       >
         {generating ? "Building…" : "Build Grocery List"}
       </button>
-      {source === null && (
-        <p className="plan-browser__status">Pick a saved plan to build from.</p>
-      )}
       {generateError && (
         <p className="error grocery-route__error">{generateError}</p>
       )}
@@ -156,22 +153,11 @@ export default function GroceryPage() {
           />
         </div>
 
-        {/* ── The grocery list ── */}
-        <div className="grocery-list-area">
-          {!built && !generating && (
-            <article className="workspace-card grocery-empty-state">
-              <p>
-                Pick dates or a saved plan under <strong>Browse plans</strong>,
-                then click <strong>Build Grocery List</strong> to generate your
-                shopping list.
-              </p>
-            </article>
-          )}
-
-          {built && (
+        {built && (
+          <div className="grocery-list-area">
             <GroceryListCard items={built.items} sourceLabel={built.sourceLabel} />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -102,11 +102,15 @@ describe("MealDatesCalendar", () => {
     await waitFor(() => expect(listPlannedMealsBetween).toHaveBeenCalledTimes(2), { timeout: 1500 });
   });
 
-  it("says when the visible month has no meals", async () => {
+  // An empty month is represented by a calendar with no meal markers.
+  it("keeps an empty month selectable without showing a message", async () => {
     renderCalendar();
     await waitFor(() =>
-      expect(screen.getByText(/no meals planned this month/i)).toBeInTheDocument(),
+      expect(screen.queryByText("Loading…")).not.toBeInTheDocument(),
     { timeout: 1500 });
+    expect(screen.getByRole("gridcell", { name: inThisMonth(10) })).toBeEnabled();
+    expect(screen.getByRole("grid").querySelector(".meal-dates-cal__day-dot")).toBeNull();
+    expect(screen.queryByText(/no meals planned this month/i)).not.toBeInTheDocument();
   });
 
   describe("changing month", () => {

@@ -667,13 +667,6 @@
   background: var(--alpha-brand-12);
 }
 
-/* A tab's main action, full width with its hint below: the planner's Copy
-   and Apply, and the grocery page's Build. */
-.plan-browser__main-action {
-  display: grid;
-  gap: 0.4rem;
-}
-
 .saved-plan-list__detail {
   padding: 0.6rem 0.7rem 0.7rem;
   background: var(--color-bg-base);
@@ -820,13 +813,6 @@
   text-align: left;
   font: inherit;
   font-size: 0.9rem;
-}
-
-.date-range-picker__hint {
-  margin: 0;
-  text-align: center;
-  font-size: 0.82rem;
-  color: var(--color-muted-soft);
 }
 
 /* ── Copy-dates calendar: pick a range; days with meals are dotted ── */

@@ -53,14 +53,15 @@ export default function SavedPlansTab({ currentWeekStartIso, currentWeekHasItems
     <SavedPlanList
       selectedPlanId={selectedPlan?.id ?? null}
       onSelectedPlanChange={handleSelectPlan}
+      showPreviewLoading={false}
       belowList={
         showConfirm ? (
           <CopyModeConfirm onChoose={executeApply} />
         ) : (
-          <div className="plan-browser__main-action">
+          <div className="plan-browser__actions">
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--primary btn--small"
               disabled={selectedPlan === null || applying || applyDone}
               onClick={handleApplyClick}
             >
@@ -70,9 +71,6 @@ export default function SavedPlansTab({ currentWeekStartIso, currentWeekHasItems
                   ? "✓ Applied"
                   : `Apply, starting ${formatMonthDay(currentWeekStartIso)}`}
             </button>
-            {selectedPlan === null && (
-              <p className="plan-browser__status">Pick a saved plan to apply.</p>
-            )}
           </div>
         )
       }
