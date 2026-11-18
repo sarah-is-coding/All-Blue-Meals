@@ -87,14 +87,13 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 **Rule:** No table containing user data should be readable/writable without RLS policies enforcing ownership.
 
 ### Table ownership patterns
-- Tables with `user_id`: `profiles`, `recipes`, `planned_meals`, `saved_plans`, `grocery_lists`  
+- Tables with `user_id`: `profiles`, `recipes`, `planned_meals`, `saved_plans`  
   - Policies must enforce: `user_id = auth.uid()`
-- Child tables without `user_id`: `recipe_ingredients`, `recipe_notes`, `saved_plan_meals`, `grocery_items`  
+- Child tables without `user_id`: `recipe_ingredients`, `recipe_notes`, `saved_plan_meals`  
   - Policies must enforce ownership via parent:
     - `recipe_ingredients.recipe_id → recipes.user_id`
     - `recipe_notes.recipe_id → recipes.user_id`
     - `saved_plan_meals.saved_plan_id → saved_plans.user_id`
-    - `grocery_items.list_id → grocery_lists.user_id`
 - Shared catalog: `ingredients` and `ingredient_aliases` (no `user_id`)
   - Any authenticated user can read both and insert ingredients; no update/delete policies
   - Aliases are added only by migrations (seed/merge) or through `add_ingredient_alias`, which accepts only safe synonyms; clients can't insert them directly
