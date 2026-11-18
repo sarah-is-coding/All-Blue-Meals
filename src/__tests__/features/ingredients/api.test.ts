@@ -382,7 +382,7 @@ describe("resolveIngredients category upgrades", () => {
     expect(result.get("garlic")?.category).toBe("produce");
   });
 
-  it("treats an old value with no code ('pantry') as uncategorized too", async () => {
+  it("treats a value that isn't a code as uncategorized", async () => {
     db.returns.mockResolvedValueOnce(ok([row("i-1", "cumin", "cumin", "pantry")]));
     await resolveIngredients([{ name: "cumin", category: "spices_seasonings" }]);
     expect(upgradeIngredientCategory).toHaveBeenCalledWith("i-1", "spices_seasonings");
@@ -409,10 +409,4 @@ describe("resolveIngredients category upgrades", () => {
     expect(result.get("garlic")?.category).toBe("other");
   });
 
-  it("maps older stored values to codes", async () => {
-    db.returns.mockResolvedValueOnce(ok([row("i-1", "salmon", "salmon", "meat & seafood")]));
-    const result = await resolveIngredients([{ name: "salmon", category: "meat_seafood" }]);
-    expect(result.get("salmon")?.category).toBe("meat_seafood");
-    expect(upgradeIngredientCategory).not.toHaveBeenCalled();
-  });
 });

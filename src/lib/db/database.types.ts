@@ -50,6 +50,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "grocery_items_category_fkey"
+            columns: ["category"]
+            isOneToOne: false
+            referencedRelation: "ingredient_categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "grocery_items_list_id_fkey"
             columns: ["list_id"]
             isOneToOne: false
@@ -157,7 +164,7 @@ export type Database = {
       }
       ingredients: {
         Row: {
-          category: string | null
+          category: string
           created_at: string
           default_unit: string | null
           id: string
@@ -165,7 +172,7 @@ export type Database = {
           name_key: string
         }
         Insert: {
-          category?: string | null
+          category?: string
           created_at?: string
           default_unit?: string | null
           id?: string
@@ -173,14 +180,22 @@ export type Database = {
           name_key: string
         }
         Update: {
-          category?: string | null
+          category?: string
           created_at?: string
           default_unit?: string | null
           id?: string
           name?: string
           name_key?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ingredients_category_fkey"
+            columns: ["category"]
+            isOneToOne: false
+            referencedRelation: "ingredient_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       planned_meals: {
         Row: {

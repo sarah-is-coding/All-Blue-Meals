@@ -1,8 +1,6 @@
 // Calling Gemini with the recipe response schema, retrying rate limits and
 // server errors with backoff.
 
-import { recipeSchema } from "./schema.ts";
-
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_MAX_ATTEMPTS = 5;
 
@@ -31,7 +29,8 @@ const shouldRetryGeminiRequest = (status: number): boolean =>
 
 export const callGeminiWithBackoff = async (
   prompt: string,
-  apiKey: string
+  apiKey: string,
+  responseSchema: unknown
 ): Promise<Response> => {
   let lastResponse: Response | null = null;
 
@@ -55,7 +54,7 @@ export const callGeminiWithBackoff = async (
             temperature: 0.1,
             maxOutputTokens: 32_000,
             responseMimeType: "application/json",
-            responseSchema: recipeSchema,
+            responseSchema,
           },
         }),
       }

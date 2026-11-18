@@ -23,8 +23,8 @@ describe("importedIngredientRows", () => {
     expect(importedIngredientRows([], ids())).toEqual([]);
   });
 
-  // Step 9: the function returns category codes; an older deployment returns
-  // labels like "meat & seafood", and anything unknown has no category.
+  // Step 9: the function returns category codes; anything else (such as
+  // an older label) has no category.
   it("maps the imported category to a code", () => {
     const categories = importedIngredientRows(
       [
@@ -34,7 +34,7 @@ describe("importedIngredientRows", () => {
       ],
       ids()
     ).map((row) => row.category);
-    expect(categories).toEqual(["meat_seafood", "spices_seasonings", null]);
+    expect(categories).toEqual([null, "spices_seasonings", null]);
   });
 
   it("drops a line whose name is a 'no value' word", () => {
