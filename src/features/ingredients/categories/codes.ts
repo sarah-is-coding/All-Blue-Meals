@@ -44,22 +44,14 @@ const FALLBACK_LABELS: Record<IngredientCategory, string> = {
   other: "Other",
 };
 
-// Values used before the codes, until phase 2 rewrites the data. "pantry"
-// was split into several departments, so it has no single code.
-const LEGACY_VALUES: Record<string, IngredientCategory> = {
-  "meat & seafood": "meat_seafood",
-  "dairy & eggs": "dairy_eggs",
-  "bakery & bread": "bakery_bread",
-};
-
 /**
- * The category code for a stored or imported value: a code, or an older
- * label like "meat & seafood". Null for anything else (including "pantry").
+ * The category code for a stored or imported value, or null when it isn't
+ * one. (The older labels such as "meat & seafood" were rewritten to codes in
+ * phase 2; the database only accepts codes now.)
  */
 export const toCategoryCode = (value: string | null | undefined): IngredientCategory | null => {
   const normalized = (value ?? "").trim().toLowerCase();
-  if ((CATEGORY_CODES as readonly string[]).includes(normalized)) return normalized as IngredientCategory;
-  return LEGACY_VALUES[normalized] ?? null;
+  return (CATEGORY_CODES as readonly string[]).includes(normalized) ? (normalized as IngredientCategory) : null;
 };
 
 /** The categories in default order, used until the table loads. */

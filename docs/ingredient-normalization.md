@@ -664,14 +664,16 @@ Each is its own commit; the app works after every one.
    - **Phase 1 (done):** the table, the upgrade function, and a CHECK that
      accepts old values and codes (`20261118160000`); the app reads codes,
      labels and order from the table and maps old values.
-   - **Phase 2 (after phase 1 is deployed):** a migration rewrites every
-     ingredient to its approved department by name (old values with no
-     mapping fall back to `other`), rewrites `grocery_items.category`, moves
-     bouillon into Canned & Jarred's description, replaces the CHECK with a
-     foreign key, and makes `category` `not null`; the edge function builds
-     its categories from the table and is redeployed. The approved mapping
-     waits in `docs/ingredient-category-mapping.json` (ingredient name →
-     code); phase 2 turns it into the migration and deletes it.
+   - **Phase 2 (done, `20261118200000`):** every ingredient takes its
+     approved department by name (old values with no mapping fall back to
+     `other`), saved grocery items take their ingredient's department,
+     bouillon moves into Canned & Jarred's description, a foreign key
+     replaces the CHECK (also on `grocery_items.category`), and `category`
+     is `not null`. The app no longer translates old values. The import
+     function builds its category list, descriptions and response enum from
+     the table (`categories.ts`). The approved name → department mapping is
+     the data in that migration.
+   **Done.**
 
 Steps 1–6 can merge to `main` before the cleanup; the cleanup (7–8) needs
 the review in between. Step 9 runs last, so it recategorizes the merged

@@ -5,7 +5,7 @@ import {
 } from "../../../../features/ingredients/categories/codes";
 
 // Step 9 of docs/ingredient-normalization.md: categories are grocery store
-// departments with short codes; older values are read until phase 2.
+// departments with short codes.
 
 describe("toCategoryCode", () => {
   it("accepts every code, in any case and with spaces around it", () => {
@@ -13,13 +13,11 @@ describe("toCategoryCode", () => {
     expect(toCategoryCode(" Produce ")).toBe("produce");
   });
 
-  it("maps the older labels to their codes", () => {
-    expect(toCategoryCode("meat & seafood")).toBe("meat_seafood");
-    expect(toCategoryCode("Dairy & Eggs")).toBe("dairy_eggs");
-    expect(toCategoryCode("bakery & bread")).toBe("bakery_bread");
-  });
-
-  it("has no code for 'pantry', which was split into several departments", () => {
+  // Phase 2 rewrote the stored data to codes, so the older labels are no
+  // longer translated: like "pantry" (split into several departments), they
+  // have no code.
+  it("has no code for the older labels", () => {
+    expect(toCategoryCode("meat & seafood")).toBeNull();
     expect(toCategoryCode("pantry")).toBeNull();
   });
 

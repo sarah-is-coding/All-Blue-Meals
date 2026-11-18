@@ -3,10 +3,13 @@
 // - sources.ts: fetching and stripping recipe pages
 // - prompt.ts: the prompts, including the ingredient naming rules
 // - schema.ts: the JSON shape Gemini must return
+// - categories.ts: the ingredient categories, read from the database
 // - gemini.ts: the API call with retries, and parsing its JSON
 
+import { type Category, loadCategories } from "./categories.ts";
 import { callGeminiWithBackoff, parseGeminiJson } from "./gemini.ts";
 import { buildGeneratePrompt, buildImportPrompt } from "./prompt.ts";
+import { buildRecipeSchema } from "./schema.ts";
 import { extractUrls, fetchSource } from "./sources.ts";
 
 const corsHeaders = {
@@ -63,6 +66,13 @@ Deno.serve(async (request) => {
     );
   }
 
+  let categories: Category[];
+  try {
+    categories = await loadCategories(authorization);
+  } catch {
+    return jsonResponse({ error: "Couldn't load ingredient categories. Try again in a moment." }, 503);
+  }
+
   const urls = mode === "import" ? extractUrls(text) : [];
   const sources = mode === "import" ? await Promise.all(urls.map(fetchSource)) : [];
   const sourceWarnings = sources
@@ -70,8 +80,9 @@ Deno.serve(async (request) => {
     .filter((warning): warning is string => Boolean(warning));
 
   const prompt =
-    mode === "generate" ? buildGeneratePrompt(text) : buildImportPrompt(text, sources);
-  const geminiResponse = await callGeminiWithBackoff(prompt, apiKey);
+    mode === "generate" ? buildGeneratePrompt(text, categories) : buildImportPrompt(text, sources, categories);
+  const schema = buildRecipeSchema(categories.map((category) => category.id));
+  const geminiResponse = await callGeminiWithBackoff(prompt, apiKey, schema);
 
   if (!geminiResponse.ok) {
     const errorText = await geminiResponse.text();

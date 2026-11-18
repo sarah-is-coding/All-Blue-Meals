@@ -85,7 +85,7 @@ export type ImportedIngredientOption = {
   quantity: string;
   unit: string;
   notes: string;
-  /** As the function returned it: a category code, or an older label ("meat & seafood"). */
+  /** As the function returned it; mapped to a code (toCategoryCode) before use. */
   category: string | null;
 };
 
