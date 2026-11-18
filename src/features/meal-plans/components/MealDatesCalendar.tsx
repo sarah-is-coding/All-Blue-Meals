@@ -95,11 +95,24 @@ const monthYearFmt = new Intl.DateTimeFormat("en-US", {
 
 export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelectDay }: Props) {
   const todayIso = toIsoDate(new Date());
-  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
-  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
+  const [viewDate, setViewDate] = useState(() =>
+    rangeStartIso === null ? new Date() : createDateFromIso(rangeStartIso)
+  );
+  const viewYear = viewDate.getFullYear();
+  const viewMonth = viewDate.getMonth();
 
   // Which of the visible days have meals, straight from the meals' dates.
   const grid = monthGridBounds(viewYear, viewMonth);
+  const [previousRange, setPreviousRange] = useState({ startIso: rangeStartIso, endIso: rangeEndIso });
+  if (previousRange.startIso !== rangeStartIso || previousRange.endIso !== rangeEndIso) {
+    setPreviousRange({ startIso: rangeStartIso, endIso: rangeEndIso });
+    // Reveal a new range that moved entirely off this grid without pulling
+    // the calendar back when the user browses months independently.
+    if (rangeStartIso !== null && rangeEndIso !== null &&
+        (rangeStartIso > grid.endIso || rangeEndIso < grid.startIso)) {
+      setViewDate(createDateFromIso(rangeStartIso));
+    }
+  }
   const monthMeals = usePlannedMealsBetween(grid.startIso, grid.endIso);
   const mealDates = useMemo(
     () => new Set(monthMeals.items.map((item) => item.plannedFor)),
@@ -118,9 +131,7 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
 
   /** Move the view by `step` months (-1 or 1). */
   const shiftMonth = (step: number) => {
-    const next = new Date(viewYear, viewMonth + step);
-    setViewYear(next.getFullYear());
-    setViewMonth(next.getMonth());
+    setViewDate((date) => new Date(date.getFullYear(), date.getMonth() + step));
   };
 
   // ── Sideways gestures ──

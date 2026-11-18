@@ -19,11 +19,14 @@ export default function SavedPlansTab({ currentWeekStartIso, currentWeekHasItems
   const [selectedPlan, setSelectedPlan] = useState<SavedMealPlan | null>(null);
   const [applying, setApplying] = useState(false);
   const [applyDone, setApplyDone] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmWeek, setConfirmWeek] = useState<string | null>(null);
+  const showConfirm = confirmWeek === currentWeekStartIso;
+  if (confirmWeek !== null && !showConfirm) setConfirmWeek(null);
+  const startLabel = formatMonthDay(currentWeekStartIso);
 
   const executeApply = (mode: CopyMode) => {
-    if (!selectedPlan) return;
-    setShowConfirm(false);
+    if (!showConfirm || !selectedPlan) return;
+    setConfirmWeek(null);
     setApplying(true);
     setApplyDone(false);
     onApplySavedPlan(selectedPlan.id, mode)
@@ -32,21 +35,12 @@ export default function SavedPlansTab({ currentWeekStartIso, currentWeekHasItems
       .finally(() => setApplying(false));
   };
 
-  const handleApplyClick = () => {
-    if (!selectedPlan) return;
-    if (currentWeekHasItems) {
-      setShowConfirm(true);
-    } else {
-      executeApply("add");
-    }
-  };
-
   const handleSelectPlan = (plan: SavedMealPlan) => {
     // Picking the plan that's already picked changes nothing.
     if (plan.id === selectedPlan?.id) return;
     setSelectedPlan(plan);
     setApplyDone(false);
-    setShowConfirm(false);
+    setConfirmWeek(null);
   };
 
   return (
@@ -56,20 +50,25 @@ export default function SavedPlansTab({ currentWeekStartIso, currentWeekHasItems
       showPreviewLoading={false}
       belowList={
         showConfirm ? (
-          <CopyModeConfirm onChoose={executeApply} />
+          <CopyModeConfirm
+            startLabel={startLabel}
+            hasMeals={currentWeekHasItems}
+            onChoose={executeApply}
+            onCancel={() => setConfirmWeek(null)}
+          />
         ) : (
           <div className="plan-browser__actions">
             <button
               type="button"
               className="btn btn--primary btn--small"
               disabled={selectedPlan === null || applying || applyDone}
-              onClick={handleApplyClick}
+              onClick={() => setConfirmWeek(currentWeekStartIso)}
             >
               {applying
                 ? "Applying…"
                 : applyDone
                   ? "✓ Applied"
-                  : `Apply, starting ${formatMonthDay(currentWeekStartIso)}`}
+                  : `Apply, starting ${startLabel}`}
             </button>
           </div>
         )

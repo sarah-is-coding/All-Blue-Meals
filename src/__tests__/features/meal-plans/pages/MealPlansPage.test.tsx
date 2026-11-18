@@ -10,6 +10,7 @@ import MealPlansPage from "../../../../features/meal-plans/pages/MealPlansPage";
 import type { PlannedMeal } from "../../../../features/meal-plans/types";
 import {
   createDateFromIso,
+  getWeekEndIso,
   getWeekStartIso,
   shiftWeekStartIso,
 } from "../../../../lib/utils/dates";
@@ -27,7 +28,12 @@ vi.mock("../../../../features/meal-plans/api", () => ({
   searchSavedMealPlans: vi.fn().mockResolvedValue([]),
 }));
 
-import { deletePlannedMeal, listPlannedMealsForWeek } from "../../../../features/meal-plans/api";
+import {
+  copyMealsBetween,
+  deletePlannedMeal,
+  listPlannedMealsBetween,
+  listPlannedMealsForWeek,
+} from "../../../../features/meal-plans/api";
 
 const mockListPlannedMealsForWeek = vi.mocked(listPlannedMealsForWeek);
 
@@ -68,17 +74,66 @@ describe("MealPlansPage", () => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
     mockListPlannedMealsForWeek.mockResolvedValue([]);
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([]);
   });
 
-  it("jumps to the week containing an incoming jumpToDate", async () => {
+  it("jumps to the incoming week and preselects it in Browse plans", async () => {
     const jumpToDate = "2026-03-18";
     const expectedWeekStartIso = getWeekStartIso(createDateFromIso(jumpToDate));
+    const expectedWeekEndIso = getWeekEndIso(expectedWeekStartIso);
 
     renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate } }]);
 
+    expect(screen.getByLabelText("From")).toHaveValue(expectedWeekStartIso);
+    expect(screen.getByLabelText("To")).toHaveValue(expectedWeekEndIso);
+    expect(screen.getByRole("grid", { name: "March 2026" })).toBeInTheDocument();
+    for (const day of [expectedWeekStartIso, expectedWeekEndIso]) {
+      expect(screen.getByRole("gridcell", { name: day })).toHaveAttribute("aria-selected", "true");
+    }
     await waitFor(() => {
       expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
     });
+  });
+
+  it("keeps the initial Browse plans selection when the destination week changes", async () => {
+    renderPage(["/app/meal-plans"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+
+    await waitFor(() => expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(NEXT_WEEK));
+    expect(screen.getByLabelText("From")).toHaveValue(THIS_WEEK);
+    expect(screen.getByLabelText("To")).toHaveValue(getWeekEndIso(THIS_WEEK));
+  });
+
+  it("shifts the Browse plans week into the next month without moving the planner week", () => {
+    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
+    const forward = screen.getByRole("button", { name: "Move dates forward a week" });
+
+    for (let week = 0; week < 3; week += 1) fireEvent.click(forward);
+
+    expect(screen.getByLabelText("From")).toHaveValue("2026-04-05");
+    expect(screen.getByLabelText("To")).toHaveValue("2026-04-11");
+    expect(screen.getByRole("grid", { name: "April 2026" })).toBeInTheDocument();
+    expect(screen.getByRole("gridcell", { name: "2026-04-05" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Apply, starting Mar 15" })).toBeInTheDocument();
+  });
+
+  it("dismisses an open confirmation when the destination week changes", async () => {
+    vi.mocked(listPlannedMealsBetween).mockImplementation(async (start) =>
+      start === "2026-03-08" ? [item("source", "Pasta", start)] : []
+    );
+    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
+    const back = screen.getByRole("button", { name: "Move dates back a week" });
+    fireEvent.click(back);
+    const apply = screen.getByRole("button", { name: "Apply, starting Mar 15" });
+    await waitFor(() => expect(apply).toBeEnabled());
+    fireEvent.click(apply);
+    expect(screen.getByRole("button", { name: "Confirm apply" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    expect(screen.queryByRole("button", { name: "Confirm apply" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply, starting Mar 22" })).toBeInTheDocument();
+    expect(copyMealsBetween).not.toHaveBeenCalled();
   });
 
   it("opens Browse plans on Calendar by default", () => {

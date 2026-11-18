@@ -61,6 +61,32 @@ describe("DateRangePicker", () => {
     expect(screen.getByLabelText("From")).toHaveValue("");
     expect(screen.getByLabelText("To")).toHaveValue("");
     expect(calendarRange()).toBe("null..null");
+    expect(screen.getByRole("button", { name: "Move dates back a week" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Move dates forward a week" })).toBeDisabled();
+  });
+
+  it("moves both ends a week at a time and preserves the range length", () => {
+    renderPicker({ startIso: "2026-05-25", endIso: "2026-05-27" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Move dates forward a week" }));
+    expect(screen.getByLabelText("From")).toHaveValue("2026-06-01");
+    expect(screen.getByLabelText("To")).toHaveValue("2026-06-03");
+    expect(calendarRange()).toBe("2026-06-01..2026-06-03");
+
+    fireEvent.click(screen.getByRole("button", { name: "Move dates back a week" }));
+    expect(calendarRange()).toBe("2026-05-25..2026-05-27");
+  });
+
+  it("starts a fresh two-tap selection after moving the dates with an arrow", () => {
+    renderPicker();
+    pickDay("2026-05-18");
+    fireEvent.click(screen.getByRole("button", { name: "Move dates back a week" }));
+    expect(calendarRange()).toBe("2026-05-11..2026-05-11");
+
+    pickDay("2026-05-20");
+    expect(calendarRange()).toBe("2026-05-20..2026-05-20");
+    pickDay("2026-05-24");
+    expect(calendarRange()).toBe("2026-05-20..2026-05-24");
   });
 
   it("picks a range in two taps using the fields and highlight as feedback", () => {

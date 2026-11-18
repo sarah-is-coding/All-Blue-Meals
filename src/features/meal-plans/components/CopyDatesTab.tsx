@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import SaveNameForm from "../../../components/forms/SaveNameForm";
-import { createDateFromIso, formatMonthDay, getWeekStartIso } from "../../../lib/utils/dates";
+import { createDateFromIso, formatMonthDay, getWeekEndIso, getWeekStartIso } from "../../../lib/utils/dates";
 import { usePlannedMealsBetween, useSavedMealPlanActions } from "../queries";
 import type { CopyMode } from "../types";
 import { groupMealsByDay } from "../utils/groupMealsByDay";
@@ -25,14 +25,19 @@ export default function CopyDatesTab({
   onJumpToWeek,
   onCopyRange,
 }: Props) {
-  // The picker owns how a range is chosen (taps or typing); the tab owns
-  // what's done with it. Nothing is previewed until a range is picked.
-  const [range, setRange] = useState<DateRange | null>(null);
+  // Start with the viewed week, then keep the source independent of the destination.
+  const [range, setRange] = useState<DateRange | null>(() => ({
+    startIso: currentWeekStartIso,
+    endIso: getWeekEndIso(currentWeekStartIso),
+  }));
 
   // Copy flow
   const [copying, setCopying] = useState(false);
   const [copyDone, setCopyDone] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmWeek, setConfirmWeek] = useState<string | null>(null);
+  const showConfirm = confirmWeek === currentWeekStartIso;
+  if (confirmWeek !== null && !showConfirm) setConfirmWeek(null);
+  const startLabel = formatMonthDay(currentWeekStartIso);
 
   // Save-as-plan flow
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -43,14 +48,14 @@ export default function CopyDatesTab({
     setRange({ startIso, endIso });
     // A new selection starts the flows over.
     setCopyDone(false);
-    setShowConfirm(false);
+    setConfirmWeek(null);
     setShowSaveInput(false);
     setSavedLabel(null);
   };
 
   const clearSelection = () => {
     setRange(null);
-    setShowConfirm(false);
+    setConfirmWeek(null);
     setShowSaveInput(false);
   };
 
@@ -62,6 +67,7 @@ export default function CopyDatesTab({
   );
   const preview = useMemo(() => groupMealsByDay(previewQuery.items), [previewQuery.items]);
   const isEmpty = preview.length === 0;
+  const canCopy = range !== null && range.startIso !== currentWeekStartIso && !isEmpty;
   const savedNotice = isEmpty ? null : savedLabel;
   const showSelectionDetails =
     showSaveInput || showConfirm || previewQuery.error || savedNotice;
@@ -69,23 +75,14 @@ export default function CopyDatesTab({
     range !== null && getWeekStartIso(createDateFromIso(range.startIso)) === currentWeekStartIso;
 
   const executeCopy = (mode: CopyMode) => {
-    if (!range) return;
-    setShowConfirm(false);
+    if (!showConfirm || !canCopy) return;
+    setConfirmWeek(null);
     setCopying(true);
     setCopyDone(false);
     onCopyRange(range.startIso, range.endIso, mode)
       .then(() => setCopyDone(true))
       .catch(() => { /* parent surfaces the error */ })
       .finally(() => setCopying(false));
-  };
-
-  const handleCopyClick = () => {
-    if (!range || isEmpty) return;
-    if (currentWeekHasItems) {
-      setShowConfirm(true);
-    } else {
-      executeCopy("add");
-    }
   };
 
   // The form shows save errors itself.
@@ -121,7 +118,14 @@ export default function CopyDatesTab({
             />
           )}
 
-          {showConfirm && <CopyModeConfirm onChoose={executeCopy} />}
+          {showConfirm && (
+            <CopyModeConfirm
+              startLabel={startLabel}
+              hasMeals={currentWeekHasItems}
+              onChoose={executeCopy}
+              onCancel={() => setConfirmWeek(null)}
+            />
+          )}
 
           {previewQuery.error && <p className="error">{previewQuery.error}</p>}
         </div>
@@ -162,14 +166,14 @@ export default function CopyDatesTab({
             <button
               type="button"
               className="btn btn--primary btn--small"
-              disabled={range === null || isEmpty || copying || copyDone}
-              onClick={handleCopyClick}
+              disabled={!canCopy || copying || copyDone || showSaveInput}
+              onClick={() => setConfirmWeek(currentWeekStartIso)}
             >
               {copying
                 ? "Applying…"
                 : copyDone
                   ? "✓ Applied"
-                  : `Apply, starting ${formatMonthDay(currentWeekStartIso)}`}
+                  : `Apply, starting ${startLabel}`}
             </button>
           </div>
         </>

@@ -379,7 +379,7 @@ describe("GroceryPage — planned meal count", () => {
     const buildButton = screen.getByRole("button", { name: "Build Grocery List" });
     expect(count.previousElementSibling).toBe(back);
     expect(count.nextElementSibling).toBe(forward);
-    expect(count.parentElement?.nextElementSibling).toContainElement(buildButton);
+    expect(count.compareDocumentPosition(buildButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The same meals the grocery list will be built from.
     expect(listPlannedMealsBetween).toHaveBeenCalledWith(THIS_WEEK, getWeekEndIso(THIS_WEEK));
   });

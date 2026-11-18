@@ -42,7 +42,7 @@ import {
   searchSavedMealPlans,
 } from "../../../../features/meal-plans/api";
 
-const CURRENT_WEEK = "2026-05-25";
+const CURRENT_WEEK = "2026-05-31";
 
 /** A planned meal on the picked dates (the copy tab's preview source). */
 const pastaMeal: PlannedMeal = {
@@ -99,14 +99,15 @@ describe("PlanBrowserPanel — always open", () => {
     expect(screen.getByRole("tab", { name: /saved plans/i })).toBeInTheDocument();
   });
 
-  it("shows every action up front, disabled until dates are picked", () => {
+  it("preselects the viewed week and keeps actions compact", () => {
     renderPanel();
-    for (const name of [/save as meal plan/i, /apply, starting/i, /view week/i]) {
-      const action = screen.getByRole("button", { name });
-      expect(action).toBeDisabled();
-      expect(action).toHaveClass("btn--small");
-    }
-    // The disabled actions now stand on their own.
+    expect(screen.getByLabelText("From")).toHaveValue(CURRENT_WEEK);
+    expect(screen.getByLabelText("To")).toHaveValue("2026-06-06");
+    expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-31..2026-06-06");
+    expect(screen.getByRole("button", { name: "Clear" })).toHaveClass("btn--small");
+    expect(screen.getByRole("button", { name: /save as meal plan/i })).toHaveClass("btn--small");
+    expect(screen.getByRole("button", { name: /apply, starting/i })).toHaveClass("btn--small");
+    expect(screen.queryByRole("button", { name: /view week/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Pick dates to apply.")).not.toBeInTheDocument();
   });
 });
@@ -121,6 +122,16 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     renderPanel();
     expect(screen.getByRole("tab", { name: /^calendar$/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTestId("meal-dates-calendar")).toBeInTheDocument();
+  });
+
+  it("can save the preselected meals and prevents applying them to the same dates", async () => {
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([{ ...pastaMeal, plannedFor: CURRENT_WEEK }]);
+    renderPanel();
+
+    expect(await screen.findByText("Pasta")).toBeInTheDocument();
+    expect(listPlannedMealsBetween).toHaveBeenCalledWith(CURRENT_WEEK, "2026-06-06");
+    expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /apply, starting/i })).toBeDisabled();
   });
 
   it("picks a range in two taps and highlights it on the calendar", () => {
@@ -185,7 +196,7 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     expect(clear).toHaveClass("btn--small");
     fireEvent.click(clear);
     expect(screen.queryByText(/Pasta/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /apply, starting may 31/i })).toBeDisabled();
   });
 
   it("starts a new single-day range after clearing a pending first tap", () => {
@@ -199,22 +210,27 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     );
   });
 
-  it("walks the whole journey: pick dates → preview → copy with 'add'", async () => {
+  it("waits for confirmation before copying the picked dates to an empty week", async () => {
     vi.mocked(listPlannedMealsBetween).mockResolvedValue([pastaMeal]);
     const onCopyRange = vi.fn().mockResolvedValue(undefined);
     renderPanel({ onCopyRange });
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /apply, starting may 31/i })).toBeEnabled(),
     { timeout: 1500 });
 
     // The actions sit above the meal list, so long previews never bury them.
-    const copyButton = screen.getByRole("button", { name: /apply, starting may 25/i });
+    const copyButton = screen.getByRole("button", { name: /apply, starting may 31/i });
     const mealList = screen.getByText(/Pasta/);
     expect(copyButton.compareDocumentPosition(mealList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.click(copyButton);
+    expect(onCopyRange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCopyRange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 31/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm apply" }));
     await waitFor(() =>
       expect(onCopyRange).toHaveBeenCalledWith("2026-05-18", "2026-05-24", "add"),
     { timeout: 1500 });
@@ -228,10 +244,11 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /apply, starting may 25/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /apply, starting may 31/i })).toBeEnabled(),
     { timeout: 1500 });
-    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 25/i }));
+    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 31/i }));
 
+    expect(onCopyRange).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /add on top/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /replace existing/i }));
     await waitFor(() =>
@@ -332,7 +349,7 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
   // disabled until a plan is picked. It used to sit inside the opened plan.
   const HEALTHY = { id: "sp1", savedName: "Healthy Week", startDate: "2026-05-18", endDate: "2026-05-24" };
   const T = { timeout: 1500 };
-  const applyButton = () => screen.getByRole("button", { name: /apply, starting may 25/i });
+  const applyButton = () => screen.getByRole("button", { name: /apply, starting may 31/i });
   const pickHealthy = async () => {
     fireEvent.click(await screen.findByRole("button", { name: /^Healthy Week/ }, T));
   };
@@ -361,7 +378,7 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
     expect(applyButton()).toBeDisabled();
   });
 
-  it("applies the picked plan to the week", async () => {
+  it("waits for confirmation before applying the picked plan to an empty week", async () => {
     vi.mocked(searchSavedMealPlans).mockResolvedValue([HEALTHY]);
     const onApplySavedPlan = vi.fn().mockResolvedValue(undefined);
     renderPanel({ onApplySavedPlan });
@@ -369,6 +386,11 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
 
     await pickHealthy();
     fireEvent.click(applyButton());
+    expect(onApplySavedPlan).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onApplySavedPlan).not.toHaveBeenCalled();
+    fireEvent.click(applyButton());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm apply" }));
     await waitFor(() => expect(onApplySavedPlan).toHaveBeenCalledWith("sp1", "add"), T);
     expect(await screen.findByRole("button", { name: "✓ Applied" }, T)).toBeDisabled();
   });
@@ -381,6 +403,7 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
 
     await pickHealthy();
     fireEvent.click(applyButton());
+    expect(onApplySavedPlan).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /replace existing/i }));
     await waitFor(() => expect(onApplySavedPlan).toHaveBeenCalledWith("sp1", "replace"), T);
   });
@@ -392,6 +415,7 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
 
     await pickHealthy();
     fireEvent.click(applyButton());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm apply" }));
     await screen.findByRole("button", { name: "✓ Applied" }, T);
 
     fireEvent.click(screen.getByRole("button", { name: /^Quick Week/ }));

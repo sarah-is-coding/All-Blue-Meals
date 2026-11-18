@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { isValidIsoDate } from "../../../lib/utils/dates";
+import { useState, type ReactNode } from "react";
+import { addDays, createDateFromIso, isValidIsoDate, toIsoDate } from "../../../lib/utils/dates";
 import { pickRangeDay } from "../../../lib/utils/pickRangeDay";
 import MealDatesCalendar from "./MealDatesCalendar";
 
@@ -12,9 +12,11 @@ type Props = {
   startIso: string | null;
   endIso: string | null;
   onChange: (startIso: string, endIso: string) => void;
+  rangeSummary?: ReactNode;
 };
 
-export default function DateRangePicker({ startIso, endIso, onChange }: Props) {
+export default function DateRangePicker({ startIso, endIso, onChange, rangeSummary }: Props) {
+  const hasRange = startIso !== null && endIso !== null;
   // A pending first tap on the calendar, waiting for the range's last day.
   const [anchor, setAnchor] = useState<string | null>(null);
 
@@ -35,6 +37,13 @@ export default function DateRangePicker({ startIso, endIso, onChange }: Props) {
     const picked = pickRangeDay(anchor, dateIso);
     setAnchor(picked.anchor);
     onChange(picked.startIso, picked.endIso);
+  };
+
+  const shiftRange = (days: number) => {
+    if (!hasRange) return;
+    const shift = (iso: string) => toIsoDate(addDays(createDateFromIso(iso), days));
+    setAnchor(null);
+    onChange(shift(startIso), shift(endIso));
   };
 
   const commitStart = (value: string) => {
@@ -90,6 +99,28 @@ export default function DateRangePicker({ startIso, endIso, onChange }: Props) {
         rangeEndIso={endIso}
         onSelectDay={handleSelectDay}
       />
+
+      <div className="date-range-picker__week-nav">
+        <button
+          type="button"
+          className="btn btn--ghost date-range-picker__week-button"
+          onClick={() => shiftRange(-7)}
+          disabled={!hasRange}
+          aria-label="Move dates back a week"
+        >
+          ←
+        </button>
+        {rangeSummary}
+        <button
+          type="button"
+          className="btn btn--ghost date-range-picker__week-button"
+          onClick={() => shiftRange(7)}
+          disabled={!hasRange}
+          aria-label="Move dates forward a week"
+        >
+          →
+        </button>
+      </div>
     </div>
   );
 }

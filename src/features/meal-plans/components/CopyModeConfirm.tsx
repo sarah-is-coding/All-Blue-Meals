@@ -1,18 +1,36 @@
 import type { CopyMode } from "../types";
 
-/** Asked before copying or applying meals onto a week that already has some. */
-export default function CopyModeConfirm({ onChoose }: { onChoose: (mode: CopyMode) => void }) {
+type Props = {
+  startLabel: string;
+  hasMeals: boolean;
+  onChoose: (mode: CopyMode) => void;
+  onCancel: () => void;
+};
+
+/** Confirm the destination before applying a date range or saved plan. */
+export default function CopyModeConfirm({ startLabel, hasMeals, onChoose, onCancel }: Props) {
   return (
     <div className="plan-browser__confirm">
-      <p className="plan-browser__confirm-label">
-        The week you're viewing already has meals. What would you like to do?
+      <p className="plan-browser__confirm-label" role="status">
+        {hasMeals
+          ? `The week starting ${startLabel} already has meals.`
+          : `Apply meals starting ${startLabel}?`}
       </p>
       <div className="plan-browser__actions">
-        <button type="button" className="btn btn--ghost" onClick={() => onChoose("add")}>
-          Add on top
+        <button
+          type="button"
+          className={`btn btn--small ${hasMeals ? "btn--ghost" : "btn--primary"}`}
+          onClick={() => onChoose("add")}
+        >
+          {hasMeals ? "Add on top" : "Confirm apply"}
         </button>
-        <button type="button" className="btn btn--primary" onClick={() => onChoose("replace")}>
-          Replace existing
+        {hasMeals && (
+          <button type="button" className="btn btn--primary btn--small" onClick={() => onChoose("replace")}>
+            Replace existing
+          </button>
+        )}
+        <button type="button" className="btn btn--ghost btn--small" onClick={onCancel} autoFocus>
+          Cancel
         </button>
       </div>
     </div>

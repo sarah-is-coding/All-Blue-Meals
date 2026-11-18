@@ -815,6 +815,21 @@
   font-size: 0.9rem;
 }
 
+.date-range-picker__week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.date-range-picker__week-button {
+  flex-shrink: 0;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  font-size: 1.05rem;
+}
+
 /* ── Copy-dates calendar: pick a range; days with meals are dotted ── */
 .meal-dates-cal {
   display: grid;

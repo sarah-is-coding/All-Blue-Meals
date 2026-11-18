@@ -151,7 +151,9 @@
   }
 
   .workspace-topbar {
-    align-items: center;
+    position: sticky;
+    top: max(0.75rem, env(safe-area-inset-top));
+    z-index: 30;
   }
 
   .workspace__header-sponsor {
