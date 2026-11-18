@@ -24,7 +24,13 @@ vi.mock("../../../lib/supabaseClient", () => {
   return { supabase: builder };
 });
 
+// Category upgrades go through their own module (step 9).
+vi.mock("../../../features/ingredients/categories/api", () => ({
+  upgradeIngredientCategory: vi.fn().mockResolvedValue(true),
+}));
+
 import { supabase } from "../../../lib/supabaseClient";
+import { upgradeIngredientCategory } from "../../../features/ingredients/categories/api";
 
 const db = supabase as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
@@ -44,6 +50,7 @@ beforeEach(() => {
     db[method].mockReturnValue(db);
   }
   db.returns.mockResolvedValue(ok([]));
+  vi.mocked(upgradeIngredientCategory).mockResolvedValue(true);
 });
 
 describe("escapeLikePattern", () => {
@@ -184,20 +191,20 @@ describe("resolveIngredients", () => {
       .mockResolvedValueOnce(ok([row("i-1", "garlic", "garlic")]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(
-        ok([row("n-1", "shallot", "shallot"), row("n-2", "black beans", "blackbean", "pantry")])
+        ok([row("n-1", "shallot", "shallot"), row("n-2", "black beans", "blackbean", "baking")])
       );
 
     const result = await resolveIngredients([
       { name: "garlic", category: "produce" },
       { name: "Shallots", category: "produce" },
-      { name: "black beans", category: "pantry" },
+      { name: "black beans", category: "baking" },
       { name: "shallot", category: "other" }, // same key as "Shallots": asked for once
     ]);
 
     expect(db.insert).toHaveBeenCalledTimes(1);
     expect(db.insert).toHaveBeenCalledWith([
       { name: "shallot", name_key: "shallot", category: "produce" },
-      { name: "black beans", name_key: "blackbean", category: "pantry" },
+      { name: "black beans", name_key: "blackbean", category: "baking" },
     ]);
     expect([...result.keys()].sort()).toEqual(["blackbean", "garlic", "shallot"]);
   });
@@ -231,9 +238,9 @@ describe("createIngredient", () => {
   });
 
   it("returns the existing ingredient for a variant spelling", async () => {
-    db.returns.mockResolvedValueOnce(ok([row("i-1", "all-purpose flour", "allpurposeflour", "pantry")]));
-    const ingredient = await createIngredient("All Purpose Flour", "pantry");
-    expect(ingredient).toEqual({ id: "i-1", name: "all-purpose flour", category: "pantry", defaultUnit: null });
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "all-purpose flour", "allpurposeflour", "baking")]));
+    const ingredient = await createIngredient("All Purpose Flour", "baking");
+    expect(ingredient).toEqual({ id: "i-1", name: "all-purpose flour", category: "baking", defaultUnit: null });
     expect(db.insert).not.toHaveBeenCalled();
   });
 
@@ -276,16 +283,16 @@ describe("resolveIngredients with a canonical name", () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([row("i-1", "butter", "butter", "dairy & eggs")]))
-      .mockResolvedValueOnce(ok([row("n-1", "ghee", "ghee", "pantry")]));
+      .mockResolvedValueOnce(ok([row("i-1", "butter", "butter", "dairy_eggs")]))
+      .mockResolvedValueOnce(ok([row("n-1", "ghee", "ghee", "baking")]));
 
-    const result = await resolveIngredients([{ name: "ghee", category: "pantry", canonicalName: "butter" }]);
+    const result = await resolveIngredients([{ name: "ghee", category: "baking", canonicalName: "butter" }]);
 
     expect(db.upsert).toHaveBeenCalledWith(
       [expect.objectContaining({ alias_key: "ghee", ingredient_id: "i-1", status: "pending" })],
       expect.anything()
     );
-    expect(db.insert).toHaveBeenCalledWith([{ name: "ghee", name_key: "ghee", category: "pantry" }]);
+    expect(db.insert).toHaveBeenCalledWith([{ name: "ghee", name_key: "ghee", category: "baking" }]);
     expect(result.get("ghee")?.id).toBe("n-1");
   });
 
@@ -296,11 +303,11 @@ describe("resolveIngredients with a canonical name", () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([row("i-1", "chicken breasts", "chickenbreast", "meat & seafood")]))
-      .mockResolvedValueOnce(ok([row("n-1", "skinless boneless chicken breasts", "skinlessbonelesschickenbreast", "meat & seafood")]));
+      .mockResolvedValueOnce(ok([row("i-1", "chicken breasts", "chickenbreast", "meat_seafood")]))
+      .mockResolvedValueOnce(ok([row("n-1", "skinless boneless chicken breasts", "skinlessbonelesschickenbreast", "meat_seafood")]));
 
     await resolveIngredients([
-      { name: "skinless boneless chicken breasts", category: "meat & seafood", canonicalName: "chicken breasts" },
+      { name: "skinless boneless chicken breasts", category: "meat_seafood", canonicalName: "chicken breasts" },
     ]);
 
     expect(db.upsert).toHaveBeenCalledWith(
@@ -308,7 +315,7 @@ describe("resolveIngredients with a canonical name", () => {
       expect.anything()
     );
     expect(db.insert).toHaveBeenCalledWith([
-      { name: "skinless boneless chicken breasts", name_key: "skinlessbonelesschickenbreast", category: "meat & seafood" },
+      { name: "skinless boneless chicken breasts", name_key: "skinlessbonelesschickenbreast", category: "meat_seafood" },
     ]);
   });
 
@@ -358,5 +365,54 @@ describe("findIngredientMatches", () => {
   it("returns an empty map without querying for no names", async () => {
     expect((await findIngredientMatches(["  "])).size).toBe(0);
     expect(db.from).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Upgrading "other" (step 9): a matched ingredient with no real category
+// takes the one the import or the person supplies.
+// ─────────────────────────────────────────────────────────────
+describe("resolveIngredients category upgrades", () => {
+  it("gives a matched 'other' ingredient the requested category", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "garlic", "garlic", "other")]));
+
+    const result = await resolveIngredients([{ name: "garlic", category: "produce" }]);
+
+    expect(upgradeIngredientCategory).toHaveBeenCalledWith("i-1", "produce");
+    expect(result.get("garlic")?.category).toBe("produce");
+  });
+
+  it("treats an old value with no code ('pantry') as uncategorized too", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "cumin", "cumin", "pantry")]));
+    await resolveIngredients([{ name: "cumin", category: "spices_seasonings" }]);
+    expect(upgradeIngredientCategory).toHaveBeenCalledWith("i-1", "spices_seasonings");
+  });
+
+  it("never changes a real category, and never asks for 'other'", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "garlic", "garlic", "produce"), row("i-2", "foil", "foil", "other")]));
+
+    const result = await resolveIngredients([
+      { name: "garlic", category: "spices_seasonings" },
+      { name: "foil", category: "other" },
+    ]);
+
+    expect(upgradeIngredientCategory).not.toHaveBeenCalled();
+    expect(result.get("garlic")?.category).toBe("produce");
+  });
+
+  it("keeps the ingredient as it was when the upgrade fails", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "garlic", "garlic", "other")]));
+    vi.mocked(upgradeIngredientCategory).mockResolvedValueOnce(false);
+
+    const result = await resolveIngredients([{ name: "garlic", category: "produce" }]);
+
+    expect(result.get("garlic")?.category).toBe("other");
+  });
+
+  it("maps older stored values to codes", async () => {
+    db.returns.mockResolvedValueOnce(ok([row("i-1", "salmon", "salmon", "meat & seafood")]));
+    const result = await resolveIngredients([{ name: "salmon", category: "meat_seafood" }]);
+    expect(result.get("salmon")?.category).toBe("meat_seafood");
+    expect(upgradeIngredientCategory).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,15 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import GroceryItemGroups from "../../../../features/grocery/components/GroceryItemGroups";
 import type { GroceryItem } from "../../../../features/grocery/types";
 
+// Categories come from ingredient_categories through a query; these tests use
+// the built-in list (same codes and labels) instead of a query provider.
+vi.mock("../../../../features/ingredients/queries", async () => {
+  const codes = await vi.importActual<typeof import("../../../../features/ingredients/categories/codes")>(
+    "../../../../features/ingredients/categories/codes"
+  );
+  return { useIngredientCategories: () => codes.FALLBACK_CATEGORIES };
+});
+
 const item = (id: string, ingredientName: string, overrides: Partial<GroceryItem> = {}): GroceryItem => ({
   id,
   ingredientName,
@@ -15,7 +24,7 @@ const item = (id: string, ingredientName: string, overrides: Partial<GroceryItem
 
 const ITEMS = [
   item("1", "apples", { category: "produce", quantity: "3" }),
-  item("2", "milk", { category: "dairy & eggs", quantity: "1", unit: "gal", isChecked: true }),
+  item("2", "milk", { category: "dairy_eggs", quantity: "1", unit: "gal", isChecked: true }),
   item("3", "salt"),
 ];
 

@@ -1,23 +1,8 @@
-export type IngredientCategory =
-  | "produce"
-  | "meat & seafood"
-  | "dairy & eggs"
-  | "bakery & bread"
-  | "pantry"
-  | "frozen"
-  | "beverages"
-  | "other";
+import type { IngredientCategory } from "./categories/codes";
 
-export const INGREDIENT_CATEGORIES: IngredientCategory[] = [
-  "produce",
-  "meat & seafood",
-  "dairy & eggs",
-  "bakery & bread",
-  "pantry",
-  "frozen",
-  "beverages",
-  "other",
-];
+// Category codes, labels and order live in ./categories (step 9).
+export type { IngredientCategory } from "./categories/codes";
+export type { CategoryInfo } from "./categories/types";
 
 export type Ingredient = {
   id: string;

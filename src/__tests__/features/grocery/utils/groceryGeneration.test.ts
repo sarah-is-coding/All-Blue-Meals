@@ -22,26 +22,26 @@ describe("mergeIngredients", () => {
   });
 
   it("passes a single ingredient through unchanged", () => {
-    const result = mergeIngredients([ing("butter", "2", "tbsp", "dairy & eggs")]);
+    const result = mergeIngredients([ing("butter", "2", "tbsp", "dairy_eggs")]);
     expect(result).toEqual([
-      { ingredientName: "butter", quantity: "2", unit: "tbsp", category: "dairy & eggs", substitutes: [] },
+      { ingredientName: "butter", quantity: "2", unit: "tbsp", category: "dairy_eggs", substitutes: [] },
     ]);
   });
 
   it("sums numeric quantities for the same ingredient and unit", () => {
     const result = mergeIngredients([
-      ing("flour", "1", "cup", "pantry"),
-      ing("flour", "2", "cup", "pantry"),
+      ing("flour", "1", "cup", "baking"),
+      ing("flour", "2", "cup", "baking"),
     ]);
     expect(result).toEqual([
-      { ingredientName: "flour", quantity: "3", unit: "cup", category: "pantry", substitutes: [] },
+      { ingredientName: "flour", quantity: "3", unit: "cup", category: "baking", substitutes: [] },
     ]);
   });
 
   it("treats different units as separate entries", () => {
     const result = mergeIngredients([
-      ing("milk", "1", "cup", "dairy & eggs"),
-      ing("milk", "2", "tbsp", "dairy & eggs"),
+      ing("milk", "1", "cup", "dairy_eggs"),
+      ing("milk", "2", "tbsp", "dairy_eggs"),
     ]);
     expect(result).toHaveLength(2);
     expect(result.find((r) => r.unit === "cup")?.quantity).toBe("1");
@@ -111,8 +111,8 @@ describe("mergeIngredients", () => {
 
   it("handles fractions", () => {
     const result = mergeIngredients([
-      ing("sugar", "1/2", "cup", "pantry"),
-      ing("sugar", "1/4", "cup", "pantry"),
+      ing("sugar", "1/2", "cup", "baking"),
+      ing("sugar", "1/4", "cup", "baking"),
     ]);
     expect(result).toHaveLength(1);
     // 0.5 + 0.25 = 0.75
@@ -121,8 +121,8 @@ describe("mergeIngredients", () => {
 
   it("handles mixed fractions", () => {
     const result = mergeIngredients([
-      ing("oats", "1 1/2", "cup", "pantry"),
-      ing("oats", "1", "cup", "pantry"),
+      ing("oats", "1 1/2", "cup", "baking"),
+      ing("oats", "1", "cup", "baking"),
     ]);
     expect(result).toHaveLength(1);
     // 1.5 + 1 = 2.5
@@ -132,11 +132,11 @@ describe("mergeIngredients", () => {
   it("sorts by category order then alphabetically within a category", () => {
     const result = mergeIngredients([
       ing("zucchini", "1", "", "produce"),
-      ing("butter", "2", "tbsp", "dairy & eggs"),
+      ing("butter", "2", "tbsp", "dairy_eggs"),
       ing("apple", "3", "", "produce"),
-      ing("flour", "1", "cup", "pantry"),
+      ing("flour", "1", "cup", "baking"),
     ]);
-    // produce < dairy & eggs is wrong — produce(0) < dairy & eggs(2) < pantry(6)
+    // produce < dairy_eggs is wrong — produce(0) < dairy_eggs(2) < pantry(6)
     // within produce: apple < zucchini
     expect(result.map((r) => r.ingredientName)).toEqual([
       "apple",
@@ -159,7 +159,7 @@ describe("mergeIngredients", () => {
     const result = mergeIngredients([
       ing("", "1", "cup"),
       ing("   ", "2", "cup"),
-      ing("rice", "1", "cup", "pantry"),
+      ing("rice", "1", "cup", "baking"),
     ]);
     expect(result).toHaveLength(1);
     expect(result[0].ingredientName).toBe("rice");
@@ -205,7 +205,7 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
   // Other notes ("diced") are for cooking and stay off the list.
   it("keeps container sizes on the item, merging only same-size containers", () => {
     const tomatoes = (quantity: string, notes: string) => ({
-      ingredientId: "i-tom", ingredientName: "crushed tomatoes", quantity, unit: "can", notes, category: "pantry" as const,
+      ingredientId: "i-tom", ingredientName: "crushed tomatoes", quantity, unit: "can", notes, category: "baking" as const,
     });
     const result = mergeIngredients([
       tomatoes("1", "14 oz/400 g, undrained"),
@@ -222,7 +222,7 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
 
   it("takes the size from a quantity written as '15' + 'ounce can'", () => {
     const result = mergeIngredients([
-      { ingredientId: "i-beans", ingredientName: "black beans", quantity: "15", unit: "ounce can", category: "pantry" },
+      { ingredientId: "i-beans", ingredientName: "black beans", quantity: "15", unit: "ounce can", category: "baking" },
     ]);
     expect(result.map((item) => [item.quantity, item.unit])).toEqual([["1", "can (15 oz)"]]);
   });
@@ -234,9 +234,9 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
 
   it("merges different spellings of the same unit", () => {
     const result = mergeIngredients([
-      ing("flour", "1", "cups", "pantry"),
-      ing("flour", "1", "Cup", "pantry"),
-      ing("flour", "2", "Tablespoons", "pantry"),
+      ing("flour", "1", "cups", "baking"),
+      ing("flour", "1", "Cup", "baking"),
+      ing("flour", "2", "Tablespoons", "baking"),
     ]);
     expect(result.map((r) => [r.quantity, r.unit])).toEqual([
       ["2", "cup"],
@@ -256,18 +256,18 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
 
   it("shows substitutes as options, merged across recipes and without the item itself", () => {
     const avocado = (quantity: string) => ({
-      ingredientId: "i-avo", ingredientName: "avocado oil", quantity, unit: "tbsp", category: "pantry" as const,
+      ingredientId: "i-avo", ingredientName: "avocado oil", quantity, unit: "tbsp", category: "baking" as const,
     });
     const result = mergeIngredients([
-      { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "2", unit: "tbsp", category: "pantry",
+      { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "2", unit: "tbsp", category: "baking",
         substitutes: [avocado("2")] },
-      { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "1", unit: "tbsp", category: "pantry",
-        substitutes: [avocado("1"), { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "1", unit: "tbsp", category: "pantry" }] },
-      { ingredientId: "i-ghee", ingredientName: "ghee", quantity: "1", unit: "tbsp", category: "pantry" },
+      { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "1", unit: "tbsp", category: "baking",
+        substitutes: [avocado("1"), { ingredientId: "i-olive", ingredientName: "olive oil", quantity: "1", unit: "tbsp", category: "baking" }] },
+      { ingredientId: "i-ghee", ingredientName: "ghee", quantity: "1", unit: "tbsp", category: "baking" },
     ]);
     expect(result).toEqual([
-      { ingredientName: "ghee", quantity: "1", unit: "tbsp", category: "pantry", substitutes: [] },
-      { ingredientName: "olive oil", quantity: "3", unit: "tbsp", category: "pantry", substitutes: ["avocado oil, 3 tbsp"] },
+      { ingredientName: "ghee", quantity: "1", unit: "tbsp", category: "baking", substitutes: [] },
+      { ingredientName: "olive oil", quantity: "3", unit: "tbsp", category: "baking", substitutes: ["avocado oil, 3 tbsp"] },
     ]);
   });
 
@@ -302,14 +302,14 @@ describe("groupItemsByCategory", () => {
   it("groups items by category and uses the display label", () => {
     const items = [
       { category: "produce" as IngredientCategory, ingredientName: "apple" },
-      { category: "pantry" as IngredientCategory, ingredientName: "flour" },
+      { category: "baking" as IngredientCategory, ingredientName: "flour" },
       { category: "produce" as IngredientCategory, ingredientName: "carrot" },
     ];
     const groups = groupItemsByCategory(items);
     expect(groups).toHaveLength(2);
     expect(groups[0].label).toBe("Produce");
     expect(groups[0].items.map((i) => i.ingredientName)).toEqual(["apple", "carrot"]);
-    expect(groups[1].label).toBe("Pantry");
+    expect(groups[1].label).toBe("Baking");
   });
 
   it("places null-category items in 'Other'", () => {
@@ -323,10 +323,30 @@ describe("groupItemsByCategory", () => {
     const items = [
       { category: "frozen" as IngredientCategory, ingredientName: "peas" },
       { category: "produce" as IngredientCategory, ingredientName: "onion" },
-      { category: "dairy & eggs" as IngredientCategory, ingredientName: "milk" },
+      { category: "dairy_eggs" as IngredientCategory, ingredientName: "milk" },
     ];
     const groups = groupItemsByCategory(items);
     expect(groups.map((g) => g.label)).toEqual(["Produce", "Dairy & Eggs", "Frozen"]);
+  });
+
+  // Step 9: labels and order come from ingredient_categories.
+  it("uses the given categories' labels and store order", () => {
+    const items = [
+      { category: "produce" as IngredientCategory, ingredientName: "onion" },
+      { category: "deli" as IngredientCategory, ingredientName: "salami" },
+    ];
+    const categories = [
+      { code: "deli" as const, name: "Deli Counter", description: "", sortOrder: 1 },
+      { code: "produce" as const, name: "Fruit & Veg", description: "", sortOrder: 2 },
+      { code: "other" as const, name: "Other", description: "", sortOrder: 3 },
+    ];
+    expect(groupItemsByCategory(items, categories).map((group) => group.label)).toEqual(["Deli Counter", "Fruit & Veg"]);
+  });
+
+  it("puts items in a category the list doesn't have under 'Other'", () => {
+    const items = [{ category: "frozen" as IngredientCategory, ingredientName: "peas" }];
+    const categories = [{ code: "other" as const, name: "Other", description: "", sortOrder: 1 }];
+    expect(groupItemsByCategory(items, categories)).toEqual([{ label: "Other", items }]);
   });
 
   it("omits categories that have no items", () => {

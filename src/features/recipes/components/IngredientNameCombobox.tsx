@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createIngredient, searchIngredients } from "../../ingredients/api";
-import {
-  INGREDIENT_CATEGORIES,
-  type Ingredient,
-  type IngredientCategory,
-  type IngredientMatch,
-} from "../../ingredients/types";
+import { useIngredientCategories } from "../../ingredients/queries";
+import type { Ingredient, IngredientCategory, IngredientMatch } from "../../ingredients/types";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import IngredientCategoryPicker from "./IngredientCategoryPicker";
 
@@ -22,6 +18,9 @@ export default function IngredientNameCombobox({
   onSelect,
   readOnly = false,
 }: Props) {
+  const categories = useIngredientCategories();
+  const categoryLabel = (code: IngredientCategory) =>
+    categories.find((category) => category.code === code)?.name ?? code;
   const [query, setQuery] = useState(value);
   const [phase, setPhase] = useState<Phase>("search");
   const [suggestions, setSuggestions] = useState<IngredientMatch[]>([]);
@@ -177,20 +176,20 @@ export default function IngredientNameCombobox({
       case "ArrowUp":
         event.preventDefault();
         setActiveIndex((prev) =>
-          prev <= 0 ? INGREDIENT_CATEGORIES.length - 1 : prev - 1
+          prev <= 0 ? categories.length - 1 : prev - 1
         );
         break;
       case "ArrowRight":
       case "ArrowDown":
         event.preventDefault();
         setActiveIndex((prev) =>
-          prev >= INGREDIENT_CATEGORIES.length - 1 ? 0 : prev + 1
+          prev >= categories.length - 1 ? 0 : prev + 1
         );
         break;
       case "Enter":
         event.preventDefault();
-        if (activeIndex >= 0 && activeIndex < INGREDIENT_CATEGORIES.length) {
-          void commitNew(INGREDIENT_CATEGORIES[activeIndex]);
+        if (activeIndex >= 0 && activeIndex < categories.length) {
+          void commitNew(categories[activeIndex].code);
         }
         break;
       case "Escape":
@@ -250,7 +249,7 @@ export default function IngredientNameCombobox({
               </span>
               {ingredient.category && (
                 <span className="ingredient-combobox__category">
-                  {ingredient.category}
+                  {categoryLabel(ingredient.category)}
                 </span>
               )}
             </li>
@@ -281,6 +280,7 @@ export default function IngredientNameCombobox({
       {showCategorizeDropdown && (
         <IngredientCategoryPicker
           name={query.trim()}
+          categories={categories}
           activeIndex={activeIndex}
           creating={creating}
           onActiveIndexChange={setActiveIndex}

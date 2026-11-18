@@ -7,6 +7,7 @@
 import { normalizeIngredientLine, type NormalizedIngredient } from "../../ingredients/utils/ingredientLine";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import type { ReviewFlag } from "../../ingredients/utils/ingredientText";
+import { toCategoryCode } from "../../ingredients/categories/codes";
 import type { IngredientCategory } from "../../ingredients/types";
 import type { ImportedIngredientOption, ImportedRecipeIngredient } from "../types";
 
@@ -59,7 +60,7 @@ export const importedIngredientRows = (
       quantity: line.quantity,
       unit: line.unit,
       notes: line.notes,
-      category: option.category,
+      category: toCategoryCode(option.category),
       substituteFor,
       // A canonical name only applies when the line wasn't split into several.
       canonicalName: singleLine ? canonicalFor(option, line.ingredientName) : null,

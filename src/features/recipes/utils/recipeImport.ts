@@ -1,4 +1,3 @@
-import { INGREDIENT_CATEGORIES, type IngredientCategory } from "../../ingredients/types";
 import type { ImportedRecipe, RecipeUpsertInput } from "../types";
 import { importedIngredientRows } from "./importedIngredients";
 import {
@@ -23,11 +22,6 @@ export const formatImportedInstructions = (value: string): string => {
     .replace(/^\n+/, "")
     .trim();
 };
-
-export const isIngredientCategory = (
-  value: string | null | undefined
-): value is IngredientCategory =>
-  Boolean(value && INGREDIENT_CATEGORIES.includes(value as IngredientCategory));
 
 export const mapImportedRecipeToInput = (
   recipe: ImportedRecipe

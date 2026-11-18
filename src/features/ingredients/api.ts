@@ -1,5 +1,7 @@
 import { supabase } from "../../lib/supabaseClient";
 import type { Tables } from "../../lib/db/database.types";
+import { upgradeIngredientCategory } from "./categories/api";
+import { toCategoryCode } from "./categories/codes";
 import type { Ingredient, IngredientCategory, IngredientMatch } from "./types";
 import { dropsWords, ingredientKey, singularDisplayName } from "./utils/ingredientKey";
 
@@ -21,7 +23,7 @@ const ALIAS_COLUMNS = `alias_key,alias_name,ingredients(${INGREDIENT_COLUMNS})`;
 const mapIngredientRow = (row: IngredientRow): Ingredient => ({
   id: row.id,
   name: row.name,
-  category: row.category as Ingredient["category"],
+  category: toCategoryCode(row.category),
   defaultUnit: row.default_unit,
 });
 
@@ -191,6 +193,27 @@ const findByKeys = async (requests: Map<string, IngredientRequest>): Promise<Map
 };
 
 /**
+ * A matched ingredient with no real category ("other") takes the one this
+ * request brings (step 9): otherwise "other" was permanent, since clients
+ * can't update the shared catalog. The database only ever upgrades such rows.
+ */
+const upgradeCategories = async (
+  requests: Map<string, IngredientRequest>,
+  found: Map<string, Ingredient>
+): Promise<void> => {
+  const upgrades = [...found.entries()].flatMap(([key, ingredient]) => {
+    const category = requests.get(key)?.category;
+    const uncategorized = ingredient.category === null || ingredient.category === "other";
+    return category && category !== "other" && uncategorized ? [{ key, ingredient, category }] : [];
+  });
+  await Promise.all(
+    upgrades.map(async ({ key, ingredient, category }) => {
+      if (await upgradeIngredientCategory(ingredient.id, category)) found.set(key, { ...ingredient, category });
+    })
+  );
+};
+
+/**
  * Find or create the catalog ingredient for each name, in a few requests
  * for the whole list. Returns a map from ingredientKey(name) to the
  * ingredient. New ingredients get their singular display name and key.
@@ -207,6 +230,7 @@ export async function resolveIngredients(
 
   const found = await findByKeys(byKey);
   await linkCanonicalNames(byKey, found);
+  await upgradeCategories(byKey, found);
   const toCreate = [...byKey.entries()].filter(([key]) => !found.has(key));
   if (toCreate.length === 0) return found;
 

@@ -1,7 +1,5 @@
-import {
-  INGREDIENT_CATEGORIES,
-  type IngredientCategory,
-} from "../../ingredients/types";
+import { CATEGORY_CODES, FALLBACK_CATEGORIES } from "../../ingredients/categories/codes";
+import type { CategoryInfo, IngredientCategory } from "../../ingredients/types";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import { parseName } from "../../ingredients/utils/ingredientText";
 import { parseQuantityNumber } from "../../../lib/utils/quantities";
@@ -27,22 +25,8 @@ export type ScaledIngredient = {
 const WATER_KEYS = new Set(["water", "filteredwater", "tapwater", "coldwater", "icewater", "hotwater"]);
 export const isWater = (name: string): boolean => WATER_KEYS.has(ingredientKey(parseName(name.toLowerCase()).name));
 
-/** Display label for each ingredient category. */
-const CATEGORY_LABELS: Record<IngredientCategory, string> = {
-  produce: "Produce",
-  "meat & seafood": "Meat & Seafood",
-  "dairy & eggs": "Dairy & Eggs",
-  "bakery & bread": "Bakery & Bread",
-  pantry: "Pantry",
-  frozen: "Frozen",
-  beverages: "Beverages",
-  other: "Other",
-};
-
-/** The sort-order index for each category. */
-const CATEGORY_ORDER = new Map<IngredientCategory, number>(
-  INGREDIENT_CATEGORIES.map((cat, i) => [cat, i])
-);
+/** Default walking order of each category, for sorting merged items. */
+const CATEGORY_ORDER = new Map<IngredientCategory, number>(CATEGORY_CODES.map((code, index) => [code, index]));
 
 /** Format a merged numeric quantity back to a display string. */
 function formatMergedQuantity(value: number): string {
@@ -141,30 +125,30 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
       ).map(formatOption),
     }))
     .sort((a, b) => {
-      const catA = CATEGORY_ORDER.get(a.category ?? "other") ?? INGREDIENT_CATEGORIES.length;
-      const catB = CATEGORY_ORDER.get(b.category ?? "other") ?? INGREDIENT_CATEGORIES.length;
+      const catA = CATEGORY_ORDER.get(a.category ?? "other") ?? CATEGORY_CODES.length;
+      const catB = CATEGORY_ORDER.get(b.category ?? "other") ?? CATEGORY_CODES.length;
       if (catA !== catB) return catA - catB;
       return a.ingredientName.localeCompare(b.ingredientName);
     });
 }
 
 /**
- * Group a list of items by their `category` field, preserving the canonical
- * category display order. Items with `null` category fall into "Other".
- * Categories that have no items are omitted.
+ * Group a list of items by their `category` field, in the categories' store
+ * order and with their labels (from ingredient_categories). Items with no
+ * category, or one not in the list, fall into "Other". Categories that have
+ * no items are omitted.
  */
 export function groupItemsByCategory<
   T extends { category: IngredientCategory | null }
->(items: T[]): Array<{ label: string; items: T[] }> {
+>(items: T[], categories: CategoryInfo[] = FALLBACK_CATEGORIES): Array<{ label: string; items: T[] }> {
+  const known = new Set(categories.map((category) => category.code));
   const grouped = new Map<IngredientCategory, T[]>();
   for (const item of items) {
-    const cat: IngredientCategory = item.category ?? "other";
-    const group = grouped.get(cat) ?? [];
-    group.push(item);
-    grouped.set(cat, group);
+    const code: IngredientCategory = item.category && known.has(item.category) ? item.category : "other";
+    grouped.set(code, [...(grouped.get(code) ?? []), item]);
   }
-  return INGREDIENT_CATEGORIES.filter((cat) => grouped.has(cat)).map((cat) => ({
-    label: CATEGORY_LABELS[cat],
-    items: grouped.get(cat)!,
-  }));
+  return [...categories]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .filter((category) => grouped.has(category.code))
+    .map((category) => ({ label: category.name, items: grouped.get(category.code)! }));
 }

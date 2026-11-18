@@ -1,6 +1,6 @@
 import { supabase } from "../../lib/supabaseClient";
 import type { Tables } from "../../lib/db/database.types";
-import type { IngredientCategory } from "../ingredients/types";
+import { toCategoryCode } from "../ingredients/categories/codes";
 import { scaleQuantityText } from "../../lib/utils/quantities";
 import { listPlannedMealsBetween, listSavedPlanMeals } from "../meal-plans/api";
 import type { PlannedMeal } from "../meal-plans/types";
@@ -45,7 +45,7 @@ function mapItemRow(row: GroceryItemRow): GroceryItem {
     quantity: row.quantity ?? "",
     unit: row.unit ?? "",
     isChecked: row.is_checked,
-    category: (row.category ?? null) as IngredientCategory | null,
+    category: toCategoryCode(row.category),
     substitutes: row.substitutes ?? [],
   };
 }
@@ -132,7 +132,7 @@ async function buildGroceryItemsFromMeals(meals: PlannedMeal[]): Promise<Grocery
       quantity: scaleQuantityText(row.quantity ?? "", meal.recipeServings, meal.effectiveServings),
       unit: row.unit ?? "",
       notes: row.notes ?? "",
-      category: (row.ingredients?.category ?? null) as IngredientCategory | null,
+      category: toCategoryCode(row.ingredients?.category),
     });
     for (const row of ingByRecipe.get(meal.recipeId) ?? []) {
       scaled.push({ ...scale(row), substitutes: (substitutesByMain.get(row.id) ?? []).map(scale) });

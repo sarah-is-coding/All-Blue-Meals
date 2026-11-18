@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useIngredientCategories } from "../../ingredients/queries";
 import type { GroceryItem } from "../types";
 import { groupItemsByCategory } from "../utils/groceryGeneration";
 
@@ -15,6 +16,7 @@ type Props = {
  * ("or avocado oil, 2 tbsp"); collapsed by default to keep the list short.
  */
 export default function GroceryItemGroups({ items, onToggle, savingItemId = null }: Props) {
+  const categories = useIngredientCategories();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (itemId: string) =>
     setExpanded((previous) => {
@@ -26,7 +28,7 @@ export default function GroceryItemGroups({ items, onToggle, savingItemId = null
 
   return (
     <div className="grocery-item-groups">
-      {groupItemsByCategory(items).map((group) => (
+      {groupItemsByCategory(items, categories).map((group) => (
         <div key={group.label} className="grocery-category">
           <h3 className="grocery-category__header">{group.label}</h3>
           <ul className="grocery-item-list" aria-label={`${group.label} items`}>
