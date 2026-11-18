@@ -98,13 +98,16 @@ This codebase follows **modular programming** and **separation of concerns**. Av
   - Any authenticated user can read and insert; no update/delete policies
   - These are the only intentional shared tables — keep rows small (name, key, category, default unit; alias key and name)
   - `ingredient_aliases` maps synonyms to a catalog ingredient ("scallions" → green onion); see `docs/ingredient-normalization.md`
+- Lookup table: `ingredient_categories` (grocery store departments: code, label, description, order)
+  - Read-only for authenticated users; changed only by migrations
+  - An "other" ingredient gets a real category only through `upgrade_ingredient_category` (it never moves one real category to another)
 
 ### Agent checklist for DB changes
 - [ ] RLS enabled on any new user-scoped table  
 - [ ] SELECT/INSERT/UPDATE/DELETE policies defined and reviewed  
 - [ ] Indexes added for foreign keys + common filters (`user_id`, `created_at`, `planned_for`)  
 - [ ] Avoid heavy text search / full-text unless explicitly planned  
-- [ ] No new shared/global tables or bloat tables beyond the `ingredients` / `ingredient_aliases` catalog  
+- [ ] No new shared/global tables or bloat tables beyond the `ingredients` / `ingredient_aliases` catalog and the `ingredient_categories` lookup  
 
 ---
 
