@@ -117,6 +117,29 @@ describe("AuthPage", () => {
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
+  // A confirmation link that went to the project's default Site URL
+  // "couldn't open the page"; it now comes back to this site's sign-in page.
+  it("signs up with a confirmation link back to this site", async () => {
+    vi.mocked(authService.signUpWithEmail).mockResolvedValue({ data: { user: {}, session: null }, error: null } as never);
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "mom@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.submit(screen.getByRole("heading", { name: "Create account" }).closest("form") ?? document.querySelector("form")!);
+
+    await waitFor(
+      () =>
+        expect(authService.signUpWithEmail).toHaveBeenCalledWith(
+          "mom@example.com",
+          "secret123",
+          `${window.location.origin}/auth`
+        ),
+      T
+    );
+    expect(await screen.findByText("Check your inbox for a link to confirm your email.", undefined, T)).toBeInTheDocument();
+  });
+
   it("requests a reset link from the forgot-password form", async () => {
     vi.mocked(authService.requestPasswordReset).mockResolvedValue({ data: {}, error: null } as never);
     renderPage();

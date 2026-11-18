@@ -5,8 +5,9 @@ export const authService = {
     return supabase.auth.signInWithPassword({ email, password });
   },
 
-  signUpWithEmail(email: string, password: string) {
-    return supabase.auth.signUp({ email, password });
+  /** The confirmation email links back to `emailRedirectTo` (see authLinkRedirectUrl). */
+  signUpWithEmail(email: string, password: string, emailRedirectTo: string) {
+    return supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
   },
 
   requestPasswordReset(email: string, redirectTo: string) {

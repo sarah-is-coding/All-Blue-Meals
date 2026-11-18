@@ -1,4 +1,18 @@
-import { describeAuthLinkError, parseAuthRedirect } from "../../../../features/auth/utils/authRedirect";
+import {
+  authLinkRedirectUrl,
+  describeAuthLinkError,
+  parseAuthRedirect,
+} from "../../../../features/auth/utils/authRedirect";
+
+describe("authLinkRedirectUrl", () => {
+  it("sends email links back to this site's sign-in page", () => {
+    expect(authLinkRedirectUrl("https://planmymeals.example")).toBe("https://planmymeals.example/auth");
+  });
+
+  it("uses the address the app is running at by default", () => {
+    expect(authLinkRedirectUrl()).toBe(`${window.location.origin}/auth`);
+  });
+});
 
 describe("parseAuthRedirect", () => {
   it("detects a password-reset link", () => {

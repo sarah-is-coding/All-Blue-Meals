@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { authService } from "../api";
+import { authLinkRedirectUrl } from "../utils/authRedirect";
 import LoadingModal from "../../../components/feedback/LoadingModal";
 
 type AuthMode = "signIn" | "signUp" | "resetRequest" | "resetUpdate";
@@ -65,7 +66,7 @@ export default function AuthPage({
 
     const action =
       mode === "signUp"
-        ? authService.signUpWithEmail(email, password)
+        ? authService.signUpWithEmail(email, password, authLinkRedirectUrl())
         : authService.signInWithEmail(email, password);
 
     const { data, error: authError } = await action;
@@ -90,10 +91,7 @@ export default function AuthPage({
       return;
     }
 
-    const { error: resetError } = await authService.requestPasswordReset(
-      email,
-      `${window.location.origin}/auth`
-    );
+    const { error: resetError } = await authService.requestPasswordReset(email, authLinkRedirectUrl());
 
     if (resetError) {
       setError(resetError.message);

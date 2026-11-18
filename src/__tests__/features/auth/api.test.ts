@@ -25,9 +25,15 @@ describe("authService", () => {
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "me@example.com", password: "secret" });
   });
 
-  it("signs up with email and password", async () => {
-    await authService.signUpWithEmail("me@example.com", "secret");
-    expect(auth.signUp).toHaveBeenCalledWith({ email: "me@example.com", password: "secret" });
+  // The confirmation email must link back to this site; without
+  // emailRedirectTo Supabase used the project's Site URL, which didn't open.
+  it("signs up with email and password, confirming back to the given page", async () => {
+    await authService.signUpWithEmail("me@example.com", "secret", "https://app.example/auth");
+    expect(auth.signUp).toHaveBeenCalledWith({
+      email: "me@example.com",
+      password: "secret",
+      options: { emailRedirectTo: "https://app.example/auth" },
+    });
   });
 
   it("requests a password reset that returns to the given page", async () => {

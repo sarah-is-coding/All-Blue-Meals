@@ -2,6 +2,18 @@
 // redirected back to the app. Supabase puts the result in the URL hash:
 //   success: #access_token=...&type=recovery   (the client then clears the hash)
 //   failure: #error=access_denied&error_code=otp_expired&error_description=...
+/**
+ * Where email links (sign-up confirmation, password reset) send people back
+ * to: this site's sign-in page, wherever the app is running. Without it,
+ * Supabase falls back to the project's Site URL, which may be a development
+ * address, so the link "couldn't open the page" on someone else's device.
+ * The address must also be allowed under Authentication → URL
+ * Configuration → Redirect URLs in the Supabase dashboard.
+ */
+export function authLinkRedirectUrl(origin: string = window.location.origin): string {
+  return `${origin}/auth`;
+}
+
 export type AuthRedirect =
   | { kind: "recovery" }
   | { kind: "error"; code: string; message: string };
