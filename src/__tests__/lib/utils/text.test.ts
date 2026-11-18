@@ -1,4 +1,4 @@
-import { cleanMissingText, joinNotes } from "../../../lib/utils/text";
+import { cleanMissingMultilineText, cleanMissingText, joinNotes } from "../../../lib/utils/text";
 
 describe("cleanMissingText", () => {
   it("trims and collapses whitespace", () => {
@@ -21,6 +21,27 @@ describe("cleanMissingText", () => {
   it("keeps real text that merely contains those words", () => {
     expect(cleanMissingText("none added")).toBe("none added");
     expect(cleanMissingText("nullabc")).toBe("nullabc");
+  });
+});
+
+describe("cleanMissingMultilineText", () => {
+  it("keeps line breaks, tidying each line", () => {
+    expect(cleanMissingMultilineText("  1. Chop   the onion. \n2. Fry it.\n")).toBe("1. Chop the onion.\n2. Fry it.");
+  });
+
+  it("normalizes Windows line endings and runs of blank lines", () => {
+    expect(cleanMissingMultilineText("1. Mix.\r\n\r\n\r\n\r\n2. Bake.\r3. Cool.")).toBe("1. Mix.\n\n2. Bake.\n3. Cool.");
+  });
+
+  it("returns empty for null, blank and 'no value' input", () => {
+    expect(cleanMissingMultilineText(null)).toBe("");
+    expect(cleanMissingMultilineText(undefined)).toBe("");
+    expect(cleanMissingMultilineText(" \n \n ")).toBe("");
+    expect(cleanMissingMultilineText(" N/A ")).toBe("");
+  });
+
+  it("keeps real text that merely contains those words", () => {
+    expect(cleanMissingMultilineText("null\nnone left")).toBe("null\nnone left");
   });
 });
 

@@ -9,7 +9,11 @@ import type {
   RecipeSummary,
   RecipeUpsertInput,
 } from "../types";
+import { cleanMissingMultilineText } from "../../../lib/utils/text";
 import { cleanText, saveIngredients } from "./ingredientRows";
+
+const cleanMultilineText = (value: string | null | undefined): string | null =>
+  cleanMissingMultilineText(value) || null;
 
 type RecipeSummaryRow = Pick<Tables<"recipes">, "id" | "title" | "description" | "prep_minutes" | "cook_minutes" | "tags" | "source_url" | "rating" | "created_at">;
 
@@ -71,13 +75,15 @@ const getFriendlyRecipeError = (error: { code?: string; message: string }): stri
 const getRecipePayload = (input: RecipeUpsertInput, userId: string) => ({
   user_id: userId,
   title: input.title.trim(),
-  description: cleanText(input.description),
+  // Multi-line fields keep their line breaks (one step per line); cleanText
+  // would collapse them into one paragraph.
+  description: cleanMultilineText(input.description),
   source_url: cleanText(input.sourceUrl),
   prep_minutes: input.prepMinutes,
   cook_minutes: input.cookMinutes,
   servings: input.servings,
   tags: input.tags,
-  instructions: cleanText(input.instructions),
+  instructions: cleanMultilineText(input.instructions),
 });
 
 async function requireUserId(): Promise<string> {

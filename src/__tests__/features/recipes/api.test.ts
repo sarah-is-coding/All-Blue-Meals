@@ -54,6 +54,7 @@ import {
   rateRecipe,
   updateRecipe,
 } from "../../../features/recipes/api";
+import { mapImportedRecipeToInput } from "../../../features/recipes/utils/recipeImport";
 
 const db = supabase as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
@@ -155,6 +156,63 @@ describe("recipe api", () => {
         expect.objectContaining({ ingredient_id: "ing-onion", ingredient_name: "Onions", notes: "diced" }),
       ],
     });
+  });
+
+  // Regression: step 3 cleaned these fields with the ingredient-text cleaner,
+  // which collapsed every newline, so saved steps became one paragraph.
+  it("keeps line breaks in instructions and description when creating a recipe", async () => {
+    await createRecipe({
+      ...recipeInput,
+      description: "Quick weeknight dinner.\nServe warm.",
+      instructions: "1. Preheat the oven.\r\n2. Toss   the vegetables.\n\n\n3. Roast for 20 minutes.  ",
+    });
+
+    expect(db.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Quick weeknight dinner.\nServe warm.",
+        instructions: "1. Preheat the oven.\n2. Toss the vegetables.\n\n3. Roast for 20 minutes.",
+      })
+    );
+  });
+
+  it("saves an imported recipe with one step per line", async () => {
+    // The AI sometimes returns all steps in one paragraph; the import puts
+    // each numbered step on its own line, and saving must keep them.
+    const input = mapImportedRecipeToInput({
+      title: "Roast vegetables",
+      description: "",
+      sourceUrl: null,
+      prepMinutes: null,
+      cookMinutes: null,
+      servings: null,
+      tags: [],
+      instructions: "1. Preheat the oven. 2. Toss the vegetables with oil. 3. Roast for 20 minutes.",
+      ingredients: [],
+      confidence: "high",
+      warnings: [],
+    });
+
+    await createRecipe(input);
+
+    expect(db.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: "1. Preheat the oven.\n2. Toss the vegetables with oil.\n3. Roast for 20 minutes.",
+      })
+    );
+  });
+
+  it("keeps line breaks in instructions when editing a recipe", async () => {
+    await updateRecipe("recipe-1", { ...recipeInput, instructions: "1. Boil water.\n2. Add pasta." });
+
+    expect(db.update).toHaveBeenCalledWith(
+      expect.objectContaining({ instructions: "1. Boil water.\n2. Add pasta." })
+    );
+  });
+
+  it("saves blank or 'null' instructions and description as null", async () => {
+    await createRecipe({ ...recipeInput, description: "  \n ", instructions: "null" });
+
+    expect(db.insert).toHaveBeenCalledWith(expect.objectContaining({ description: null, instructions: null }));
   });
 
   it("normalizes units and clears 'null' text when saving", async () => {

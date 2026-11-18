@@ -13,6 +13,22 @@ export const cleanMissingText = (value: string | null | undefined): string => {
 };
 
 /**
+ * cleanMissingText for text whose line breaks matter (recipe instructions,
+ * descriptions): keeps each line, trims it and collapses spaces within it,
+ * and turns runs of blank lines into one. "null", "n/a", … still become "".
+ */
+export const cleanMissingMultilineText = (value: string | null | undefined): string => {
+  const text = (value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return cleanMissingText(text) ? text : "";
+};
+
+/**
  * Join note fragments with ", ", dropping empties and case-insensitive
  * repeats while keeping first-seen order.
  */
