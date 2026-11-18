@@ -3,7 +3,7 @@ import type { Tables } from "../../lib/db/database.types";
 import { upgradeIngredientCategory } from "./categories/api";
 import { toCategoryCode } from "./categories/codes";
 import type { Ingredient, IngredientCategory, IngredientMatch } from "./types";
-import { dropsWords, ingredientKey, singularDisplayName } from "./utils/ingredientKey";
+import { ingredientKey, isSafeSynonym, singularDisplayName } from "./utils/ingredientKey";
 
 // Matching follows docs/ingredient-normalization.md: a name matches an
 // ingredient when their keys match (ingredientKey ignores case, accents,
@@ -109,13 +109,14 @@ export type IngredientRequest = {
 };
 
 /**
- * Link names to their canonical ingredient through ingredient_aliases (rule
- * in docs/ingredient-normalization.md, "AI-created aliases"): when the
- * canonical ingredient exists in the same category the alias is approved and
- * the name resolves to it now; in a different category, or when the canonical
- * name only leaves words out, it's saved as pending for review and the name
- * is created as written. Aliases are best effort: a
- * failure never stops a recipe from saving.
+ * Link names to their canonical ingredient through ingredient_aliases ("AI-
+ * created aliases" in docs/ingredient-normalization.md). Decided
+ * automatically, with no review queue: when the canonical ingredient exists
+ * in the same category and the two names are safe synonyms (isSafeSynonym),
+ * the alias is added and the name resolves to it now. Otherwise nothing is
+ * saved and the name is created as written, so the worst case is a
+ * duplicate, never a wrong merge. The database function re-checks the same
+ * rules. Best effort: a failure never stops a recipe from saving.
  */
 const linkCanonicalNames = async (
   requests: Map<string, IngredientRequest>,
@@ -135,27 +136,23 @@ const linkCanonicalNames = async (
     );
     const canonicals = await findByKeys(canonicalRequests);
 
-    const aliases = candidates.flatMap(([key, request]) => {
-      const canonical = canonicals.get(ingredientKey(request.canonicalName ?? ""));
-      if (!canonical) return [];
-      // A canonical name that only drops words ("chicken breasts" for
-      // "skinless boneless chicken breasts") is a broader item: pending.
-      const approved = canonical.category === request.category && !dropsWords(request.name, canonical.name);
-      if (approved) found.set(key, canonical);
-      return [{
-        alias_key: key,
-        alias_name: request.name.trim().toLowerCase(),
-        ingredient_id: canonical.id,
-        source: "ai",
-        status: approved ? "approved" : "pending",
-      }];
-    });
-    if (aliases.length > 0) {
-      // An alias someone else just added for the same name is fine to keep.
-      await supabase
-        .from("ingredient_aliases")
-        .upsert(aliases, { onConflict: "alias_key", ignoreDuplicates: true });
-    }
+    await Promise.all(
+      candidates.map(async ([key, request]) => {
+        const canonical = canonicals.get(ingredientKey(request.canonicalName ?? ""));
+        const safe =
+          canonical !== undefined &&
+          canonical.category === request.category &&
+          isSafeSynonym(request.name, canonical.name);
+        if (!safe) return;
+        const { data: linked, error } = await supabase.rpc("add_ingredient_alias", {
+          p_alias_key: key,
+          p_alias_name: request.name.trim(),
+          p_ingredient_id: canonical.id,
+          p_category: request.category,
+        });
+        if (!error && linked === true) found.set(key, canonical);
+      })
+    );
   } catch {
     // Best effort: without the alias, the name is simply created as written.
   }

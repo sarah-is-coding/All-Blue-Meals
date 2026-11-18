@@ -65,19 +65,22 @@ export const ingredientWords = (name: string): string[] =>
   foldText(name).split(" ").filter(Boolean).map(singularizeWord);
 
 /**
- * True when `general` is `specific` with words left out ("skinless boneless
- * chicken breasts" → "chicken breasts", "flat-leaf parsley" → "parsley"):
- * a broader item, not a synonym. Those words usually change what you buy,
- * so such a pair must not be an approved alias.
+ * Whether `canonical` can safely be an alias target for `written`: the same
+ * words in another order ("skinless boneless" / "boneless skinless"), or no
+ * words in common ("scallions" / "green onion"). Names that share some words
+ * but not others are variants or broader/narrower items ("red onion" /
+ * "yellow onion", "chicken breasts" / "boneless skinless chicken breasts"),
+ * never synonyms. Same key, or an empty name, is not an alias at all.
+ * Mirrored by the add_ingredient_alias database function.
  */
-export const dropsWords = (specific: string, general: string): boolean => {
-  const specificWords = new Set(ingredientWords(specific));
-  const generalWords = new Set(ingredientWords(general));
-  return (
-    generalWords.size > 0 &&
-    generalWords.size < specificWords.size &&
-    [...generalWords].every((word) => specificWords.has(word))
-  );
+export const isSafeSynonym = (written: string, canonical: string): boolean => {
+  const writtenWords = new Set(ingredientWords(written));
+  const canonicalWords = new Set(ingredientWords(canonical));
+  if (writtenWords.size === 0 || canonicalWords.size === 0) return false;
+  if (ingredientKey(written) === ingredientKey(canonical)) return false;
+  const shared = [...writtenWords].filter((word) => canonicalWords.has(word)).length;
+  const sameWords = shared === writtenWords.size && shared === canonicalWords.size;
+  return sameWords || shared === 0;
 };
 
 const keepsPlural = (words: string[]): boolean => {

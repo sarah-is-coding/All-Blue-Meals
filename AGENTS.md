@@ -95,7 +95,8 @@ This codebase follows **modular programming** and **separation of concerns**. Av
     - `saved_plan_meals.saved_plan_id → saved_plans.user_id`
     - `grocery_items.list_id → grocery_lists.user_id`
 - Shared catalog: `ingredients` and `ingredient_aliases` (no `user_id`)
-  - Any authenticated user can read and insert; no update/delete policies
+  - Any authenticated user can read both and insert ingredients; no update/delete policies
+  - Aliases are added only by migrations (seed/merge) or through `add_ingredient_alias`, which accepts only safe synonyms; clients can't insert them directly
   - These are the only intentional shared tables — keep rows small (name, key, category, default unit; alias key and name)
   - `ingredient_aliases` maps synonyms to a catalog ingredient ("scallions" → green onion); see `docs/ingredient-normalization.md`
 - Lookup table: `ingredient_categories` (grocery store departments: code, label, description, order)

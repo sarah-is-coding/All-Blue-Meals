@@ -21,6 +21,7 @@ vi.mock("../../../lib/supabaseClient", () => {
     builder[method] = vi.fn().mockReturnValue(builder);
   }
   builder.returns = vi.fn().mockResolvedValue({ data: [], error: null });
+  builder.rpc = vi.fn().mockResolvedValue({ data: true, error: null });
   return { supabase: builder };
 });
 
@@ -50,6 +51,7 @@ beforeEach(() => {
     db[method].mockReturnValue(db);
   }
   db.returns.mockResolvedValue(ok([]));
+  db.rpc.mockResolvedValue({ data: true, error: null });
   vi.mocked(upgradeIngredientCategory).mockResolvedValue(true);
 });
 
@@ -258,10 +260,19 @@ describe("createIngredient", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// AI canonical names → ingredient_aliases (step 5)
+// AI canonical names → ingredient_aliases. Decided automatically: a safe
+// synonym in the same category is added (through add_ingredient_alias,
+// which re-checks) and used now; anything else saves nothing and the name
+// is created as written. There's no pending state any more, because nobody
+// reviewed pending aliases.
 // ─────────────────────────────────────────────────────────────
+const aliasCall = (key: string, name: string, ingredientId: string, category: string) => [
+  "add_ingredient_alias",
+  { p_alias_key: key, p_alias_name: name, p_ingredient_id: ingredientId, p_category: category },
+];
+
 describe("resolveIngredients with a canonical name", () => {
-  it("uses the canonical ingredient and adds an approved alias when the category matches", async () => {
+  it("adds the alias and uses the canonical ingredient for a safe synonym in the same category", async () => {
     db.returns
       .mockResolvedValueOnce(ok([])) // "scallions" by key
       .mockResolvedValueOnce(ok([])) // by alias
@@ -271,52 +282,43 @@ describe("resolveIngredients with a canonical name", () => {
       { name: "Scallions", category: "produce", canonicalName: "green onion" },
     ]);
 
-    expect(result.get("scallion")?.id).toBe("i-1");
-    expect(db.upsert).toHaveBeenCalledWith(
-      [{ alias_key: "scallion", alias_name: "scallions", ingredient_id: "i-1", source: "ai", status: "approved" }],
-      { onConflict: "alias_key", ignoreDuplicates: true }
-    );
+    expect(db.rpc).toHaveBeenCalledWith(...aliasCall("scallion", "Scallions", "i-1", "produce"));
+    expect(db.upsert).not.toHaveBeenCalled();
     expect(db.insert).not.toHaveBeenCalled();
+    expect(result.get("scallion")?.id).toBe("i-1");
   });
 
-  it("saves a pending alias and creates the name as written when the category differs", async () => {
+  it("saves nothing and creates the name as written when the category differs", async () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([row("i-1", "butter", "butter", "dairy_eggs")]))
-      .mockResolvedValueOnce(ok([row("n-1", "ghee", "ghee", "baking")]));
+      .mockResolvedValueOnce(ok([row("n-1", "ghee", "ghee", "oils_sauces_condiments")]));
 
-    const result = await resolveIngredients([{ name: "ghee", category: "baking", canonicalName: "butter" }]);
+    const result = await resolveIngredients([{ name: "ghee", category: "oils_sauces_condiments", canonicalName: "butter" }]);
 
-    expect(db.upsert).toHaveBeenCalledWith(
-      [expect.objectContaining({ alias_key: "ghee", ingredient_id: "i-1", status: "pending" })],
-      expect.anything()
-    );
-    expect(db.insert).toHaveBeenCalledWith([{ name: "ghee", name_key: "ghee", category: "baking" }]);
+    expect(db.rpc).not.toHaveBeenCalled();
+    expect(db.insert).toHaveBeenCalledWith([{ name: "ghee", name_key: "ghee", category: "oils_sauces_condiments" }]);
     expect(result.get("ghee")?.id).toBe("n-1");
   });
 
   // Found on the Chicken Francese import: the AI gave "chicken breasts" for
   // "skinless boneless chicken breasts", which made the grocery list lose
   // words that change what you buy.
-  it("saves a pending alias and creates the name as written when the canonical name only drops words", async () => {
+  it.each([
+    ["broader", "skinless boneless chicken breasts", "chicken breasts", "chickenbreast"],
+    ["a variant", "red onion", "yellow onion", "yellowonion"],
+  ])("saves nothing for a %s name and creates the name as written", async (_kind, name, canonicalName, canonicalKey) => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([row("i-1", "chicken breasts", "chickenbreast", "meat_seafood")]))
-      .mockResolvedValueOnce(ok([row("n-1", "skinless boneless chicken breasts", "skinlessbonelesschickenbreast", "meat_seafood")]));
+      .mockResolvedValueOnce(ok([row("i-1", canonicalName, canonicalKey, "produce")]))
+      .mockResolvedValueOnce(ok([row("n-1", name, "new", "produce")]));
 
-    await resolveIngredients([
-      { name: "skinless boneless chicken breasts", category: "meat_seafood", canonicalName: "chicken breasts" },
-    ]);
+    await resolveIngredients([{ name, category: "produce", canonicalName }]);
 
-    expect(db.upsert).toHaveBeenCalledWith(
-      [expect.objectContaining({ alias_key: "skinlessbonelesschickenbreast", ingredient_id: "i-1", status: "pending" })],
-      expect.anything()
-    );
-    expect(db.insert).toHaveBeenCalledWith([
-      { name: "skinless boneless chicken breasts", name_key: "skinlessbonelesschickenbreast", category: "meat_seafood" },
-    ]);
+    expect(db.rpc).not.toHaveBeenCalled();
+    expect(db.insert).toHaveBeenCalledWith([expect.objectContaining({ name, category: "produce" })]);
   });
 
   it("adds no alias when the canonical name isn't in the catalog", async () => {
@@ -326,27 +328,46 @@ describe("resolveIngredients with a canonical name", () => {
 
     await resolveIngredients([{ name: "pak choi", category: "produce", canonicalName: "bok choy" }]);
 
-    expect(db.upsert).not.toHaveBeenCalled();
+    expect(db.rpc).not.toHaveBeenCalled();
     expect(db.insert).toHaveBeenCalledWith([{ name: "pak choi", name_key: "pakchoi", category: "produce" }]);
   });
 
   it("ignores a canonical name with the same key as the name", async () => {
     db.returns.mockResolvedValueOnce(ok([row("i-1", "onion", "onion")]));
     await resolveIngredients([{ name: "onions", category: "produce", canonicalName: "Onion" }]);
-    expect(db.upsert).not.toHaveBeenCalled();
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 
-  it("still saves when adding the alias fails", async () => {
+  // Changed when aliases became automatic: the canonical ingredient is used
+  // only once the database confirms the alias. Before, a failed save still
+  // linked the name for that one recipe.
+  it.each([
+    ["the database refuses it", { data: false, error: null }],
+    ["the call errors", { data: null, error: { message: "denied" } }],
+  ])("creates the name as written when %s", async (_why, response) => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")]));
-    db.upsert.mockRejectedValueOnce(new Error("network"));
+      .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")]))
+      .mockResolvedValueOnce(ok([row("n-1", "scallion", "scallion", "produce")]));
+    db.rpc.mockResolvedValueOnce(response);
 
-    const result = await resolveIngredients([
-      { name: "scallions", category: "produce", canonicalName: "green onion" },
-    ]);
-    expect(result.get("scallion")?.id).toBe("i-1");
+    const result = await resolveIngredients([{ name: "scallions", category: "produce", canonicalName: "green onion" }]);
+
+    expect(result.get("scallion")?.id).toBe("n-1");
+  });
+
+  it("still saves the recipe's ingredients when the alias call throws", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")]))
+      .mockResolvedValueOnce(ok([row("n-1", "scallion", "scallion", "produce")]));
+    db.rpc.mockRejectedValueOnce(new Error("network"));
+
+    const result = await resolveIngredients([{ name: "scallions", category: "produce", canonicalName: "green onion" }]);
+
+    expect(result.get("scallion")?.id).toBe("n-1");
   });
 });
 
