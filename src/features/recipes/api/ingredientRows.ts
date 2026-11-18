@@ -5,7 +5,7 @@
 import { supabase } from "../../../lib/supabaseClient";
 import { parseQuantityNumber } from "../../../lib/utils/quantities";
 import { cleanMissingText, joinNotes } from "../../../lib/utils/text";
-import { normalizeUnit } from "../../../lib/utils/units";
+import { applySizeQuantity, normalizeUnit } from "../../../lib/utils/units";
 import { resolveIngredients } from "../../ingredients/api";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import type { RecipeUpsertInput } from "../types";
@@ -43,8 +43,9 @@ const getIngredientRows = async (input: RecipeUpsertInput) => {
       const ingredientId =
         ingredient.ingredientId ||
         (ingredientName ? resolved.get(ingredientKey(ingredientName))?.id ?? "" : "");
-      const quantityText = cleanText(ingredient.quantity);
-      const unit = normalizeUnit(ingredient.unit);
+      // "15" + "ounce can" is one 15 oz can: the size moves to the notes.
+      const sized = applySizeQuantity(cleanText(ingredient.quantity) ?? "", normalizeUnit(ingredient.unit));
+      const quantityText = cleanText(sized.quantity);
       return {
         id: ingredient.clientId,
         substituteFor: ingredient.substituteFor,
@@ -53,8 +54,8 @@ const getIngredientRows = async (input: RecipeUpsertInput) => {
           ingredient_name: ingredientName,
           quantity: quantityText,
           quantity_numeric: quantityText ? parseQuantityNumber(quantityText) : null,
-          unit: unit.unit || null,
-          notes: joinNotes([...unit.notes, ingredient.notes]) || null,
+          unit: sized.unit || null,
+          notes: joinNotes([...sized.notes, ingredient.notes]) || null,
         },
       };
     })

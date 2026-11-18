@@ -142,4 +142,5 @@ export const KEEP_PLURAL_LAST_WORDS = [
   "shells", "aminos", "tomatillos", "chilies", "chiles", "flakes", "clams", "mussels",
   "shrimp", "scallops", "anchovies", "sardines", "lentils", "berries",
   "thighs", "breasts", "wings", "legs", "drumsticks", "chops", "ribs", "cutlets",
+  "chives", "carnitas", "microgreens", "herbs", "cloves",
 ];

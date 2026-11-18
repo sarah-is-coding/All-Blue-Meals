@@ -107,3 +107,10 @@ describe("normalizeIngredientLine", () => {
     ).toEqual({ lines: [], flags: [] });
   });
 });
+
+describe("normalizeIngredientLine: container sizes", () => {
+  it("turns '15 ounce can' into one can with the size in the notes", () => {
+    const result = normalizeIngredientLine({ ingredientName: "black beans", quantity: "15", unit: "ounce can", notes: "drained" });
+    expect(result.lines[0]).toMatchObject({ quantity: "1", unit: "can", notes: "15 oz, drained" });
+  });
+});

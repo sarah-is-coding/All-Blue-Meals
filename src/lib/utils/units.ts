@@ -9,6 +9,28 @@ export type NormalizedUnit = {
   unit: string;
   /** Text that was in the unit field but belongs in the notes. */
   notes: string[];
+  /**
+   * The unit names a container size without a number ("ounce can", "g jar"),
+   * so the line's quantity is the size, not a count: "15 ounce can" is one
+   * 15 oz can. Callers move the quantity into the notes (see applySizeQuantity).
+   */
+  sizeUnit?: string;
+};
+
+/**
+ * Apply a container size written as quantity + unit ("15" + "ounce can"):
+ * the quantity becomes "1" and "15 oz" goes to the notes. Other lines are
+ * returned unchanged.
+ */
+export const applySizeQuantity = (
+  quantity: string,
+  normalized: NormalizedUnit
+): { quantity: string; unit: string; notes: string[] } => {
+  const amount = quantity.trim();
+  if (!normalized.sizeUnit || !amount) {
+    return { quantity, unit: normalized.unit, notes: normalized.notes };
+  }
+  return { quantity: "1", unit: normalized.unit, notes: [`${amount} ${normalized.sizeUnit}`, ...normalized.notes] };
 };
 
 // Every spelling (lowercase, without a trailing ".") → canonical unit.
@@ -119,7 +141,11 @@ export const normalizeUnit = (value: string | null | undefined): NormalizedUnit 
   const last = words[words.length - 1] ?? "";
   const container = lookupUnit(last);
   if (container && CONTAINER_UNITS.has(container) && words.length > 1) {
-    const size = tidySize(words.slice(0, -1).join(" "));
+    const size = tidySize(words.slice(0, -1).join(" ").replace(/^x\s+/, ""));
+    // "ounce can", "g jar", "oz. carton": a size unit with no number.
+    if (size && !/\d/.test(size) && lookupUnit(size)) {
+      return { unit: container, notes, sizeUnit: lookupUnit(size) ?? size };
+    }
     return { unit: container, notes: size ? [size, ...notes] : notes };
   }
   // Container first: "can (4 oz.)" is handled above via parentheses; "can 4 oz" here.

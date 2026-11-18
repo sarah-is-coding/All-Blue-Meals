@@ -1,4 +1,4 @@
-import { normalizeUnit } from "../../../lib/utils/units";
+import { applySizeQuantity, normalizeUnit } from "../../../lib/utils/units";
 
 describe("normalizeUnit", () => {
   // Spellings found in recipe_ingredients.unit (2026-11-17).
@@ -42,7 +42,9 @@ describe("normalizeUnit", () => {
     expect(normalizeUnit("28-ounce can")).toEqual({ unit: "can", notes: ["28 oz"] });
     expect(normalizeUnit("13.5oz cans")).toEqual({ unit: "can", notes: ["13.5 oz"] });
     expect(normalizeUnit("32 oz. jar")).toEqual({ unit: "jar", notes: ["32 oz"] });
-    expect(normalizeUnit("ounce can")).toEqual({ unit: "can", notes: ["oz"] });
+    // Was notes ["oz"], which turned "15 ounce can" into 15 cans; the size
+    // now comes from the quantity (see "container sizes in the quantity").
+    expect(normalizeUnit("ounce can")).toEqual({ unit: "can", notes: [], sizeUnit: "oz" });
     expect(normalizeUnit("large can")).toEqual({ unit: "can", notes: ["large"] });
     expect(normalizeUnit("(9-ounce) package")).toEqual({ unit: "package", notes: ["9 oz"] });
   });
@@ -53,5 +55,29 @@ describe("normalizeUnit", () => {
 
   it("keeps unknown units, lowercased, so nothing is lost", () => {
     expect(normalizeUnit("Smidgen")).toEqual({ unit: "smidgen", notes: [] });
+  });
+});
+
+// A container size written as quantity + unit ("15" + "ounce can") is one
+// container of that size, not 15 containers. Found by the step 7 review.
+describe("container sizes in the quantity", () => {
+  it("marks units that name a size without a number", () => {
+    expect(normalizeUnit("ounce can")).toEqual({ unit: "can", notes: [], sizeUnit: "oz" });
+    expect(normalizeUnit("g jar")).toEqual({ unit: "jar", notes: [], sizeUnit: "g" });
+    expect(normalizeUnit("oz. carton")).toEqual({ unit: "container", notes: [], sizeUnit: "oz" });
+    expect(normalizeUnit("15 ounce can").sizeUnit).toBeUndefined();
+  });
+
+  it("drops the 'x' in '2 x 125g packs'", () => {
+    expect(normalizeUnit("x 125g packs")).toEqual({ unit: "package", notes: ["125 g"] });
+  });
+
+  it("moves the quantity into the notes as the size", () => {
+    expect(applySizeQuantity("15", normalizeUnit("ounce can"))).toEqual({ quantity: "1", unit: "can", notes: ["15 oz"] });
+  });
+
+  it("leaves other lines alone", () => {
+    expect(applySizeQuantity("2", normalizeUnit("cups"))).toEqual({ quantity: "2", unit: "cup", notes: [] });
+    expect(applySizeQuantity("", normalizeUnit("ounce can"))).toEqual({ quantity: "", unit: "can", notes: [] });
   });
 });

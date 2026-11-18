@@ -610,7 +610,14 @@ Each is its own commit; the app works after every one.
 7. **Cleanup script → reviewed mapping → data migration.** Names, notes,
    units, junk values, "or" rows, merges; matched by name; collision check.
    Merged-away names become `merge` alias rows of the kept ingredient; the
-   `seed` synonyms are added once their pairs are merged.
+   `seed` synonyms are added once their pairs are merged. Tooling in
+   `scripts/ingredient-cleanup/` (`npm run cleanup:review`, then
+   `npm run cleanup:migration`); decisions from the review: plain `pepper`
+   merges into black pepper (no `pepper` alias, since it can mean a bell
+   pepper), the Stonefire naan becomes `naan` with a note, placeholders and
+   made-in-recipe parts stay (the latter until recipe sections). **Done**
+   (applied 2026-11-17: 604 → 463 ingredients, 99 merge + 34 seed aliases,
+   34 substitute rows).
 8. **Contract:** `name_key not null unique`; drop the fallback to `name`.
    Remove `recipe_ingredients.ingredient_name`: recipe detail and grocery
    generation read the name from `ingredients` (the grocery query already

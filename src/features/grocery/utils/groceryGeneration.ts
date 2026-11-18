@@ -5,7 +5,7 @@ import {
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import { parseName } from "../../ingredients/utils/ingredientText";
 import { parseQuantityNumber } from "../../../lib/utils/quantities";
-import { normalizeUnit } from "../../../lib/utils/units";
+import { applySizeQuantity, normalizeUnit } from "../../../lib/utils/units";
 import type { GroceryItemDraft } from "../types";
 
 export type ScaledIngredient = {
@@ -88,10 +88,12 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
     const nameTrimmed = ing.ingredientName.trim();
     if (!nameTrimmed || isWater(nameTrimmed)) continue;
 
-    const unit = normalizeUnit(ing.unit).unit;
+    // "15" + "ounce can" (rows not yet cleaned) is one can, not 15.
+    const sized = applySizeQuantity(ing.quantity.trim(), normalizeUnit(ing.unit));
+    const unit = sized.unit;
     const identity = ing.ingredientId || ingredientKey(nameTrimmed);
     const key = `${identity}|${unit}`;
-    const rawQty = ing.quantity.trim();
+    const rawQty = sized.quantity.trim();
     const qty = rawQty ? parseQuantityNumber(rawQty) : null;
 
     let bucket = buckets.get(key);

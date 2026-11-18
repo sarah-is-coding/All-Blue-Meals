@@ -3,7 +3,7 @@
 // substitutes split out, and lists or "salt and pepper" split into rows.
 
 import { cleanMissingText, joinNotes } from "../../../lib/utils/text";
-import { normalizeUnit } from "../../../lib/utils/units";
+import { applySizeQuantity, normalizeUnit } from "../../../lib/utils/units";
 import {
   parseIngredientText,
   type ParseOptions,
@@ -41,9 +41,11 @@ export const normalizeIngredientLine = (
   input: IngredientLineInput,
   options: ParseOptions = {}
 ): NormalizedLineResult => {
-  const quantity = cleanMissingText(input.quantity);
   const lineNotes = cleanMissingText(input.notes);
-  const unit = normalizeUnit(input.unit);
+  // "15" + "ounce can" is one 15 oz can: the size moves to the notes.
+  const sized = applySizeQuantity(cleanMissingText(input.quantity), normalizeUnit(input.unit));
+  const quantity = sized.quantity;
+  const unit = { unit: sized.unit, notes: sized.notes };
   const parsed = parseIngredientText(cleanMissingText(input.ingredientName), options);
 
   const build = (name: ParsedName, extraNotes: string[], amount: string, unitText: string) => ({
