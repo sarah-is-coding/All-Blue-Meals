@@ -653,6 +653,25 @@ Each is its own commit; the app works after every one.
    recategorization: AI-proposed mapping for every `other` ingredient,
    reviewed, applied by a migration matched by name; `category` becomes
    `not null`.
+   **Changed during review:** the categories are 14 grocery store
+   departments in walking order instead of the 8 above. `pantry` is split
+   into aisles: produce, meat_seafood, deli, dairy_eggs, bakery_bread,
+   pasta_rice_grains, canned_jarred, baking, spices_seasonings,
+   oils_sauces_condiments, snacks_nuts_dried_fruit, frozen, beverages,
+   other. Every ingredient (not only `other`) got a proposed department,
+   reviewed and approved 2026-11-18. In two phases, since the live app
+   wrote the old values:
+   - **Phase 1 (done):** the table, the upgrade function, and a CHECK that
+     accepts old values and codes (`20261118160000`); the app reads codes,
+     labels and order from the table and maps old values.
+   - **Phase 2 (after phase 1 is deployed):** a migration rewrites every
+     ingredient to its approved department by name (old values with no
+     mapping fall back to `other`), rewrites `grocery_items.category`, moves
+     bouillon into Canned & Jarred's description, replaces the CHECK with a
+     foreign key, and makes `category` `not null`; the edge function builds
+     its categories from the table and is redeployed. The approved mapping
+     waits in `docs/ingredient-category-mapping.json` (ingredient name →
+     code); phase 2 turns it into the migration and deletes it.
 
 Steps 1–6 can merge to `main` before the cleanup; the cleanup (7–8) needs
 the review in between. Step 9 runs last, so it recategorizes the merged

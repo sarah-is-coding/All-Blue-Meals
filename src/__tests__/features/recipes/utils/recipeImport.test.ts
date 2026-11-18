@@ -21,7 +21,7 @@ const importedRecipe: ImportedRecipe = {
       quantity: "1",
       unit: "lb",
       notes: "salted and peppered",
-      category: "meat & seafood",
+      category: "meat_seafood",
     },
   ],
   confidence: "medium",
@@ -49,7 +49,7 @@ describe("recipe import mapping", () => {
           quantity: "1",
           unit: "lb",
           notes: "salted and peppered",
-          category: "meat & seafood",
+          category: "meat_seafood",
           substituteFor: null,
           canonicalName: null,
         },
@@ -66,11 +66,11 @@ describe("recipe import mapping", () => {
         { ingredientName: "Large garlic cloves, minced", quantity: "2", unit: "", notes: "", category: "produce" },
         {
           ingredientName: "olive oil", canonicalName: "olive oil", quantity: "2", unit: "Tablespoons",
-          notes: "null", category: "pantry",
-          substitutes: [{ ingredientName: "avocado oil", quantity: "2", unit: "tbsp", notes: "", category: "pantry" }],
+          notes: "null", category: "baking",
+          substitutes: [{ ingredientName: "avocado oil", quantity: "2", unit: "tbsp", notes: "", category: "baking" }],
         },
         { ingredientName: "scallions", canonicalName: "Green Onion", quantity: "3", unit: "", notes: "sliced", category: "produce" },
-        { ingredientName: "salt and pepper", quantity: "", unit: "", notes: "to taste", category: "pantry" },
+        { ingredientName: "salt and pepper", quantity: "", unit: "", notes: "to taste", category: "baking" },
       ],
     }).ingredients;
 
@@ -87,7 +87,7 @@ describe("recipe import mapping", () => {
   it("splits an 'or' written inside the name into a substitute row", () => {
     const rows = mapImportedRecipeToFormValues({
       ...importedRecipe,
-      ingredients: [{ ingredientName: "chicken or beef broth", quantity: "2", unit: "cups", notes: "", category: "pantry" }],
+      ingredients: [{ ingredientName: "chicken or beef broth", quantity: "2", unit: "cups", notes: "", category: "baking" }],
     }).ingredients;
     expect(rows.map((r) => [r.ingredientName, r.unit])).toEqual([["chicken broth", "cup"], ["beef broth", "cup"]]);
     expect(rows[1]!.substituteFor).toBe(rows[0]!.id);

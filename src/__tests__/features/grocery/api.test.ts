@@ -144,9 +144,9 @@ describe("buildGroceryItemsForSavedPlan", () => {
     builder.returns.mockResolvedValueOnce({
       data: [
         { id: "ri-1", recipe_id: "r1", ingredient_id: "i-olive", quantity: "1",
-          unit: "tbsp", substitute_for: null, ingredients: { name: "olive oil", category: "pantry" } },
+          unit: "tbsp", substitute_for: null, ingredients: { name: "olive oil", category: "baking" } },
         { id: "ri-2", recipe_id: "r1", ingredient_id: "i-avo", quantity: "1",
-          unit: "tbsp", substitute_for: "ri-1", ingredients: { name: "avocado oil", category: "pantry" } },
+          unit: "tbsp", substitute_for: "ri-1", ingredients: { name: "avocado oil", category: "baking" } },
       ],
       error: null,
     });
@@ -155,7 +155,7 @@ describe("buildGroceryItemsForSavedPlan", () => {
 
     expect(builder.is).not.toHaveBeenCalled();
     expect(items).toEqual([
-      { ingredientName: "olive oil", quantity: "2", unit: "tbsp", category: "pantry", substitutes: ["avocado oil, 2 tbsp"] },
+      { ingredientName: "olive oil", quantity: "2", unit: "tbsp", category: "baking", substitutes: ["avocado oil, 2 tbsp"] },
     ]);
   });
 
@@ -163,8 +163,8 @@ describe("buildGroceryItemsForSavedPlan", () => {
     vi.mocked(listSavedPlanMeals).mockResolvedValue([meal("tacos"), meal("salad"), meal("toast")]);
     builder.returns.mockResolvedValueOnce({
       data: [
-        ingredientRow("tacos", "tortillas", "8", "", "bakery & bread"),
-        ingredientRow("tacos", "ground beef", "1", "lb", "meat & seafood"),
+        ingredientRow("tacos", "tortillas", "8", "", "bakery_bread"),
+        ingredientRow("tacos", "ground beef", "1", "lb", "meat_seafood"),
         ingredientRow("salad", "lettuce", "1", "head", "produce"),
         ingredientRow("salad", "olive oil", ""),
         // toast has no ingredients; a recipe that isn't planned must never appear:
@@ -184,16 +184,16 @@ describe("buildGroceryItemsForSavedPlan", () => {
     vi.mocked(listSavedPlanMeals).mockResolvedValue([meal("r1", { servings: 4, override: 2 })]);
     builder.returns.mockResolvedValueOnce({
       data: [
-        ingredientRow("r1", "flour", "2", "cup", "pantry"),
-        ingredientRow("r1", "eggs", "4", "", "dairy & eggs"),
+        ingredientRow("r1", "flour", "2", "cup", "baking"),
+        ingredientRow("r1", "eggs", "4", "", "dairy_eggs"),
       ],
       error: null,
     });
 
-    // Sorted by category (dairy & eggs before pantry); scaled 2/4 = half.
+    // Sorted by category (dairy_eggs before pantry); scaled 2/4 = half.
     expect(await buildGroceryItemsForSavedPlan("plan-7")).toEqual([
-      { ingredientName: "eggs", quantity: "2", unit: "", category: "dairy & eggs", substitutes: [] },
-      { ingredientName: "flour", quantity: "1", unit: "cup", category: "pantry", substitutes: [] },
+      { ingredientName: "eggs", quantity: "2", unit: "", category: "dairy_eggs", substitutes: [] },
+      { ingredientName: "flour", quantity: "1", unit: "cup", category: "baking", substitutes: [] },
     ]);
   });
 
@@ -203,13 +203,13 @@ describe("buildGroceryItemsForSavedPlan", () => {
       meal("r1", { servings: 4, override: 4 }),
     ]);
     builder.returns.mockResolvedValueOnce({
-      data: [ingredientRow("r1", "butter", "4", "tbsp", "dairy & eggs")],
+      data: [ingredientRow("r1", "butter", "4", "tbsp", "dairy_eggs")],
       error: null,
     });
 
     // 4 × 0.5 + 4 × 1 = 6
     expect(await buildGroceryItemsForSavedPlan("plan-7")).toEqual([
-      { ingredientName: "butter", quantity: "6", unit: "tbsp", category: "dairy & eggs", substitutes: [] },
+      { ingredientName: "butter", quantity: "6", unit: "tbsp", category: "dairy_eggs", substitutes: [] },
     ]);
   });
 
@@ -253,12 +253,12 @@ describe("saveGroceryList", () => {
     builder.single.mockResolvedValueOnce({ data: fakeListRow, error: null });
 
     const fakeItemRows = [
-      { id: "item-1", ingredient_name: "salt", quantity: "1", unit: "tsp", is_checked: false, category: "pantry", substitutes: [] },
+      { id: "item-1", ingredient_name: "salt", quantity: "1", unit: "tsp", is_checked: false, category: "baking", substitutes: [] },
     ];
     builder.returns.mockResolvedValueOnce({ data: fakeItemRows, error: null });
 
     const result = await saveGroceryList("My List", { kind: "saved_plan", savedPlanId: "plan-1" }, [
-      { ingredientName: "salt", quantity: "1", unit: "tsp", category: "pantry", substitutes: [] },
+      { ingredientName: "salt", quantity: "1", unit: "tsp", category: "baking", substitutes: [] },
     ]);
 
     expect(result.id).toBe("list-1");
@@ -270,7 +270,7 @@ describe("saveGroceryList", () => {
       quantity: "1",
       unit: "tsp",
       isChecked: false,
-      category: "pantry",
+      category: "baking",
     });
   });
 
@@ -281,7 +281,7 @@ describe("saveGroceryList", () => {
     });
     builder.returns.mockResolvedValueOnce({ data: [], error: null });
     const drafts = [
-      { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread" as const, substitutes: [] },
+      { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery_bread" as const, substitutes: [] },
       { ingredientName: "lettuce", quantity: "1", unit: "head", category: "produce" as const, substitutes: [] },
       { ingredientName: "olive oil", quantity: "", unit: "", category: null, substitutes: [] },
     ];
@@ -298,7 +298,7 @@ describe("saveGroceryList", () => {
     });
     expect(builder.from).toHaveBeenCalledWith("grocery_items");
     expect(builder.insert).toHaveBeenNthCalledWith(2, [
-      { list_id: "list-9", ingredient_name: "tortillas", quantity: "8", unit: null, is_checked: false, category: "bakery & bread", substitutes: [] },
+      { list_id: "list-9", ingredient_name: "tortillas", quantity: "8", unit: null, is_checked: false, category: "bakery_bread", substitutes: [] },
       { list_id: "list-9", ingredient_name: "lettuce", quantity: "1", unit: "head", is_checked: false, category: "produce", substitutes: [] },
       { list_id: "list-9", ingredient_name: "olive oil", quantity: null, unit: null, is_checked: false, category: null, substitutes: [] },
     ]);

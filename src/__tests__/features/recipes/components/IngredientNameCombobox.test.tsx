@@ -1,7 +1,16 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import IngredientNameCombobox from "../../../../features/recipes/components/IngredientNameCombobox";
-import { INGREDIENT_CATEGORIES } from "../../../../features/ingredients/types";
+import { FALLBACK_CATEGORIES } from "../../../../features/ingredients/categories/codes";
+
+// Categories come from ingredient_categories through a query; these tests use
+// the built-in list (same codes and labels) instead of a query provider.
+vi.mock("../../../../features/ingredients/queries", async () => {
+  const codes = await vi.importActual<typeof import("../../../../features/ingredients/categories/codes")>(
+    "../../../../features/ingredients/categories/codes"
+  );
+  return { useIngredientCategories: () => codes.FALLBACK_CATEGORIES };
+});
 
 // Mock the entire ingredients API so tests never hit the network
 vi.mock("../../../../features/ingredients/api", () => ({
@@ -20,7 +29,7 @@ const mockCreate = vi.mocked(createIngredient);
 const CHICKEN = {
   id: "ing-1",
   name: "chicken breast",
-  category: "meat & seafood" as const,
+  category: "meat_seafood" as const,
   defaultUnit: "lbs",
   matchedAlias: null,
 };
@@ -28,7 +37,7 @@ const CHICKEN = {
 const OLIVE_OIL = {
   id: "ing-2",
   name: "olive oil",
-  category: "pantry" as const,
+  category: "baking" as const,
   defaultUnit: null,
   matchedAlias: null,
 };
@@ -127,7 +136,7 @@ describe("IngredientNameCombobox", () => {
       await user.type(input, "chick");
 
       await waitFor(
-        () => expect(screen.getByText("meat & seafood")).toBeInTheDocument(),
+        () => expect(screen.getByText("Meat & Seafood")).toBeInTheDocument(),
         AFTER_DEBOUNCE
       );
     });
@@ -243,12 +252,13 @@ describe("IngredientNameCombobox", () => {
       expect(screen.getByText(/pick a category/i)).toBeInTheDocument();
     });
 
-    it("shows all 8 category pills", async () => {
+    // Step 9: categories are the 14 store departments, shown by label.
+    it("shows a pill for every store department, by label", async () => {
       const { user } = setup();
       await openCategoryPicker(user);
 
-      for (const cat of INGREDIENT_CATEGORIES) {
-        expect(screen.getByRole("option", { name: cat })).toBeInTheDocument();
+      for (const cat of FALLBACK_CATEGORIES) {
+        expect(screen.getByRole("option", { name: cat.name })).toBeInTheDocument();
       }
     });
 
@@ -256,7 +266,7 @@ describe("IngredientNameCombobox", () => {
       const { user } = setup();
       await openCategoryPicker(user, "garlic");
 
-      await user.click(screen.getByRole("option", { name: "produce" }));
+      await user.click(screen.getByRole("option", { name: "Produce" }));
 
       await waitFor(() => {
         expect(mockCreate).toHaveBeenCalledWith("garlic", "produce");
@@ -274,7 +284,7 @@ describe("IngredientNameCombobox", () => {
       render(<IngredientNameCombobox value="" onSelect={onSelect} />);
 
       await openCategoryPicker(userEvent.setup(), "garlic");
-      await userEvent.click(screen.getByRole("option", { name: "produce" }));
+      await userEvent.click(screen.getByRole("option", { name: "Produce" }));
 
       await waitFor(() => {
         expect(onSelect).toHaveBeenCalledWith("new-ing-1", "garlic");
@@ -290,7 +300,7 @@ describe("IngredientNameCombobox", () => {
       });
       const { user } = setup();
       await openCategoryPicker(user, "garlic");
-      await user.click(screen.getByRole("option", { name: "produce" }));
+      await user.click(screen.getByRole("option", { name: "Produce" }));
 
       await waitFor(() => {
         expect(screen.getByRole("combobox")).toHaveValue("garlic");
@@ -373,7 +383,7 @@ describe("IngredientNameCombobox", () => {
       mockCreate.mockResolvedValue({
         id: "ei-99",
         name: "tamarind paste",
-        category: "pantry",
+        category: "baking",
         defaultUnit: null,
       });
 
@@ -401,17 +411,17 @@ describe("IngredientNameCombobox", () => {
         expect(screen.getByText(/pick a category for "tamarind paste"/i)).toBeInTheDocument()
       );
 
-      // 4. All 8 category pills are visible
-      for (const cat of INGREDIENT_CATEGORIES) {
-        expect(screen.getByRole("option", { name: cat })).toBeInTheDocument();
+      // 4. A pill for every store department is visible
+      for (const cat of FALLBACK_CATEGORIES) {
+        expect(screen.getByRole("option", { name: cat.name })).toBeInTheDocument();
       }
 
-      // 5. User selects "pantry"
-      await user.click(screen.getByRole("option", { name: "pantry" }));
+      // 5. User selects "baking"
+      await user.click(screen.getByRole("option", { name: "Baking" }));
 
       // 6. createIngredient was called with the right name + category
       await waitFor(() => {
-        expect(mockCreate).toHaveBeenCalledWith("tamarind paste", "pantry");
+        expect(mockCreate).toHaveBeenCalledWith("tamarind paste", "baking");
       });
 
       // 7. onSelect fires with the new ingredient's id and name

@@ -24,7 +24,7 @@ vi.mock("../../../../features/ingredients/api", () => ({
   createIngredient: vi.fn().mockResolvedValue({
     id: "ingredient-1",
     name: "ground chicken",
-    category: "meat & seafood",
+    category: "meat_seafood",
     defaultUnit: null,
   }),
   searchIngredients: vi.fn().mockResolvedValue([]),
@@ -76,7 +76,7 @@ describe("RecipeCreatePage", () => {
   it("adds an ingredient, adds a substitute for it, and saves them linked", async () => {
     const user = userEvent.setup();
     const match = (id: string, name: string) => ({
-      id, name, category: "pantry" as const, defaultUnit: null, matchedAlias: null,
+      id, name, category: "baking" as const, defaultUnit: null, matchedAlias: null,
     });
     vi.mocked(searchIngredients).mockImplementation(async (term) =>
       term.startsWith("oli") ? [match("ing-olive", "olive oil")] : [match("ing-avo", "avocado oil")]

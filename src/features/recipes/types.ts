@@ -85,7 +85,8 @@ export type ImportedIngredientOption = {
   quantity: string;
   unit: string;
   notes: string;
-  category: IngredientCategory | null;
+  /** As the function returned it: a category code, or an older label ("meat & seafood"). */
+  category: string | null;
 };
 
 export type ImportedRecipeIngredient = ImportedIngredientOption & {

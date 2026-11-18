@@ -134,6 +134,27 @@ export type Database = {
           },
         ]
       }
+      ingredient_categories: {
+        Row: {
+          description: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          description: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Update: {
+          description?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       ingredients: {
         Row: {
           category: string | null
@@ -402,6 +423,10 @@ export type Database = {
     Functions: {
       save_recipe_ingredients: {
         Args: { p_recipe_id: string; p_rows: Json }
+        Returns: undefined
+      }
+      upgrade_ingredient_category: {
+        Args: { p_category: string; p_ingredient_id: string }
         Returns: undefined
       }
     }

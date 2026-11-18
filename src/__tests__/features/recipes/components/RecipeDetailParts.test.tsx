@@ -5,7 +5,7 @@ import IngredientCategoryPicker from "../../../../features/recipes/components/In
 import RecipeBackLinks from "../../../../features/recipes/components/RecipeBackLinks";
 import RecipeDeleteControls from "../../../../features/recipes/components/RecipeDeleteControls";
 import RecipeScaleTools from "../../../../features/recipes/components/RecipeScaleTools";
-import { INGREDIENT_CATEGORIES } from "../../../../features/ingredients/types";
+import { FALLBACK_CATEGORIES } from "../../../../features/ingredients/categories/codes";
 
 // Pieces split out of RecipeDetailPage and IngredientNameCombobox to keep
 // those files under 300 lines; the pages' own tests cover them in place too.
@@ -93,6 +93,7 @@ describe("IngredientCategoryPicker", () => {
     render(
       <IngredientCategoryPicker
         name="sumac"
+        categories={FALLBACK_CATEGORIES}
         activeIndex={-1}
         creating={false}
         onActiveIndexChange={vi.fn()}
@@ -101,9 +102,10 @@ describe("IngredientCategoryPicker", () => {
       />
     );
     expect(screen.getByText('Pick a category for "sumac"')).toBeInTheDocument();
-    expect(screen.getAllByRole("option")).toHaveLength(INGREDIENT_CATEGORIES.length);
-    await user.click(screen.getByRole("option", { name: "pantry" }));
-    expect(onPick).toHaveBeenCalledWith("pantry");
+    expect(screen.getAllByRole("option")).toHaveLength(FALLBACK_CATEGORIES.length);
+    // Pills show each category's label; picking one returns its code.
+    await user.click(screen.getByRole("option", { name: "Baking" }));
+    expect(onPick).toHaveBeenCalledWith("baking");
   });
 
   it("shows progress on the active pill while creating, and goes back", async () => {
@@ -112,6 +114,7 @@ describe("IngredientCategoryPicker", () => {
     render(
       <IngredientCategoryPicker
         name="sumac"
+        categories={FALLBACK_CATEGORIES}
         activeIndex={0}
         creating
         onActiveIndexChange={vi.fn()}

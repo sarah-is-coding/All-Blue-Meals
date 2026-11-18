@@ -1,8 +1,10 @@
-import { INGREDIENT_CATEGORIES, type IngredientCategory } from "../../ingredients/types";
+import type { CategoryInfo, IngredientCategory } from "../../ingredients/types";
 
 type IngredientCategoryPickerProps = {
   /** The new ingredient's name, as typed. */
   name: string;
+  /** Store departments in walking order, with their labels. */
+  categories: CategoryInfo[];
   /** Highlighted pill (keyboard or hover), or -1. */
   activeIndex: number;
   creating: boolean;
@@ -14,6 +16,7 @@ type IngredientCategoryPickerProps = {
 /** Second step of "Add new" in IngredientNameCombobox: choose the category. */
 export default function IngredientCategoryPicker({
   name,
+  categories,
   activeIndex,
   creating,
   onActiveIndexChange,
@@ -29,9 +32,9 @@ export default function IngredientCategoryPicker({
         <span className="ingredient-combobox__categorize-label">{`Pick a category for "${name}"`}</span>
       </div>
       <div className="ingredient-combobox__category-pills" role="listbox">
-        {INGREDIENT_CATEGORIES.map((category, index) => (
+        {categories.map((category, index) => (
           <button
-            key={category}
+            key={category.code}
             type="button"
             role="option"
             aria-selected={activeIndex === index}
@@ -42,10 +45,10 @@ export default function IngredientCategoryPicker({
             ]
               .filter(Boolean)
               .join(" ")}
-            onMouseDown={() => onPick(category)}
+            onMouseDown={() => onPick(category.code)}
             onMouseEnter={() => onActiveIndexChange(index)}
           >
-            {creating && activeIndex === index ? "Adding…" : category}
+            {creating && activeIndex === index ? "Adding…" : category.name}
           </button>
         ))}
       </div>

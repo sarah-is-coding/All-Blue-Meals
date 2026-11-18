@@ -34,7 +34,7 @@ vi.mock("../../../../features/ingredients/api", () => ({
   createIngredient: vi.fn().mockResolvedValue({
     id: "ingredient-1",
     name: "ground chicken",
-    category: "meat & seafood",
+    category: "meat_seafood",
     defaultUnit: null,
   }),
   searchIngredients: vi.fn().mockResolvedValue([]),
