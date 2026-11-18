@@ -75,13 +75,6 @@
   letter-spacing: 0.03em;
 }
 
-.brand__dot {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  background: linear-gradient(140deg, var(--brand), var(--accent));
-}
-
 .hero {
   position: relative;
   z-index: 2;

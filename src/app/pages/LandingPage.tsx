@@ -10,7 +10,7 @@ export default function LandingPage() {
 
       <header className="topbar reveal">
         <div className="brand">
-          <span className="brand__dot" />
+          <img className="brand__logo" src="/favicon.svg" alt="" width={26} height={26} />
           PlanMyMeals
         </div>
         <div className="topbar__actions">

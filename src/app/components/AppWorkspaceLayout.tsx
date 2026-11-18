@@ -49,7 +49,7 @@ export default function AppWorkspaceLayout() {
         <div className="workspace-main">
           <header className="workspace-topbar">
             <Link className="workspace-brand" to="/">
-              <span className="brand__dot" />
+              <img className="brand__logo" src="/favicon.svg" alt="" width={26} height={26} />
               PlanMyMeals
             </Link>
 
