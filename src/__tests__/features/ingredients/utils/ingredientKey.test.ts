@@ -1,8 +1,8 @@
 import {
   chooseDisplayName,
-  dropsWords,
   foldText,
   ingredientKey,
+  isSafeSynonym,
   singularDisplayName,
   singularizeWord,
 } from "../../../../features/ingredients/utils/ingredientKey";
@@ -161,25 +161,34 @@ describe("chooseDisplayName", () => {
   });
 });
 
-describe("dropsWords", () => {
-  it("is true when the general name only leaves words out", () => {
-    expect(dropsWords("skinless boneless chicken breasts", "chicken breasts")).toBe(true);
-    expect(dropsWords("flat-leaf parsley", "Parsley")).toBe(true);
+// Which AI-suggested pairs become aliases automatically. Replaced dropsWords
+// (broader names only) when pending aliases were removed: a pair that shares
+// some words but not others is never a synonym.
+describe("isSafeSynonym", () => {
+  it("accepts names with no words in common", () => {
+    expect(isSafeSynonym("scallions", "green onion")).toBe(true);
+    expect(isSafeSynonym("pak choi", "bok choy")).toBe(true);
+    expect(isSafeSynonym("coriander leaves", "cilantro")).toBe(true);
   });
 
-  it("is false for synonyms, spellings and reordered words", () => {
-    expect(dropsWords("scallions", "green onion")).toBe(false);
-    expect(dropsWords("onions", "onion")).toBe(false);
-    expect(dropsWords("skinless boneless chicken breasts", "boneless skinless chicken breasts")).toBe(false);
+  it("accepts the same words in another order", () => {
+    expect(isSafeSynonym("skinless boneless chicken breasts", "boneless skinless chicken breasts")).toBe(true);
   });
 
-  it("is false when the other name adds or changes words", () => {
-    expect(dropsWords("coriander leaves", "cilantro")).toBe(false);
-    expect(dropsWords("chicken breasts", "boneless chicken breasts")).toBe(false);
+  it("refuses broader and narrower names", () => {
+    expect(isSafeSynonym("skinless boneless chicken breasts", "chicken breasts")).toBe(false);
+    expect(isSafeSynonym("flat-leaf parsley", "Parsley")).toBe(false);
+    expect(isSafeSynonym("butter", "unsalted butter")).toBe(false);
   });
 
-  it("is false for empty names", () => {
-    expect(dropsWords("parsley", "")).toBe(false);
-    expect(dropsWords("", "")).toBe(false);
+  it("refuses variants that share some words", () => {
+    expect(isSafeSynonym("red onion", "yellow onion")).toBe(false);
+    expect(isSafeSynonym("chicken broth", "beef broth")).toBe(false);
+  });
+
+  it("refuses the same name and empty names", () => {
+    expect(isSafeSynonym("Onions", "onion")).toBe(false);
+    expect(isSafeSynonym("parsley", "")).toBe(false);
+    expect(isSafeSynonym("", "")).toBe(false);
   });
 });

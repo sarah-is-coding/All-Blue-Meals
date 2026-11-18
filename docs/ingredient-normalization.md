@@ -702,6 +702,20 @@ catalog instead of every duplicate.
      Found on the first import after step 5, which merged boneless skinless
      chicken breasts into plain chicken breasts.
 
+  **Revised 2026-11-19: no pending state.** Nobody reviewed pending aliases,
+  so the decision is now fully automatic. A suggestion is added (approved)
+  only when the canonical ingredient exists in the same category and the
+  names are safe synonyms (`isSafeSynonym`): the same words in another order
+  or no words in common. Anything else, including names that share only some
+  words ("red onion" / "yellow onion"), saves nothing and the name is created
+  as written, so the worst case is a duplicate, never a wrong merge. Clients
+  can't insert aliases directly any more: `add_ingredient_alias`
+  (`20261119120000`) re-checks the rules and also that the key really is
+  that name's key and doesn't hide an existing ingredient. Residual risk: two
+  unrelated items with no words in common in the same category still pass,
+  so the AI prompt's "never change it to a different product" rule is what
+  guards that case.
+
   Proposed: 3.
 - ~~The 19 unused ingredients.~~ **Decided: delete them** in the step 7
   cleanup. Re-checked at cleanup time: only ingredients no

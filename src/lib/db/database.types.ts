@@ -436,6 +436,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_ingredient_alias: {
+        Args: {
+          p_alias_key: string
+          p_alias_name: string
+          p_category: string
+          p_ingredient_id: string
+        }
+        Returns: boolean
+      }
+      ingredient_name_words: { Args: { p_name: string }; Returns: string[] }
+      ingredient_word_forms: { Args: { p_word: string }; Returns: string[] }
       save_recipe_ingredients: {
         Args: { p_recipe_id: string; p_rows: Json }
         Returns: undefined
