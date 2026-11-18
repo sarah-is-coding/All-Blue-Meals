@@ -23,6 +23,7 @@ export type Database = {
           is_checked: boolean
           list_id: string
           quantity: string | null
+          substitutes: string[]
           unit: string | null
         }
         Insert: {
@@ -33,6 +34,7 @@ export type Database = {
           is_checked?: boolean
           list_id: string
           quantity?: string | null
+          substitutes?: string[]
           unit?: string | null
         }
         Update: {
@@ -43,6 +45,7 @@ export type Database = {
           is_checked?: boolean
           list_id?: string
           quantity?: string | null
+          substitutes?: string[]
           unit?: string | null
         }
         Relationships: [
@@ -93,6 +96,44 @@ export type Database = {
           },
         ]
       }
+      ingredient_aliases: {
+        Row: {
+          alias_key: string
+          alias_name: string
+          created_at: string
+          id: string
+          ingredient_id: string
+          source: string
+          status: string
+        }
+        Insert: {
+          alias_key: string
+          alias_name: string
+          created_at?: string
+          id?: string
+          ingredient_id: string
+          source: string
+          status?: string
+        }
+        Update: {
+          alias_key?: string
+          alias_name?: string
+          created_at?: string
+          id?: string
+          ingredient_id?: string
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_aliases_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
           category: string | null
@@ -100,6 +141,7 @@ export type Database = {
           default_unit: string | null
           id: string
           name: string
+          name_key: string | null
         }
         Insert: {
           category?: string | null
@@ -107,6 +149,7 @@ export type Database = {
           default_unit?: string | null
           id?: string
           name: string
+          name_key?: string | null
         }
         Update: {
           category?: string | null
@@ -114,6 +157,7 @@ export type Database = {
           default_unit?: string | null
           id?: string
           name?: string
+          name_key?: string | null
         }
         Relationships: []
       }
@@ -183,9 +227,11 @@ export type Database = {
           ingredient_id: string
           ingredient_name: string
           notes: string | null
+          position: number
           quantity: string | null
           quantity_numeric: number | null
           recipe_id: string
+          substitute_for: string | null
           unit: string | null
         }
         Insert: {
@@ -194,9 +240,11 @@ export type Database = {
           ingredient_id: string
           ingredient_name: string
           notes?: string | null
+          position?: number
           quantity?: string | null
           quantity_numeric?: number | null
           recipe_id: string
+          substitute_for?: string | null
           unit?: string | null
         }
         Update: {
@@ -205,9 +253,11 @@ export type Database = {
           ingredient_id?: string
           ingredient_name?: string
           notes?: string | null
+          position?: number
           quantity?: string | null
           quantity_numeric?: number | null
           recipe_id?: string
+          substitute_for?: string | null
           unit?: string | null
         }
         Relationships: [
@@ -224,6 +274,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "recipes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_ingredients_substitute_for_fkey"
+            columns: ["recipe_id", "substitute_for"]
+            isOneToOne: false
+            referencedRelation: "recipe_ingredients"
+            referencedColumns: ["recipe_id", "id"]
           },
         ]
       }
@@ -346,7 +403,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_recipe_ingredients: {
+        Args: { p_recipe_id: string; p_rows: Json }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

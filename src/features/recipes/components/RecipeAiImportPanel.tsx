@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ImportedRecipe, RecipeImportResult } from "../types";
+import ImportedNewIngredientsTag from "./ImportedNewIngredientsTag";
 
 type RecipeAiImportPanelProps = {
   actionLabel?: string;
@@ -182,6 +183,7 @@ export default function RecipeAiImportPanel({
                   <span className="recipe-tag">
                     {recipe.ingredients.length} ingredients
                   </span>
+                  <ImportedNewIngredientsTag recipe={recipe} />
                   {recipe.sourceUrl ? (
                     <span className="recipe-tag recipe-tag--source">Has source</span>
                   ) : null}

@@ -31,8 +31,8 @@ const SUMMARIES: GroceryListSummary[] = [
 const LIST_1: GroceryList = {
   ...SUMMARIES[0],
   items: [
-    { id: "item-1", ingredientName: "spinach", quantity: "2", unit: "bags", isChecked: false, category: "produce" },
-    { id: "item-2", ingredientName: "rice", quantity: "", unit: "", isChecked: false, category: null },
+    { id: "item-1", ingredientName: "spinach", quantity: "2", unit: "bags", isChecked: false, category: "produce", substitutes: [] },
+    { id: "item-2", ingredientName: "rice", quantity: "", unit: "", isChecked: false, category: null, substitutes: [] },
   ],
 };
 

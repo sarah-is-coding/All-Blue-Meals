@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useIngredientMatches } from "../../ingredients/queries";
+import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import RecipeFormFields from "../components/RecipeFormFields";
+import type { IngredientMatchStatus } from "../components/RecipeIngredientCard";
 import { useRecipeActions } from "../queries";
 import type { ImportedRecipe } from "../types";
 import {
-  createEmptyIngredient,
   createEmptyRecipeFormValues,
   mapRecipeFormValuesToInput,
+  type RecipeFormIngredient,
   type RecipeFormValues,
 } from "../utils/recipeForm";
+import { createRecipeFormHandlers } from "../utils/recipeFormHandlers";
 import { mapImportedRecipeToFormValues } from "../utils/recipeImport";
-
-type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
-type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
 
 type RecipeCreateLocationState = {
   importedRecipe?: ImportedRecipe;
@@ -43,52 +44,28 @@ export default function RecipeCreatePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFieldChange = (field: RecipeFieldName, value: string) => {
-    setValues((previousValues) => ({ ...previousValues, [field]: value }));
-  };
+  const formHandlers = createRecipeFormHandlers((change) => setValues(change));
 
-  const handleIngredientChange = (
-    ingredientId: string,
-    field: RecipeIngredientFieldName,
-    value: string
-  ) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: previousValues.ingredients.map((ingredient) =>
-        ingredient.id === ingredientId ? { ...ingredient, [field]: value } : ingredient
-      ),
-    }));
-  };
-
-  const handleIngredientSelect = (
-    rowId: string,
-    ingredientId: string,
-    name: string
-  ) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: previousValues.ingredients.map((ingredient) =>
-        ingredient.id === rowId
-          ? { ...ingredient, ingredientId, ingredientName: name }
-          : ingredient
-      ),
-    }));
-  };
-
-  const handleAddIngredient = () => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: [...previousValues.ingredients, createEmptyIngredient()],
-    }));
-  };
-
-  const handleRemoveIngredient = (ingredientId: string) => {
-    setValues((previousValues) => ({
-      ...previousValues,
-      ingredients: previousValues.ingredients.filter(
-        (ingredient) => ingredient.id !== ingredientId
-      ),
-    }));
+  // An imported draft's rows aren't linked to the catalog yet: label each as
+  // matching an existing ingredient (or its canonical name) or as new.
+  const isImportedDraft = Boolean(locationState?.importedRecipe);
+  const unlinked = isImportedDraft
+    ? values.ingredients.filter((row) => !row.ingredientId && row.ingredientName.trim())
+    : [];
+  const matches = useIngredientMatches(
+    unlinked.flatMap((row) => [row.ingredientName, ...(row.canonicalName ? [row.canonicalName] : [])])
+  );
+  const matchStatusFor = (row: RecipeFormIngredient): IngredientMatchStatus => {
+    if (row.ingredientId || !row.ingredientName.trim()) return null;
+    const match =
+      matches.matchFor(row.ingredientName) ?? (row.canonicalName ? matches.matchFor(row.canonicalName) : null);
+    if (match) {
+      // Only worth saying when the catalog name differs from what's written.
+      return ingredientKey(match.name) === ingredientKey(row.ingredientName)
+        ? null
+        : { kind: "matched", name: match.name };
+    }
+    return matches.isNew(row.ingredientName) ? { kind: "new" } : null;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -128,11 +105,8 @@ export default function RecipeCreatePage() {
         <RecipeFormFields
           values={values}
           readOnly={false}
-          onFieldChange={handleFieldChange}
-          onIngredientChange={handleIngredientChange}
-          onIngredientSelect={handleIngredientSelect}
-          onAddIngredient={handleAddIngredient}
-          onRemoveIngredient={handleRemoveIngredient}
+          {...formHandlers}
+          matchStatusFor={isImportedDraft ? matchStatusFor : undefined}
         />
 
         <div className="recipe-form__actions">

@@ -94,16 +94,17 @@ This codebase follows **modular programming** and **separation of concerns**. Av
     - `recipe_ingredients.recipe_id → recipes.user_id`
     - `saved_plan_meals.saved_plan_id → saved_plans.user_id`
     - `grocery_items.list_id → grocery_lists.user_id`
-- Shared catalog: `ingredients` (no `user_id`)
+- Shared catalog: `ingredients` and `ingredient_aliases` (no `user_id`)
   - Any authenticated user can read and insert; no update/delete policies
-  - This is the one intentional shared table — keep rows small (name, category, default unit)
+  - These are the only intentional shared tables — keep rows small (name, key, category, default unit; alias key and name)
+  - `ingredient_aliases` maps synonyms to a catalog ingredient ("scallions" → green onion); see `docs/ingredient-normalization.md`
 
 ### Agent checklist for DB changes
 - [ ] RLS enabled on any new user-scoped table  
 - [ ] SELECT/INSERT/UPDATE/DELETE policies defined and reviewed  
 - [ ] Indexes added for foreign keys + common filters (`user_id`, `created_at`, `planned_for`)  
 - [ ] Avoid heavy text search / full-text unless explicitly planned  
-- [ ] No new shared/global tables or bloat tables beyond the `ingredients` catalog  
+- [ ] No new shared/global tables or bloat tables beyond the `ingredients` / `ingredient_aliases` catalog  
 
 ---
 
@@ -222,8 +223,9 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 - Optimistic UI allowed  
 
 **Merge rules**
-- Same `ingredient_name` + `unit` → merge quantities  
+- Same catalog ingredient (`ingredient_id`) + normalized unit (`normalizeUnit`: "cups" = "cup") → merge quantities  
 - Otherwise keep separate rows  
+- Water is left off; substitutes ("or avocado oil") are shown as options on their item, never as items to buy  
 
 ---
 
@@ -242,7 +244,7 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 ## Commit & branch guidance
 
 - Small commits with clear messages  
-- Commit directly to `main`; CI must stay green  
+- Do work on a feature branch named after the change, then merge to `main`; CI must stay green  
 - Avoid drive-by refactors  
 
 ---

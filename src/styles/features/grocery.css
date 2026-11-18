@@ -232,6 +232,40 @@
   color: var(--color-muted-soft);
 }
 
+/* Checkbox label plus the "N options" toggle on one line. */
+.grocery-item__row {
+  display: flex;
+  align-items: center;
+}
+
+.grocery-item__row .grocery-item__label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Large enough to tap on a phone without hitting the checkbox. */
+.grocery-item__options-toggle {
+  flex-shrink: 0;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+.grocery-item__options {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.72rem 0.55rem 2.4rem;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+  color: var(--color-muted-soft);
+}
+
 .grocery-item__amount {
   font-size: 0.82rem;
   color: var(--color-muted-soft);

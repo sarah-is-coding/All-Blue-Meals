@@ -64,8 +64,8 @@ const THIS_WEEK = getWeekStartIso(new Date());
 const NEXT_WEEK = shiftWeekStartIso(THIS_WEEK, 1);
 
 const RANGE_ITEMS: GroceryItemDraft[] = [
-  { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread" },
-  { ingredientName: "ground beef", quantity: "1", unit: "lb", category: "meat & seafood" },
+  { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread", substitutes: [] },
+  { ingredientName: "ground beef", quantity: "1", unit: "lb", category: "meat & seafood", substitutes: [] },
 ];
 
 const SAVED_PLAN: SavedMealPlan = {
@@ -75,9 +75,9 @@ const SAVED_PLAN: SavedMealPlan = {
   endDate: "2026-04-12",
 };
 const SAVED_PLAN_ITEMS: GroceryItemDraft[] = [
-  { ingredientName: "lettuce", quantity: "1", unit: "head", category: "produce" },
-  { ingredientName: "chicken breast", quantity: "2", unit: "lb", category: "meat & seafood" },
-  { ingredientName: "olive oil", quantity: "", unit: "", category: null },
+  { ingredientName: "lettuce", quantity: "1", unit: "head", category: "produce", substitutes: [] },
+  { ingredientName: "chicken breast", quantity: "2", unit: "lb", category: "meat & seafood", substitutes: [] },
+  { ingredientName: "olive oil", quantity: "", unit: "", category: null, substitutes: [] },
 ];
 
 function savedListFor(origin: GroceryListOrigin, items: GroceryItemDraft[]): GroceryList {

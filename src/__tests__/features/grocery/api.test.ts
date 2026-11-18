@@ -17,7 +17,7 @@ vi.mock("../../../lib/supabaseClient", () => {
 
   const chained = [
     "from", "select", "insert", "update", "delete", "eq", "in",
-    "order", "limit", "not", "maybeSingle",
+    "order", "limit", "not", "is", "maybeSingle",
   ];
 
   for (const method of chained) {
@@ -63,7 +63,7 @@ beforeEach(() => {
   // Re-wire chained methods after clearAllMocks
   const chained = [
     "from", "select", "insert", "update", "delete", "eq", "in",
-    "order", "limit", "not", "maybeSingle",
+    "order", "limit", "not", "is", "maybeSingle",
   ];
   for (const method of chained) {
     builder[method].mockReturnValue(builder);
@@ -99,10 +99,10 @@ function meal(
 
 const ingredientRow = (recipeId: string, name: string, quantity: string, unit = "", category: string | null = null) => ({
   recipe_id: recipeId,
-  ingredient_name: name,
   quantity,
   unit,
-  ingredients: category ? { category } : null,
+  // Step 8: the name comes from the catalog row, not recipe_ingredients.
+  ingredients: { name, category },
 });
 
 beforeEach(() => {
@@ -134,6 +134,29 @@ describe("buildGroceryItemsForSavedPlan", () => {
     await buildGroceryItemsForSavedPlan("plan-7");
     expect(builder.from).toHaveBeenCalledWith("recipe_ingredients");
     expect(builder.in).toHaveBeenCalledWith("recipe_id", ["r1", "r2", "r3"]);
+  });
+
+  // Step 6 of docs/ingredient-normalization.md (replaces step 4's filter):
+  // substitute rows are loaded too and shown as options on their main item,
+  // never as items to buy; the item uses the catalog name.
+  it("shows substitutes as options on their main item, scaled with the meal", async () => {
+    vi.mocked(listSavedPlanMeals).mockResolvedValue([meal("r1", { servings: 2, override: 4 })]);
+    builder.returns.mockResolvedValueOnce({
+      data: [
+        { id: "ri-1", recipe_id: "r1", ingredient_id: "i-olive", quantity: "1",
+          unit: "tbsp", substitute_for: null, ingredients: { name: "olive oil", category: "pantry" } },
+        { id: "ri-2", recipe_id: "r1", ingredient_id: "i-avo", quantity: "1",
+          unit: "tbsp", substitute_for: "ri-1", ingredients: { name: "avocado oil", category: "pantry" } },
+      ],
+      error: null,
+    });
+
+    const items = await buildGroceryItemsForSavedPlan("plan-7");
+
+    expect(builder.is).not.toHaveBeenCalled();
+    expect(items).toEqual([
+      { ingredientName: "olive oil", quantity: "2", unit: "tbsp", category: "pantry", substitutes: ["avocado oil, 2 tbsp"] },
+    ]);
   });
 
   it("includes every ingredient of every planned recipe, and nothing else", async () => {
@@ -169,8 +192,8 @@ describe("buildGroceryItemsForSavedPlan", () => {
 
     // Sorted by category (dairy & eggs before pantry); scaled 2/4 = half.
     expect(await buildGroceryItemsForSavedPlan("plan-7")).toEqual([
-      { ingredientName: "eggs", quantity: "2", unit: "", category: "dairy & eggs" },
-      { ingredientName: "flour", quantity: "1", unit: "cup", category: "pantry" },
+      { ingredientName: "eggs", quantity: "2", unit: "", category: "dairy & eggs", substitutes: [] },
+      { ingredientName: "flour", quantity: "1", unit: "cup", category: "pantry", substitutes: [] },
     ]);
   });
 
@@ -186,7 +209,7 @@ describe("buildGroceryItemsForSavedPlan", () => {
 
     // 4 × 0.5 + 4 × 1 = 6
     expect(await buildGroceryItemsForSavedPlan("plan-7")).toEqual([
-      { ingredientName: "butter", quantity: "6", unit: "tbsp", category: "dairy & eggs" },
+      { ingredientName: "butter", quantity: "6", unit: "tbsp", category: "dairy & eggs", substitutes: [] },
     ]);
   });
 
@@ -206,7 +229,7 @@ describe("buildGroceryItemsForRange", () => {
 
     expect(listPlannedMealsBetween).toHaveBeenCalledWith("2026-05-25", "2026-06-03");
     expect(listSavedPlanMeals).not.toHaveBeenCalled();
-    expect(result).toEqual([{ ingredientName: "rice", quantity: "1", unit: "cup", category: null }]);
+    expect(result).toEqual([{ ingredientName: "rice", quantity: "1", unit: "cup", category: null, substitutes: [] }]);
   });
 
   it("doesn't look up any meal plan (dates decide which meals count)", async () => {
@@ -230,12 +253,12 @@ describe("saveGroceryList", () => {
     builder.single.mockResolvedValueOnce({ data: fakeListRow, error: null });
 
     const fakeItemRows = [
-      { id: "item-1", ingredient_name: "salt", quantity: "1", unit: "tsp", is_checked: false, category: "pantry" },
+      { id: "item-1", ingredient_name: "salt", quantity: "1", unit: "tsp", is_checked: false, category: "pantry", substitutes: [] },
     ];
     builder.returns.mockResolvedValueOnce({ data: fakeItemRows, error: null });
 
     const result = await saveGroceryList("My List", { kind: "saved_plan", savedPlanId: "plan-1" }, [
-      { ingredientName: "salt", quantity: "1", unit: "tsp", category: "pantry" },
+      { ingredientName: "salt", quantity: "1", unit: "tsp", category: "pantry", substitutes: [] },
     ]);
 
     expect(result.id).toBe("list-1");
@@ -258,9 +281,9 @@ describe("saveGroceryList", () => {
     });
     builder.returns.mockResolvedValueOnce({ data: [], error: null });
     const drafts = [
-      { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread" as const },
-      { ingredientName: "lettuce", quantity: "1", unit: "head", category: "produce" as const },
-      { ingredientName: "olive oil", quantity: "", unit: "", category: null },
+      { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread" as const, substitutes: [] },
+      { ingredientName: "lettuce", quantity: "1", unit: "head", category: "produce" as const, substitutes: [] },
+      { ingredientName: "olive oil", quantity: "", unit: "", category: null, substitutes: [] },
     ];
 
     await saveGroceryList("  Groceries  ", { kind: "saved_plan", savedPlanId: "plan-7" }, drafts);
@@ -275,9 +298,9 @@ describe("saveGroceryList", () => {
     });
     expect(builder.from).toHaveBeenCalledWith("grocery_items");
     expect(builder.insert).toHaveBeenNthCalledWith(2, [
-      { list_id: "list-9", ingredient_name: "tortillas", quantity: "8", unit: null, is_checked: false, category: "bakery & bread" },
-      { list_id: "list-9", ingredient_name: "lettuce", quantity: "1", unit: "head", is_checked: false, category: "produce" },
-      { list_id: "list-9", ingredient_name: "olive oil", quantity: null, unit: null, is_checked: false, category: null },
+      { list_id: "list-9", ingredient_name: "tortillas", quantity: "8", unit: null, is_checked: false, category: "bakery & bread", substitutes: [] },
+      { list_id: "list-9", ingredient_name: "lettuce", quantity: "1", unit: "head", is_checked: false, category: "produce", substitutes: [] },
+      { list_id: "list-9", ingredient_name: "olive oil", quantity: null, unit: null, is_checked: false, category: null, substitutes: [] },
     ]);
   });
 
@@ -298,7 +321,7 @@ describe("saveGroceryList", () => {
     const result = await saveGroceryList(
       "Groceries",
       { kind: "range", startDate: "2026-05-25", endDate: "2026-06-03" },
-      [{ ingredientName: "rice", quantity: "1", unit: "cup", category: null }]
+      [{ ingredientName: "rice", quantity: "1", unit: "cup", category: null, substitutes: [] }]
     );
 
     expect(builder.insert).toHaveBeenNthCalledWith(1, {

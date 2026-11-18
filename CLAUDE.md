@@ -95,7 +95,7 @@ vi.mock("../../../lib/supabaseClient", () => {
 
   const chained = ["from", "select", "upsert", "insert", "update",
                    "delete", "ilike", "eq", "order", "limit", "not",
-                   "in", "contains", "gte", "lte", "range"];
+                   "in", "or", "is", "contains", "gte", "lte", "range"];
 
   for (const method of chained) {
     builder[method] = vi.fn().mockReturnValue(builder);
@@ -181,7 +181,9 @@ to `main`.
 src/features/<feature>/
   types.ts       ← TypeScript types only, no logic
   constants.ts   ← Fixed values (options lists, defaults), if the feature has any
-  api.ts         ← All Supabase calls for this feature
+  api.ts         ← All Supabase calls for this feature; past ~300 lines it
+                   becomes api/ with an index.ts re-exporting the public
+                   functions (e.g. recipes/api/), so "../api" imports stay
   queries.ts     ← TanStack Query keys, hooks, and cache updates (see Data loading)
   components/    ← UI components
   pages/         ← Route-level page components

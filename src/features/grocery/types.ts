@@ -7,6 +7,8 @@ export type GroceryItem = {
   unit: string;
   isChecked: boolean;
   category: IngredientCategory | null;
+  /** Alternatives shown as options ("avocado oil, 2 tbsp"), not items to buy. */
+  substitutes: string[];
 };
 
 export type GroceryList = {
@@ -35,6 +37,8 @@ export type GroceryItemDraft = {
   quantity: string;
   unit: string;
   category: IngredientCategory | null;
+  /** Alternatives shown as options ("avocado oil, 2 tbsp"), not items to buy. */
+  substitutes: string[];
 };
 
 /** What the grocery page builds a list from: a date range on the calendar,

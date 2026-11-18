@@ -1,4 +1,5 @@
-import type { RecipeFormValues } from "../utils/recipeForm";
+import type { RecipeFormIngredient, RecipeFormValues } from "../utils/recipeForm";
+import { groupSubstitutes } from "../utils/ingredientGroups";
 import { scaleQuantityText } from "../../../lib/utils/quantities";
 
 type RecipeReadArticleProps = {
@@ -61,6 +62,12 @@ export default function RecipeReadArticle({
       ingredient.unit.trim() ||
       ingredient.notes.trim()
   );
+  const formatScaledLine = (ingredient: RecipeFormIngredient) =>
+    formatIngredientLine(
+      scaleQuantityText(ingredient.quantity, persistedBaseServings, displayedServings),
+      ingredient.unit,
+      ingredient.ingredientName
+    );
 
   return (
     <article className="workspace-card recipe-read">
@@ -184,22 +191,18 @@ export default function RecipeReadArticle({
           <p>No ingredients added yet.</p>
         ) : (
           <ul className="recipe-read__ingredients">
-            {ingredients.map((ingredient) => (
-              <li key={ingredient.id}>
-                <p>
-                  {formatIngredientLine(
-                    scaleQuantityText(
-                      ingredient.quantity,
-                      persistedBaseServings,
-                      displayedServings
-                    ),
-                    ingredient.unit,
-                    ingredient.ingredientName
-                  )}
-                </p>
-                {ingredient.notes.trim() ? (
-                  <p className="recipe-read__note">{ingredient.notes.trim()}</p>
+            {groupSubstitutes(ingredients).map(({ main, substitutes }) => (
+              <li key={main.id}>
+                <p>{formatScaledLine(main)}</p>
+                {main.notes.trim() ? (
+                  <p className="recipe-read__note">{main.notes.trim()}</p>
                 ) : null}
+                {substitutes.map((substitute) => (
+                  <p className="recipe-read__substitute" key={substitute.id}>
+                    {`or ${formatScaledLine(substitute)}`}
+                    {substitute.notes.trim() ? ` (${substitute.notes.trim()})` : ""}
+                  </p>
+                ))}
               </li>
             ))}
           </ul>

@@ -1,25 +1,13 @@
-import type {
-  RecipeFormIngredient,
-  RecipeFormValues,
-} from "../utils/recipeForm";
-import IngredientNameCombobox from "./IngredientNameCombobox";
+import type { RecipeFormIngredient, RecipeFormValues } from "../utils/recipeForm";
+import type { RecipeFormHandlers } from "../utils/recipeFormHandlers";
+import { groupSubstitutes } from "../utils/ingredientGroups";
+import RecipeIngredientCard, { type IngredientMatchStatus } from "./RecipeIngredientCard";
 
-// Excludes id, ingredientId, and ingredientName — those are handled by onIngredientSelect
-type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
-type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
-
-type RecipeFormFieldsProps = {
+type RecipeFormFieldsProps = RecipeFormHandlers & {
   values: RecipeFormValues;
   readOnly: boolean;
-  onFieldChange: (field: RecipeFieldName, value: string) => void;
-  onIngredientChange: (
-    rowId: string,
-    field: RecipeIngredientFieldName,
-    value: string
-  ) => void;
-  onIngredientSelect: (rowId: string, ingredientId: string, name: string) => void;
-  onAddIngredient: () => void;
-  onRemoveIngredient: (rowId: string) => void;
+  /** Labels rows as new or matched (imported drafts); omitted elsewhere. */
+  matchStatusFor?: (row: RecipeFormIngredient) => IngredientMatchStatus;
 };
 
 export default function RecipeFormFields({
@@ -29,8 +17,11 @@ export default function RecipeFormFields({
   onIngredientChange,
   onIngredientSelect,
   onAddIngredient,
+  onAddSubstitute,
   onRemoveIngredient,
+  matchStatusFor,
 }: RecipeFormFieldsProps) {
+  const groups = groupSubstitutes(values.ingredients);
   return (
     <>
       {/* ── Basics ──────────────────────────────────────────────── */}
@@ -149,68 +140,33 @@ export default function RecipeFormFields({
         </div>
 
         <div className="recipe-ingredients__list">
-          {values.ingredients.map((ingredient: RecipeFormIngredient) => (
-            <article className="recipe-ingredient-card" key={ingredient.id}>
-              <div className="recipe-ingredient-card__grid">
-                <div className="recipe-field recipe-field--full">
-                  <span>Ingredient</span>
-                  <IngredientNameCombobox
-                    value={ingredient.ingredientName}
-                    onSelect={(ingredientId, name) =>
-                      onIngredientSelect(ingredient.id, ingredientId, name)
-                    }
-                    readOnly={readOnly}
-                  />
-                </div>
-
-                <label className="recipe-field">
-                  <span>Quantity</span>
-                  <input
-                    type="text"
-                    value={ingredient.quantity}
-                    onChange={(event) =>
-                      onIngredientChange(ingredient.id, "quantity", event.target.value)
-                    }
-                    readOnly={readOnly}
-                  />
-                </label>
-
-                <label className="recipe-field">
-                  <span>Unit</span>
-                  <input
-                    type="text"
-                    value={ingredient.unit}
-                    onChange={(event) =>
-                      onIngredientChange(ingredient.id, "unit", event.target.value)
-                    }
-                    readOnly={readOnly}
-                  />
-                </label>
-
-                <label className="recipe-field recipe-field--full">
-                  <span>Notes</span>
-                  <input
-                    type="text"
-                    value={ingredient.notes}
-                    onChange={(event) =>
-                      onIngredientChange(ingredient.id, "notes", event.target.value)
-                    }
-                    readOnly={readOnly}
-                  />
-                </label>
-              </div>
-
-              {!readOnly && values.ingredients.length > 1 ? (
-                <button
-                  type="button"
-                  className="btn btn--ghost recipe-ingredient-card__remove"
-                  onClick={() => onRemoveIngredient(ingredient.id)}
-                >
-                  Remove
-                </button>
-              ) : null}
-            </article>
-          ))}
+          {groups.flatMap(({ main, substitutes }) => [
+            <RecipeIngredientCard
+              key={main.id}
+              ingredient={main}
+              readOnly={readOnly}
+              isSubstitute={false}
+              canRemove={groups.length > 1}
+              onIngredientChange={onIngredientChange}
+              onIngredientSelect={onIngredientSelect}
+              onRemove={onRemoveIngredient}
+              matchStatus={matchStatusFor?.(main) ?? null}
+              onAddSubstitute={onAddSubstitute}
+            />,
+            ...substitutes.map((substitute) => (
+              <RecipeIngredientCard
+                key={substitute.id}
+                ingredient={substitute}
+                readOnly={readOnly}
+                isSubstitute
+                canRemove
+                onIngredientChange={onIngredientChange}
+                onIngredientSelect={onIngredientSelect}
+                onRemove={onRemoveIngredient}
+                matchStatus={matchStatusFor?.(substitute) ?? null}
+              />
+            )),
+          ])}
         </div>
 
         {!readOnly ? (

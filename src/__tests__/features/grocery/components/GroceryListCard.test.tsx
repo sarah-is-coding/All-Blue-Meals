@@ -15,8 +15,8 @@ import { saveGroceryList, toggleGroceryItem } from "../../../../features/grocery
 const T = { timeout: 1500 };
 
 const ITEMS: GroceryItemDraft[] = [
-  { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread" },
-  { ingredientName: "ground beef", quantity: "1", unit: "lb", category: "meat & seafood" },
+  { ingredientName: "tortillas", quantity: "8", unit: "", category: "bakery & bread", substitutes: [] },
+  { ingredientName: "ground beef", quantity: "1", unit: "lb", category: "meat & seafood", substitutes: [] },
 ];
 const ORIGIN: GroceryListOrigin = { kind: "range", startDate: "2026-05-24", endDate: "2026-05-30" };
 

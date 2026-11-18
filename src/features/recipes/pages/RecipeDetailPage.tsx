@@ -1,45 +1,25 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import LoadingModal from "../../../components/feedback/LoadingModal";
 import AddToPlanButton from "../../meal-plans/components/AddToPlanButton";
-import type { MealType } from "../../meal-plans/types";
+import RecipeBackLinks, { type RecipeBackLinksState } from "../components/RecipeBackLinks";
+import RecipeDeleteControls from "../components/RecipeDeleteControls";
 import RecipeFormFields from "../components/RecipeFormFields";
 import RecipeReadArticle from "../components/RecipeReadArticle";
+import RecipeScaleTools from "../components/RecipeScaleTools";
 import StarRating from "../components/StarRating";
 import { useRecipe, useRecipeActions } from "../queries";
 import {
-  createEmptyIngredient,
   mapRecipeDetailToFormValues,
   mapRecipeFormValuesToInput,
   type RecipeFormValues,
 } from "../utils/recipeForm";
-import { scaleRecipeFormIngredientQuantities } from "../utils/ingredientScaling";
+import { createRecipeFormHandlers } from "../utils/recipeFormHandlers";
+import { parseServingsValue, scaleIngredientsToServings } from "../utils/ingredientScaling";
 
-type RecipeFieldName = Exclude<keyof RecipeFormValues, "ingredients">;
-type RecipeIngredientFieldName = "quantity" | "unit" | "notes";
-type RecipeDetailLocationState = {
-  from?: "meal-planner";
+type RecipeDetailLocationState = RecipeBackLinksState & {
   plannedMealId?: string;
   initialServings?: number | null;
-  mealSlot?: { date: string; mealType: MealType };
-};
-
-const parseServingsValue = (value: string | number | null | undefined): number | null => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const normalized = typeof value === "number" ? String(value) : value.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return Math.round(parsed);
 };
 
 export default function RecipeDetailPage() {
@@ -49,28 +29,7 @@ export default function RecipeDetailPage() {
   const { recipe, loading } = useRecipe(recipeId ?? null);
   const recipeActions = useRecipeActions();
   const locationState = (location.state ?? null) as RecipeDetailLocationState | null;
-  const isFromMealPlanner = locationState?.from === "meal-planner";
-  // Offer a way back along the path that led here. Picking a recipe for a
-  // planner slot goes planner → recipes list → recipe, so both are offered;
-  // the list keeps its "Picking a recipe for…" banner (and its saved search).
-  // A meal opened straight from the planner only came from the planner.
-  const pickingForSlot = locationState?.mealSlot;
-  const backLinks: Array<{ to: string; label: string; state?: { mealSlot: { date: string; mealType: MealType } } }> = [];
-  if (!isFromMealPlanner || pickingForSlot) {
-    backLinks.push({
-      to: "/app/recipes",
-      label: "Back to Recipes",
-      state: pickingForSlot ? { mealSlot: pickingForSlot } : undefined,
-    });
-  }
-  if (isFromMealPlanner) {
-    backLinks.push({ to: "/app/meal-plans", label: "Back to Meal Planner" });
-  }
-  const backLinkElements = backLinks.map((link) => (
-    <Link key={link.to} className="btn btn--ghost" to={link.to} state={link.state}>
-      {link.label}
-    </Link>
-  ));
+  const backLinks = <RecipeBackLinks state={locationState} />;
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,8 +38,6 @@ export default function RecipeDetailPage() {
   const [snapshot, setSnapshot] = useState<RecipeFormValues | null>(null);
   const [viewServings, setViewServings] = useState<number | null>(null);
   const [editScaleBaseServings, setEditScaleBaseServings] = useState<number | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [savingRating, setSavingRating] = useState(false);
 
@@ -112,73 +69,9 @@ export default function RecipeDetailPage() {
     }
   }
 
-  const handleFieldChange = (field: RecipeFieldName, value: string) => {
-    setFormValues((previousValues) =>
-      previousValues ? { ...previousValues, [field]: value } : previousValues
-    );
-  };
-
-  const handleIngredientChange = (
-    ingredientId: string,
-    field: RecipeIngredientFieldName,
-    value: string
-  ) => {
-    setFormValues((previousValues) =>
-      previousValues
-        ? {
-            ...previousValues,
-            ingredients: previousValues.ingredients.map((ingredient) =>
-              ingredient.id === ingredientId
-                ? { ...ingredient, [field]: value }
-                : ingredient
-            ),
-          }
-        : previousValues
-    );
-  };
-
-  const handleIngredientSelect = (
-    rowId: string,
-    ingredientId: string,
-    name: string
-  ) => {
-    setFormValues((previousValues) =>
-      previousValues
-        ? {
-            ...previousValues,
-            ingredients: previousValues.ingredients.map((ingredient) =>
-              ingredient.id === rowId
-                ? { ...ingredient, ingredientId, ingredientName: name }
-                : ingredient
-            ),
-          }
-        : previousValues
-    );
-  };
-
-  const handleAddIngredient = () => {
-    setFormValues((previousValues) =>
-      previousValues
-        ? {
-            ...previousValues,
-            ingredients: [...previousValues.ingredients, createEmptyIngredient()],
-          }
-        : previousValues
-    );
-  };
-
-  const handleRemoveIngredient = (ingredientId: string) => {
-    setFormValues((previousValues) =>
-      previousValues
-        ? {
-            ...previousValues,
-            ingredients: previousValues.ingredients.filter(
-              (ingredient) => ingredient.id !== ingredientId
-            ),
-          }
-        : previousValues
-    );
-  };
+  const formHandlers = createRecipeFormHandlers((change) =>
+    setFormValues((previousValues) => (previousValues ? change(previousValues) : previousValues))
+  );
 
   const handleCancelEdit = () => {
     if (snapshot) {
@@ -194,42 +87,23 @@ export default function RecipeDetailPage() {
     if (!formValues) {
       return;
     }
-
-    const nextServings = parseServingsValue(formValues.servings);
-    if (!nextServings) {
-      setError("Enter a valid servings value before scaling ingredients.");
-      return;
-    }
-
-    const currentScaleBaseServings = editScaleBaseServings;
-    if (!currentScaleBaseServings) {
-      setError("Set base servings first before scaling ingredient quantities.");
-      return;
-    }
-
-    if (nextServings === currentScaleBaseServings) {
-      setMessage("Ingredients already match the current servings value.");
-      setError(null);
-      return;
-    }
-
-    setFormValues((previousValues) =>
-      previousValues
-        ? {
-            ...previousValues,
-            ingredients: scaleRecipeFormIngredientQuantities(
-              previousValues.ingredients,
-              currentScaleBaseServings,
-              nextServings
-            ),
-          }
-        : previousValues
+    const result = scaleIngredientsToServings(
+      formValues.ingredients,
+      editScaleBaseServings,
+      formValues.servings
     );
-    setEditScaleBaseServings(nextServings);
+    if (result.kind === "error") {
+      setError(result.message);
+      return;
+    }
+    if (result.kind === "scaled") {
+      setFormValues((previousValues) =>
+        previousValues ? { ...previousValues, ingredients: result.ingredients } : previousValues
+      );
+      setEditScaleBaseServings(result.servings);
+    }
     setError(null);
-    setMessage(
-      `Scaled ingredient quantities from ${currentScaleBaseServings} to ${nextServings} servings.`
-    );
+    setMessage(result.message);
   };
 
   const handleSave = async (event: React.FormEvent) => {
@@ -250,20 +124,14 @@ export default function RecipeDetailPage() {
       setEditing(false);
       const nextRecipeBaseServings = parseServingsValue(formValues.servings);
       setEditScaleBaseServings(nextRecipeBaseServings);
-      setViewServings((currentViewServings) => {
-        if (
-          currentViewServings === null ||
-          currentViewServings === previousSnapshotServings
-        ) {
-          return nextRecipeBaseServings;
-        }
-        return currentViewServings;
-      });
+      setViewServings((currentViewServings) =>
+        currentViewServings === null || currentViewServings === previousSnapshotServings
+          ? nextRecipeBaseServings
+          : currentViewServings
+      );
       setMessage("Recipe saved.");
     } catch (saveError) {
-      setError(
-        saveError instanceof Error ? saveError.message : "Failed to save recipe."
-      );
+      setError(saveError instanceof Error ? saveError.message : "Failed to save recipe.");
     } finally {
       setSaving(false);
     }
@@ -281,9 +149,7 @@ export default function RecipeDetailPage() {
       await recipeActions.rate(recipeId, nextRating);
       setRating(nextRating);
     } catch (rateError) {
-      setError(
-        rateError instanceof Error ? rateError.message : "Failed to update rating."
-      );
+      setError(rateError instanceof Error ? rateError.message : "Failed to update rating.");
     } finally {
       setSavingRating(false);
     }
@@ -293,30 +159,15 @@ export default function RecipeDetailPage() {
     if (!recipeId) {
       return;
     }
-
-    setDeleting(true);
-    setError(null);
-
-    try {
-      // Also refreshes recipe lists and the planner, whose meals lose this recipe.
-      await recipeActions.remove(recipeId);
-      navigate("/app/recipes");
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error ? deleteError.message : "Failed to delete recipe."
-      );
-      setDeleting(false);
-    }
+    // Also refreshes recipe lists and the planner, whose meals lose this recipe.
+    await recipeActions.remove(recipeId);
+    navigate("/app/recipes");
   };
 
   // Rendered as the first child of every branch below so it stays mounted
   // when loading finishes and LoadingModal can apply its minimum display time.
   const loadingModal = (
-    <LoadingModal
-      open={loading}
-      title="Loading recipe..."
-      message="Pulling in your recipe details."
-    />
+    <LoadingModal open={loading} title="Loading recipe..." message="Pulling in your recipe details." />
   );
 
   if (loading) {
@@ -330,7 +181,7 @@ export default function RecipeDetailPage() {
         <article className="workspace-card recipe-empty-state">
           <h1>Recipe not found</h1>
           <p>This recipe may have been removed or you might not have access.</p>
-          {backLinkElements}
+          {backLinks}
         </article>
       </section>
     );
@@ -338,16 +189,18 @@ export default function RecipeDetailPage() {
 
   const recipeBaseServings = parseServingsValue(formValues.servings);
   const canScaleInEditMode = Boolean(
-    editing &&
-      recipeBaseServings &&
-      editScaleBaseServings &&
-      recipeBaseServings !== editScaleBaseServings
+    editing && recipeBaseServings && editScaleBaseServings && recipeBaseServings !== editScaleBaseServings
   );
 
+  const startEditing = () => {
+    setEditing(true);
+    setEditScaleBaseServings(parseServingsValue(formValues.servings));
+    setError(null);
+    setMessage(null);
+  };
+
   return (
-    <section
-      className={`workspace-route recipe-route${editing ? " recipe-route--sticky-actions" : ""}`}
-    >
+    <section className={`workspace-route recipe-route${editing ? " recipe-route--sticky-actions" : ""}`}>
       {loadingModal}
       <article className="workspace-card">
         <div className="recipe-page-header">
@@ -363,7 +216,7 @@ export default function RecipeDetailPage() {
             ) : null}
           </div>
           <div className="recipe-page-header__actions">
-            {backLinkElements}
+            {backLinks}
             {!editing && recipeId ? (
               <AddToPlanButton
                 recipeId={recipeId}
@@ -373,64 +226,24 @@ export default function RecipeDetailPage() {
                 initialMealType={locationState?.mealSlot?.mealType}
               />
             ) : null}
-            {!editing && !confirmingDelete ? (
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => {
-                  setEditing(true);
-                  setEditScaleBaseServings(parseServingsValue(formValues.servings));
-                  setError(null);
-                  setMessage(null);
-                }}
-              >
-                Edit
-              </button>
-            ) : null}
             {editing ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={handleCancelEdit}
-                disabled={saving}
-              >
+              <button type="button" className="btn btn--ghost" onClick={handleCancelEdit} disabled={saving}>
                 Cancel
               </button>
-            ) : null}
-            {!editing && confirmingDelete ? (
-              <>
-                <span className="recipe-page-header__confirm-label">Delete this recipe?</span>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => setConfirmingDelete(false)}
-                  disabled={deleting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--danger"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deleting…" : "Confirm delete"}
-                </button>
-              </>
-            ) : null}
-            {!editing && !confirmingDelete ? (
-              <button
-                type="button"
-                className="btn btn--ghost btn--danger-ghost"
-                onClick={() => {
-                  setConfirmingDelete(true);
-                  setError(null);
+            ) : (
+              <RecipeDeleteControls
+                onDelete={handleDelete}
+                onError={(deleteError) => {
+                  setError(deleteError);
                   setMessage(null);
                 }}
-              >
-                Delete
-              </button>
-            ) : null}
+                otherActions={
+                  <button type="button" className="btn btn--primary" onClick={startEditing}>
+                    Edit
+                  </button>
+                }
+              />
+            )}
           </div>
         </div>
         {error ? <p className="error">{error}</p> : null}
@@ -438,38 +251,15 @@ export default function RecipeDetailPage() {
       </article>
 
       {editing ? (
-        <form
-          id="recipe-edit-form"
-          className="workspace-card recipe-form"
-          onSubmit={handleSave}
-        >
-          <RecipeFormFields
-            values={formValues}
-            readOnly={false}
-            onFieldChange={handleFieldChange}
-            onIngredientChange={handleIngredientChange}
-            onIngredientSelect={handleIngredientSelect}
-            onAddIngredient={handleAddIngredient}
-            onRemoveIngredient={handleRemoveIngredient}
+        <form id="recipe-edit-form" className="workspace-card recipe-form" onSubmit={handleSave}>
+          <RecipeFormFields values={formValues} readOnly={false} {...formHandlers} />
+          <RecipeScaleTools
+            baseServings={editScaleBaseServings}
+            targetServings={recipeBaseServings}
+            canScale={canScaleInEditMode}
+            disabled={saving}
+            onScale={handleScaleIngredientsForServings}
           />
-          <section className="recipe-scale-tools">
-            <h2>Ingredient scaling</h2>
-            <p>
-              Current ingredient quantities are based on{" "}
-              {editScaleBaseServings ?? "unknown"} servings.
-            </p>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={handleScaleIngredientsForServings}
-              disabled={saving || !canScaleInEditMode}
-            >
-              {canScaleInEditMode
-                ? `Scale ingredients to ${recipeBaseServings} servings`
-                : "Adjust servings to enable scaling"}
-            </button>
-          </section>
-
           <div className="recipe-form__actions">
             <button type="submit" className="btn btn--primary" disabled={saving}>
               {saving ? "Saving..." : "Save Changes"}
@@ -486,12 +276,7 @@ export default function RecipeDetailPage() {
       )}
       {editing ? (
         <div className="recipe-sticky-actions" aria-label="Recipe edit actions">
-          <button
-            type="submit"
-            form="recipe-edit-form"
-            className="btn btn--primary"
-            disabled={saving}
-          >
+          <button type="submit" form="recipe-edit-form" className="btn btn--primary" disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>

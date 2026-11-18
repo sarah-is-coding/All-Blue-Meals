@@ -4,7 +4,7 @@ import type { IngredientCategory } from "../ingredients/types";
 import { scaleQuantityText } from "../../lib/utils/quantities";
 import { listPlannedMealsBetween, listSavedPlanMeals } from "../meal-plans/api";
 import type { PlannedMeal } from "../meal-plans/types";
-import { mergeIngredients } from "./utils/groceryGeneration";
+import { mergeIngredients, type ScaledIngredient } from "./utils/groceryGeneration";
 import type {
   GroceryItem,
   GroceryItemDraft,
@@ -15,8 +15,11 @@ import type {
 
 // ── Internal row types ──────────────────────────────────────────────────────
 
-type RecipeIngRow = Pick<Tables<"recipe_ingredients">, "recipe_id" | "ingredient_name" | "quantity" | "unit"> & {
-  ingredients: Pick<Tables<"ingredients">, "category"> | null;
+type RecipeIngRow = Pick<
+  Tables<"recipe_ingredients">,
+  "id" | "recipe_id" | "ingredient_id" | "quantity" | "unit" | "notes" | "substitute_for"
+> & {
+  ingredients: Pick<Tables<"ingredients">, "name" | "category"> | null;
 };
 
 type GroceryListRow = Pick<
@@ -26,7 +29,12 @@ type GroceryListRow = Pick<
 
 const LIST_COLUMNS = "id, title, saved_plan_id, start_date, end_date, created_at";
 
-type GroceryItemRow = Pick<Tables<"grocery_items">, "id" | "ingredient_name" | "quantity" | "unit" | "is_checked" | "category">;
+type GroceryItemRow = Pick<
+  Tables<"grocery_items">,
+  "id" | "ingredient_name" | "quantity" | "unit" | "is_checked" | "category" | "substitutes"
+>;
+
+const ITEM_COLUMNS = "id, ingredient_name, quantity, unit, is_checked, category, substitutes";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +46,7 @@ function mapItemRow(row: GroceryItemRow): GroceryItem {
     unit: row.unit ?? "",
     isChecked: row.is_checked,
     category: (row.category ?? null) as IngredientCategory | null,
+    substitutes: row.substitutes ?? [],
   };
 }
 
@@ -88,33 +97,45 @@ async function buildGroceryItemsFromMeals(meals: PlannedMeal[]): Promise<Grocery
   );
   if (recipeIds.length === 0) return [];
 
-  // Batch-fetch all recipe ingredients (including category via ingredient FK)
+  // Batch-fetch all recipe ingredients, with the catalog name and category.
+  // Substitute rows ("or avocado oil") come too: they're attached to their
+  // main row and shown as options, not added as items to buy.
   const { data: ingRows, error: ingErr } = await supabase
     .from("recipe_ingredients")
-    .select("recipe_id, ingredient_name, quantity, unit, ingredients(category)")
+    .select(
+      "id, recipe_id, ingredient_id, quantity, unit, notes, substitute_for, ingredients(name, category)"
+    )
     .in("recipe_id", recipeIds)
+    .order("position", { ascending: true })
     .returns<RecipeIngRow[]>();
 
   if (ingErr) throw new Error(ingErr.message);
 
   const ingByRecipe = new Map<string, RecipeIngRow[]>();
+  const substitutesByMain = new Map<string, RecipeIngRow[]>();
   for (const row of ingRows ?? []) {
-    const list = ingByRecipe.get(row.recipe_id) ?? [];
-    list.push(row);
-    ingByRecipe.set(row.recipe_id, list);
+    if (row.substitute_for) {
+      substitutesByMain.set(row.substitute_for, [...(substitutesByMain.get(row.substitute_for) ?? []), row]);
+      continue;
+    }
+    ingByRecipe.set(row.recipe_id, [...(ingByRecipe.get(row.recipe_id) ?? []), row]);
   }
 
-  // Scale each planned meal's ingredients to the servings planned for it
-  const scaled: GroceryItemDraft[] = [];
+  // Scale each planned meal's ingredients (and their substitutes) to the
+  // servings planned for it.
+  const scaled: ScaledIngredient[] = [];
   for (const meal of meals) {
     if (!meal.recipeId) continue;
-    for (const ing of ingByRecipe.get(meal.recipeId) ?? []) {
-      scaled.push({
-        ingredientName: ing.ingredient_name,
-        quantity: scaleQuantityText(ing.quantity ?? "", meal.recipeServings, meal.effectiveServings),
-        unit: ing.unit ?? "",
-        category: (ing.ingredients?.category ?? null) as IngredientCategory | null,
-      });
+    const scale = (row: RecipeIngRow): ScaledIngredient => ({
+      ingredientId: row.ingredient_id,
+      ingredientName: row.ingredients?.name ?? "",
+      quantity: scaleQuantityText(row.quantity ?? "", meal.recipeServings, meal.effectiveServings),
+      unit: row.unit ?? "",
+      notes: row.notes ?? "",
+      category: (row.ingredients?.category ?? null) as IngredientCategory | null,
+    });
+    for (const row of ingByRecipe.get(meal.recipeId) ?? []) {
+      scaled.push({ ...scale(row), substitutes: (substitutesByMain.get(row.id) ?? []).map(scale) });
     }
   }
 
@@ -174,9 +195,10 @@ export async function saveGroceryList(
         unit: item.unit || null,
         is_checked: false,
         category: item.category || null,
+        substitutes: item.substitutes,
       }))
     )
-    .select("id, ingredient_name, quantity, unit, is_checked, category")
+    .select(ITEM_COLUMNS)
     .returns<GroceryItemRow[]>();
 
   if (itemErr) throw new Error(itemErr.message);
@@ -196,7 +218,7 @@ export async function getGroceryList(listId: string): Promise<GroceryList | null
 
   const { data: itemRows, error: itemErr } = await supabase
     .from("grocery_items")
-    .select("id, ingredient_name, quantity, unit, is_checked, category")
+    .select(ITEM_COLUMNS)
     .eq("list_id", listId)
     .order("created_at", { ascending: true })
     .returns<GroceryItemRow[]>();

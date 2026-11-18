@@ -1,8 +1,14 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RecipeAiImportPanel from "../../../../features/recipes/components/RecipeAiImportPanel";
 import type { ImportedRecipe } from "../../../../features/recipes/types";
 import { SAMPLE_RECIPE_IMPORT_NOTES } from "../fixtures/sampleRecipeImportNotes";
+import { renderWithProviders } from "../../../utils/renderWithProviders";
+
+// The "N new ingredients" tag looks up the catalog; nothing matches here.
+vi.mock("../../../../features/ingredients/api", () => ({
+  findIngredientMatches: vi.fn().mockResolvedValue(new Map()),
+}));
 
 const runRequest = vi.fn();
 
@@ -107,7 +113,7 @@ describe("RecipeAiImportPanel", () => {
 
   it("extracts the sample mixed notes and links and renders returned recipe drafts", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <RecipeAiImportPanel
         runRequest={runRequest}
         onUseDraft={vi.fn()}
@@ -129,6 +135,9 @@ describe("RecipeAiImportPanel", () => {
     expect(screen.getByText("Beef Stew - 4 Servings")).toBeInTheDocument();
     expect(screen.getAllByText("Has source")).toHaveLength(2);
     expect(screen.getByText("Could not read one social/video link.")).toBeInTheDocument();
+    // Step 5: none of the ingredients are in the (mocked) catalog, so each
+    // result says how many would be created.
+    expect((await screen.findAllByText(/^\d+ new ingredients?$/)).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: /create selected \(3\)/i })
     ).toBeEnabled();
@@ -137,7 +146,7 @@ describe("RecipeAiImportPanel", () => {
   it("creates all selected recipe drafts from the sample import", async () => {
     const user = userEvent.setup();
     const onCreateRecipes = vi.fn().mockResolvedValue(undefined);
-    render(
+    renderWithProviders(
       <RecipeAiImportPanel
         runRequest={runRequest}
         onUseDraft={vi.fn()}
@@ -159,7 +168,7 @@ describe("RecipeAiImportPanel", () => {
   it("can load one imported recipe into the manual draft form", async () => {
     const user = userEvent.setup();
     const onUseDraft = vi.fn();
-    render(
+    renderWithProviders(
       <RecipeAiImportPanel
         runRequest={runRequest}
         onUseDraft={onUseDraft}
