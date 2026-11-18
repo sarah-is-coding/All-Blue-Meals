@@ -299,6 +299,30 @@ describe("resolveIngredients with a canonical name", () => {
     expect(result.get("ghee")?.id).toBe("n-1");
   });
 
+  // Found on the Chicken Francese import: the AI gave "chicken breasts" for
+  // "skinless boneless chicken breasts", which made the grocery list lose
+  // words that change what you buy.
+  it("saves a pending alias and creates the name as written when the canonical name only drops words", async () => {
+    db.returns
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok([row("i-1", "chicken breasts", "chickenbreast", "meat & seafood")]))
+      .mockResolvedValueOnce(ok([row("n-1", "skinless boneless chicken breasts", "skinlessbonelesschickenbreast", "meat & seafood")]));
+
+    await resolveIngredients([
+      { name: "skinless boneless chicken breasts", category: "meat & seafood", canonicalName: "chicken breasts" },
+    ]);
+
+    expect(db.upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ alias_key: "skinlessbonelesschickenbreast", ingredient_id: "i-1", status: "pending" })],
+      expect.anything()
+    );
+    expect(db.insert).toHaveBeenCalledWith([
+      { name: "skinless boneless chicken breasts", name_key: "skinlessbonelesschickenbreast", category: "meat & seafood" },
+    ]);
+  });
+
   it("adds no alias when the canonical name isn't in the catalog", async () => {
     // Name: by key, alias, exact name; canonical: by key, alias, exact name; then the insert.
     for (let lookup = 0; lookup < 6; lookup += 1) db.returns.mockResolvedValueOnce(ok([]));

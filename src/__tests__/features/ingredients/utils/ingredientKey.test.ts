@@ -1,5 +1,6 @@
 import {
   chooseDisplayName,
+  dropsWords,
   foldText,
   ingredientKey,
   singularDisplayName,
@@ -157,5 +158,28 @@ describe("chooseDisplayName", () => {
 
   it("returns empty for no variants", () => {
     expect(chooseDisplayName([])).toBe("");
+  });
+});
+
+describe("dropsWords", () => {
+  it("is true when the general name only leaves words out", () => {
+    expect(dropsWords("skinless boneless chicken breasts", "chicken breasts")).toBe(true);
+    expect(dropsWords("flat-leaf parsley", "Parsley")).toBe(true);
+  });
+
+  it("is false for synonyms, spellings and reordered words", () => {
+    expect(dropsWords("scallions", "green onion")).toBe(false);
+    expect(dropsWords("onions", "onion")).toBe(false);
+    expect(dropsWords("skinless boneless chicken breasts", "boneless skinless chicken breasts")).toBe(false);
+  });
+
+  it("is false when the other name adds or changes words", () => {
+    expect(dropsWords("coriander leaves", "cilantro")).toBe(false);
+    expect(dropsWords("chicken breasts", "boneless chicken breasts")).toBe(false);
+  });
+
+  it("is false for empty names", () => {
+    expect(dropsWords("parsley", "")).toBe(false);
+    expect(dropsWords("", "")).toBe(false);
   });
 });

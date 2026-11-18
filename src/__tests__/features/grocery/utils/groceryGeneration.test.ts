@@ -201,6 +201,32 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
     ]);
   });
 
+  // Which can to buy: the size from a container's notes is part of its unit.
+  // Other notes ("diced") are for cooking and stay off the list.
+  it("keeps container sizes on the item, merging only same-size containers", () => {
+    const tomatoes = (quantity: string, notes: string) => ({
+      ingredientId: "i-tom", ingredientName: "crushed tomatoes", quantity, unit: "can", notes, category: "pantry" as const,
+    });
+    const result = mergeIngredients([
+      tomatoes("1", "14 oz/400 g, undrained"),
+      tomatoes("2", "28 oz"),
+      tomatoes("1", "28 oz, divided"),
+      { ingredientId: "i-onion", ingredientName: "onion", quantity: "1", unit: "", notes: "diced", category: "produce" },
+    ]);
+    expect(result.map((item) => [item.ingredientName, item.quantity, item.unit])).toEqual([
+      ["onion", "1", ""],
+      ["crushed tomatoes", "1", "can (14 oz/400 g)"],
+      ["crushed tomatoes", "3", "can (28 oz)"],
+    ]);
+  });
+
+  it("takes the size from a quantity written as '15' + 'ounce can'", () => {
+    const result = mergeIngredients([
+      { ingredientId: "i-beans", ingredientName: "black beans", quantity: "15", unit: "ounce can", category: "pantry" },
+    ]);
+    expect(result.map((item) => [item.quantity, item.unit])).toEqual([["1", "can (15 oz)"]]);
+  });
+
   it("merges plural and singular names without an id by their key", () => {
     const result = mergeIngredients([ing("tomato", "1", ""), ing("Tomatoes", "2", "")]);
     expect(result.map((r) => r.quantity)).toEqual(["3"]);

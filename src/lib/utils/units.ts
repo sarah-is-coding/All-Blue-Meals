@@ -92,6 +92,27 @@ const EMPTY_UNITS = new Set(["unit", "units", "each", "ea", "whole item", "item"
 // Containers that can carry a size: "(15 ounce) can", "28-ounce can", "13.5oz cans".
 const CONTAINER_UNITS = new Set(["can", "jar", "bottle", "box", "bag", "package", "container"]);
 
+// "15 oz", "14 oz/400 g", "13.5 fl oz", "1-2 lb".
+const SIZE_UNIT = "(?:fl\\.? ?oz|oz|g|kg|ml|l|lb)";
+const SIZE_NOTE = new RegExp(
+  `^\\d+(?:\\.\\d+)?(?:\\s*-\\s*\\d+(?:\\.\\d+)?)?\\s*${SIZE_UNIT}(?:\\s*/\\s*\\d+(?:\\.\\d+)?\\s*${SIZE_UNIT})?$`,
+  "i"
+);
+
+/**
+ * The size of a container from its notes ("1 can", notes "15 oz, drained" →
+ * "15 oz"): what to look for at the store. Null for units that aren't
+ * containers ("2 tbsp", notes "15 oz" isn't a size of anything).
+ */
+export const containerSize = (unit: string, notes: string | null | undefined): string | null => {
+  if (!CONTAINER_UNITS.has(unit)) return null;
+  const size = (notes ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => SIZE_NOTE.test(part));
+  return size ?? null;
+};
+
 const lookupUnit = (text: string): string | null => {
   const bare = text.toLowerCase().replace(/\.$/, "").trim();
   return CANONICAL_BY_SPELLING.get(bare) ?? null;

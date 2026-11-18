@@ -1,4 +1,4 @@
-import { applySizeQuantity, normalizeUnit } from "../../../lib/utils/units";
+import { applySizeQuantity, containerSize, normalizeUnit } from "../../../lib/utils/units";
 
 describe("normalizeUnit", () => {
   // Spellings found in recipe_ingredients.unit (2026-11-17).
@@ -79,5 +79,27 @@ describe("container sizes in the quantity", () => {
   it("leaves other lines alone", () => {
     expect(applySizeQuantity("2", normalizeUnit("cups"))).toEqual({ quantity: "2", unit: "cup", notes: [] });
     expect(applySizeQuantity("", normalizeUnit("ounce can"))).toEqual({ quantity: "", unit: "can", notes: [] });
+  });
+});
+
+// The size you look for at the store ("1 can" of what size?).
+describe("containerSize", () => {
+  it("finds a size in a container's notes", () => {
+    expect(containerSize("can", "15 oz, with liquid")).toBe("15 oz");
+    expect(containerSize("can", "14 oz/400 g, undrained")).toBe("14 oz/400 g");
+    expect(containerSize("package", "drained, 125 g")).toBe("125 g");
+    expect(containerSize("bottle", "16.9 fl oz")).toBe("16.9 fl oz");
+  });
+
+  it("ignores notes that aren't a size", () => {
+    expect(containerSize("can", "drained and rinsed")).toBeNull();
+    expect(containerSize("can", "about 15 oz")).toBeNull();
+    expect(containerSize("can", "")).toBeNull();
+    expect(containerSize("can", null)).toBeNull();
+  });
+
+  it("only applies to containers", () => {
+    expect(containerSize("tbsp", "15 oz")).toBeNull();
+    expect(containerSize("", "15 oz")).toBeNull();
   });
 });

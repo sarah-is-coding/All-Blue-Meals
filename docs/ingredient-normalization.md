@@ -668,6 +668,11 @@ catalog instead of every duplicate.
   3. *Apply only when safe:* apply immediately when the canonical name is
      already in the catalog **and** in the same category; otherwise save it
      as pending.
+     Also pending when the canonical name only leaves words out of the
+     written one (`dropsWords`: "skinless boneless chicken breasts" →
+     "chicken breasts"), since those words usually change what you buy.
+     Found on the first import after step 5, which merged boneless skinless
+     chicken breasts into plain chicken breasts.
 
   Proposed: 3.
 - ~~The 19 unused ingredients.~~ **Decided: delete them** in the step 7

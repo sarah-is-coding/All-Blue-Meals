@@ -17,7 +17,7 @@ import type {
 
 type RecipeIngRow = Pick<
   Tables<"recipe_ingredients">,
-  "id" | "recipe_id" | "ingredient_id" | "quantity" | "unit" | "substitute_for"
+  "id" | "recipe_id" | "ingredient_id" | "quantity" | "unit" | "notes" | "substitute_for"
 > & {
   ingredients: Pick<Tables<"ingredients">, "name" | "category"> | null;
 };
@@ -103,7 +103,7 @@ async function buildGroceryItemsFromMeals(meals: PlannedMeal[]): Promise<Grocery
   const { data: ingRows, error: ingErr } = await supabase
     .from("recipe_ingredients")
     .select(
-      "id, recipe_id, ingredient_id, quantity, unit, substitute_for, ingredients(name, category)"
+      "id, recipe_id, ingredient_id, quantity, unit, notes, substitute_for, ingredients(name, category)"
     )
     .in("recipe_id", recipeIds)
     .order("position", { ascending: true })
@@ -131,6 +131,7 @@ async function buildGroceryItemsFromMeals(meals: PlannedMeal[]): Promise<Grocery
       ingredientName: row.ingredients?.name ?? "",
       quantity: scaleQuantityText(row.quantity ?? "", meal.recipeServings, meal.effectiveServings),
       unit: row.unit ?? "",
+      notes: row.notes ?? "",
       category: (row.ingredients?.category ?? null) as IngredientCategory | null,
     });
     for (const row of ingByRecipe.get(meal.recipeId) ?? []) {

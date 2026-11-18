@@ -1,7 +1,7 @@
 import { supabase } from "../../lib/supabaseClient";
 import type { Tables } from "../../lib/db/database.types";
 import type { Ingredient, IngredientCategory, IngredientMatch } from "./types";
-import { ingredientKey, singularDisplayName } from "./utils/ingredientKey";
+import { dropsWords, ingredientKey, singularDisplayName } from "./utils/ingredientKey";
 
 // Matching follows docs/ingredient-normalization.md: a name matches an
 // ingredient when their keys match (ingredientKey ignores case, accents,
@@ -110,8 +110,9 @@ export type IngredientRequest = {
  * Link names to their canonical ingredient through ingredient_aliases (rule
  * in docs/ingredient-normalization.md, "AI-created aliases"): when the
  * canonical ingredient exists in the same category the alias is approved and
- * the name resolves to it now; in a different category it's saved as pending
- * for review and the name is created as written. Aliases are best effort: a
+ * the name resolves to it now; in a different category, or when the canonical
+ * name only leaves words out, it's saved as pending for review and the name
+ * is created as written. Aliases are best effort: a
  * failure never stops a recipe from saving.
  */
 const linkCanonicalNames = async (
@@ -135,7 +136,9 @@ const linkCanonicalNames = async (
     const aliases = candidates.flatMap(([key, request]) => {
       const canonical = canonicals.get(ingredientKey(request.canonicalName ?? ""));
       if (!canonical) return [];
-      const approved = canonical.category === request.category;
+      // A canonical name that only drops words ("chicken breasts" for
+      // "skinless boneless chicken breasts") is a broader item: pending.
+      const approved = canonical.category === request.category && !dropsWords(request.name, canonical.name);
       if (approved) found.set(key, canonical);
       return [{
         alias_key: key,

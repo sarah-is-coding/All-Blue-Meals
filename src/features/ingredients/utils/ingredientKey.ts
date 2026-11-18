@@ -58,12 +58,27 @@ export const singularizeWord = (word: string): string => {
  * "sun-dried tomatoes" and "sundried tomato" → "sundriedtomato".
  * Returns "" for an empty name.
  */
-export const ingredientKey = (name: string): string =>
-  foldText(name)
-    .split(" ")
-    .filter(Boolean)
-    .map(singularizeWord)
-    .join("");
+export const ingredientKey = (name: string): string => ingredientWords(name).join("");
+
+/** The words of a name as the key sees them: folded and singular. */
+export const ingredientWords = (name: string): string[] =>
+  foldText(name).split(" ").filter(Boolean).map(singularizeWord);
+
+/**
+ * True when `general` is `specific` with words left out ("skinless boneless
+ * chicken breasts" → "chicken breasts", "flat-leaf parsley" → "parsley"):
+ * a broader item, not a synonym. Those words usually change what you buy,
+ * so such a pair must not be an approved alias.
+ */
+export const dropsWords = (specific: string, general: string): boolean => {
+  const specificWords = new Set(ingredientWords(specific));
+  const generalWords = new Set(ingredientWords(general));
+  return (
+    generalWords.size > 0 &&
+    generalWords.size < specificWords.size &&
+    [...generalWords].every((word) => specificWords.has(word))
+  );
+};
 
 const keepsPlural = (words: string[]): boolean => {
   const last = words[words.length - 1] ?? "";

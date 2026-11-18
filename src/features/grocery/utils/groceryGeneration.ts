@@ -5,7 +5,7 @@ import {
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import { parseName } from "../../ingredients/utils/ingredientText";
 import { parseQuantityNumber } from "../../../lib/utils/quantities";
-import { applySizeQuantity, normalizeUnit } from "../../../lib/utils/units";
+import { applySizeQuantity, containerSize, normalizeUnit } from "../../../lib/utils/units";
 import type { GroceryItemDraft } from "../types";
 
 export type ScaledIngredient = {
@@ -14,6 +14,8 @@ export type ScaledIngredient = {
   ingredientName: string;
   quantity: string;
   unit: string;
+  /** The recipe row's notes; only a container size ("15 oz") reaches the list. */
+  notes?: string;
   category: IngredientCategory | null;
   /** Alternatives shown as options on the item, not bought ("or avocado oil"). */
   substitutes?: ScaledIngredient[];
@@ -64,6 +66,9 @@ const formatOption = (draft: GroceryItemDraft): string => {
  *
  * Grouping key: the catalog ingredient (or the name's key when there's no
  * id) + the normalized unit, so "onions, 2 cups" and "onion, 1 cup" merge.
+ * A container's size from the notes is part of the unit ("can (15 oz)"), so
+ * 15 oz and 28 oz cans stay separate items. Other notes ("diced") are for
+ * cooking and stay off the list.
  * Numeric amounts ("2", "1 1/2") are summed. Amounts that aren't numbers
  * ("2-3", "a pinch", "to taste") are never dropped: each distinct one is kept
  * alongside the total, e.g. "1 + 2-3", so nothing is silently under-bought.
@@ -90,7 +95,8 @@ export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDr
 
     // "15" + "ounce can" (rows not yet cleaned) is one can, not 15.
     const sized = applySizeQuantity(ing.quantity.trim(), normalizeUnit(ing.unit));
-    const unit = sized.unit;
+    const size = containerSize(sized.unit, [...sized.notes, ing.notes ?? ""].join(", "));
+    const unit = size ? `${sized.unit} (${size})` : sized.unit;
     const identity = ing.ingredientId || ingredientKey(nameTrimmed);
     const key = `${identity}|${unit}`;
     const rawQty = sized.quantity.trim();
