@@ -1,7 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { useSessionCache } from "../../app/useSessionCache";
 import { mealPlanKeys } from "../../features/meal-plans/queries";
-import { groceryKeys } from "../../features/grocery/queries";
 import { recipeKeys } from "../../features/recipes/queries";
 import { getWeekStartIso, shiftWeekStartIso } from "../../lib/utils/dates";
 import { saveMealPlannerViewState } from "../../features/meal-plans/utils/mealPlannerViewState";
@@ -104,13 +103,11 @@ describe("useSessionCache", () => {
     );
   });
 
-  it("sign-out wipes every feature's cached data: grocery lists, saved plans, and recipes", async () => {
+  it("sign-out wipes cached saved plans and recipes", async () => {
     const client = createTestQueryClient();
     const { rerender } = renderHook(({ userId }) => useSessionCache(userId, client), {
       initialProps: { userId: "user-1" as string | null },
     });
-    client.setQueryData(groceryKeys.savedLists("user-1"), [{ id: "list-1" }]);
-    client.setQueryData(groceryKeys.list("user-1", "list-1"), { id: "list-1", items: [] });
     client.setQueryData(mealPlanKeys.savedList("user-1"), [{ id: "plan-1" }]);
     client.setQueryData(recipeKeys.detail("user-1", "r1"), { id: "r1" });
     client.setQueryData(

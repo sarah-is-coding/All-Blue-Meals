@@ -225,8 +225,8 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   the visible week) so it never shares bandwidth with speculative requests
 - Tests render with `renderWithProviders` / `renderHookWithProviders` from
   `src/__tests__/utils/renderWithProviders.tsx` (fresh cache + test user)
-- Query modules today: `meal-plans/queries.ts` (weeks, date ranges,
-  saved plans, previews), `grocery/queries.ts` (saved lists), and
+- Query modules include `meal-plans/queries.ts` (weeks, date ranges,
+  saved plans, previews) and
   `recipes/queries.ts` (list pages, recipe detail). Recipe changes also
   refresh planner weeks, since the planner shows recipe titles/servings
 

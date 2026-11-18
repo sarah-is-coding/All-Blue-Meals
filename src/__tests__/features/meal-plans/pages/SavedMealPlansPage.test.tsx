@@ -50,7 +50,8 @@ describe("SavedMealPlansPage", () => {
 
   it("shows a link back to meal plans", () => {
     renderPage();
-    expect(screen.getByRole("link", { name: /← meal plans/i })).toBeInTheDocument();
+    // The back link uses the same ghost button style as the recipe headers.
+    expect(screen.getByRole("link", { name: "Back to Meal Plans" })).toHaveClass("btn", "btn--ghost");
   });
 
   it("shows loading text initially", () => {

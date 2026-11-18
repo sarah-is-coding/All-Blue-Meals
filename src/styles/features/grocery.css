@@ -1,4 +1,4 @@
-/* Grocery feature: the grocery page and saved grocery lists. */
+/* Grocery feature */
 
 /* ── Grocery Lists page ───────────────────────────────────── */
 
@@ -6,27 +6,8 @@
   padding: 0.9rem 1rem;
 }
 
-.grocery-route__title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.grocery-route__title-row h1 {
+.grocery-route__header h1 {
   margin: 0;
-}
-
-.grocery-route__manage-link {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--color-brand-dark);
-  text-decoration: none;
-}
-
-.grocery-route__manage-link:hover {
-  text-decoration: underline;
 }
 
 .grocery-route__error {
@@ -98,18 +79,10 @@
   color: var(--muted);
 }
 
-/* Generated / saved grocery list card */
+/* Generated grocery list card */
 .grocery-list {
   display: grid;
   gap: 0.72rem;
-}
-
-.grocery-list__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
 .grocery-list__title-group {
@@ -128,38 +101,10 @@
   color: var(--color-muted-soft);
 }
 
-.grocery-list__actions {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
 .grocery-list__empty {
   margin: 0;
   color: var(--muted);
   font-size: 0.92rem;
-}
-
-.grocery-list__saved-badge {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--color-brand-dark);
-  font-weight: 600;
-}
-
-.grocery-list__saved-link {
-  color: var(--color-brand-dark);
-  font-weight: 700;
-  text-decoration: underline;
-}
-
-/* Inline save form */
-/* The grocery page boxes its SaveNameForm (shared.css has the form itself). */
-.grocery-save-form {
-  padding: 0.72rem 0.85rem;
-  border: 1px solid var(--alpha-brand-22);
-  border-radius: 0.75rem;
-  background: var(--alpha-bg-241-88);
 }
 
 /* Category sections */
@@ -270,60 +215,4 @@
   font-size: 0.82rem;
   color: var(--color-muted-soft);
   white-space: nowrap;
-}
-
-/* ── Saved Grocery Lists management page ──────────────────── */
-
-.saved-grocery-list__item {
-  display: grid;
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-.saved-grocery-list__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  padding: 0.85rem 1rem;
-}
-
-.saved-grocery-list__actions {
-  display: flex;
-  gap: 0.45rem;
-  flex-shrink: 0;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.saved-grocery-list__expand-btn {
-  font-size: 0.84rem;
-}
-
-.saved-grocery-list__detail {
-  padding: 0.75rem 1rem 1rem;
-  border-top: 1px solid var(--alpha-slate-33);
-  background: var(--alpha-bg-248-85);
-  display: grid;
-  gap: 0.65rem;
-}
-
-.saved-grocery-list__detail-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.saved-grocery-list__progress {
-  font-size: 0.83rem;
-  color: var(--color-muted-soft);
-  font-weight: 600;
-}
-
-.saved-grocery-list__uncheck-btn {
-  font-size: 0.82rem;
 }

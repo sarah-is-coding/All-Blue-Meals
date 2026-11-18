@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { buildGroceryItemsForRange, buildGroceryItemsForSavedPlan } from "../api";
 import PlanBrowser, { type PlanBrowserTab } from "../../meal-plans/components/PlanBrowser";
 import SavedPlanList from "../../meal-plans/components/SavedPlanList";
 import { opensSavedPlansTab } from "../../meal-plans/utils/savedPlansNavigation";
 import GroceryCalendarTab from "../components/GroceryCalendarTab";
 import GroceryListCard from "../components/GroceryListCard";
-import type { GroceryItemDraft, GroceryListOrigin, GrocerySource } from "../types";
+import type { GroceryItemDraft, GrocerySource } from "../types";
 import { formatDateRange, getWeekEndIso, getWeekStartIso } from "../../../lib/utils/dates";
 import type { SavedMealPlan } from "../../meal-plans/types";
 
 type BuiltList = {
   items: GroceryItemDraft[];
-  origin: GroceryListOrigin;
   sourceLabel: string;
 };
 
@@ -45,7 +44,7 @@ export default function GroceryPage() {
 
   // ── The built list ────────────────────────────────────────────────────────
   // Building clears the old list first, so each new list's card starts
-  // fresh (no ticks or save state carried over).
+  // fresh (no ticks carried over).
   const [built, setBuilt] = useState<BuiltList | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -85,13 +84,11 @@ export default function GroceryPage() {
       if (source.kind === "range") {
         list = {
           items: await buildGroceryItemsForRange(source.startIso, source.endIso),
-          origin: { kind: "range", startDate: source.startIso, endDate: source.endIso },
           sourceLabel: formatDateRange(source.startIso, source.endIso),
         };
       } else {
         list = {
           items: await buildGroceryItemsForSavedPlan(source.planId),
-          origin: { kind: "saved_plan", savedPlanId: source.planId },
           sourceLabel: source.planLabel,
         };
       }
@@ -130,15 +127,7 @@ export default function GroceryPage() {
     <section className="workspace-route grocery-route">
       {/* Header */}
       <article className="workspace-card grocery-route__header">
-        <div className="grocery-route__title-row">
-          <h1>Grocery Lists</h1>
-          <Link
-            to="/app/saved-grocery-lists"
-            className="grocery-route__manage-link"
-          >
-            Manage saved lists →
-          </Link>
-        </div>
+        <h1>Grocery Lists</h1>
       </article>
 
       <div className="grocery-layout">
@@ -180,11 +169,7 @@ export default function GroceryPage() {
           )}
 
           {built && (
-            <GroceryListCard
-              items={built.items}
-              origin={built.origin}
-              sourceLabel={built.sourceLabel}
-            />
+            <GroceryListCard items={built.items} sourceLabel={built.sourceLabel} />
           )}
         </div>
       </div>

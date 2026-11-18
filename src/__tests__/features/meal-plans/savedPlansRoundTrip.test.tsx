@@ -49,7 +49,7 @@ describe("Saved plans round trip", () => {
     await user.click(screen.getByRole("link", { name: "Manage saved plans" }));
     expect(await screen.findByRole("heading", { name: "Saved Meal Plans" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "← Meal Plans" }));
+    await user.click(screen.getByRole("link", { name: "Back to Meal Plans" }));
     expect(screen.getByRole("heading", { name: "Planner page" })).toBeInTheDocument();
     expect(screen.getByText("Saved plans tab open")).toBeInTheDocument();
   });
@@ -59,7 +59,7 @@ describe("Saved plans round trip", () => {
     renderApp("/app/grocery");
 
     await user.click(screen.getByRole("link", { name: "Manage saved plans" }));
-    await user.click(await screen.findByRole("link", { name: "← Grocery Lists" }));
+    await user.click(await screen.findByRole("link", { name: "Back to Grocery Lists" }));
     expect(screen.getByRole("heading", { name: "Grocery page" })).toBeInTheDocument();
     expect(screen.getByText("Saved plans tab open")).toBeInTheDocument();
   });
@@ -67,7 +67,7 @@ describe("Saved plans round trip", () => {
   it("visiting Saved Meal Plans directly links back to the planner's Saved plans tab", async () => {
     const user = userEvent.setup();
     renderApp("/app/saved-meal-plans");
-    await user.click(screen.getByRole("link", { name: "← Meal Plans" }));
+    await user.click(screen.getByRole("link", { name: "Back to Meal Plans" }));
     expect(screen.getByRole("heading", { name: "Planner page" })).toBeInTheDocument();
     expect(screen.getByText("Saved plans tab open")).toBeInTheDocument();
   });

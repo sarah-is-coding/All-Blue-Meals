@@ -6,8 +6,6 @@ import { groupItemsByCategory } from "../utils/groceryGeneration";
 type Props = {
   items: GroceryItem[];
   onToggle: (item: GroceryItem, isChecked: boolean) => void;
-  /** The item whose change is still saving; its checkbox is disabled until then. */
-  savingItemId?: string | null;
 };
 
 /**
@@ -15,7 +13,7 @@ type Props = {
  * substitutes has an "N options" toggle that shows them underneath
  * ("or avocado oil, 2 tbsp"); collapsed by default to keep the list short.
  */
-export default function GroceryItemGroups({ items, onToggle, savingItemId = null }: Props) {
+export default function GroceryItemGroups({ items, onToggle }: Props) {
   const categories = useIngredientCategories();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (itemId: string) =>
@@ -47,7 +45,6 @@ export default function GroceryItemGroups({ items, onToggle, savingItemId = null
                         type="checkbox"
                         className="grocery-item__checkbox"
                         checked={item.isChecked}
-                        disabled={savingItemId === item.id}
                         onChange={(e) => onToggle(item, e.target.checked)}
                       />
                       <span className="grocery-item__name">{item.ingredientName}</span>

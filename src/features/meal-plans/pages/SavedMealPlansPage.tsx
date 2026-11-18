@@ -62,12 +62,12 @@ export default function SavedMealPlansPage() {
 
   return (
     <section className="workspace-route saved-plans-route">
-      <div className="saved-plans-header">
-        <Link to={back.to} state={back.state} className="saved-plans-back">
-          ← {back.label}
+      <article className="workspace-card saved-plans-header">
+        <h1>Saved Meal Plans</h1>
+        <Link to={back.to} state={back.state} className="btn btn--ghost">
+          Back to {back.label}
         </Link>
-        <h1 className="saved-plans-title">Saved Meal Plans</h1>
-      </div>
+      </article>
 
       {loadError && <p className="error">{loadError}</p>}
       {loading && <p className="saved-plans-empty">Loading…</p>}

@@ -64,5 +64,4 @@ The schema is defined by the migrations in `supabase/migrations/`, applied in fi
 - `recipe_ingredients`: id, recipe_id, ingredient_id (references ingredients; the name shown is the catalog's), quantity, quantity_numeric, unit, notes, position, substitute_for (another row of the same recipe this is an alternative to). Saved all at once by the `save_recipe_ingredients` function.
 - `meal_plans`: id, user_id, title, start_date, end_date, saved_name (set when saved as a named template), notes.
 - `meal_plan_items`: id, meal_plan_id, recipe_id, planned_for (date), meal_type (breakfast/lunch/dinner/other), servings_override (nullable), notes.
-- `grocery_lists`: id, user_id, meal_plan_id (nullable), title, created_at; can be generated from a plan or ad hoc.
-- `grocery_items`: id, list_id, ingredient_name, quantity, unit, category, substitutes (text[] of options), is_checked; plain text so saved lists stay editable on mobile.
+- `grocery_lists` and `grocery_items`: legacy tables for previously saved lists. The app generates grocery checklists from planned meals and keeps checkmarks on the page.

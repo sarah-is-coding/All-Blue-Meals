@@ -1,5 +1,6 @@
 import type { IngredientCategory } from "../ingredients/types";
 
+/** An item on the list as shown: a built item with its place and tick. */
 export type GroceryItem = {
   id: string;
   ingredientName: string;
@@ -11,27 +12,7 @@ export type GroceryItem = {
   substitutes: string[];
 };
 
-export type GroceryList = {
-  id: string;
-  title: string;
-  savedPlanId: string | null;
-  /** The dates the list was built from (null for lists built from a saved plan). */
-  startDate: string | null;
-  endDate: string | null;
-  createdAt: string;
-  items: GroceryItem[];
-};
-
-export type GroceryListSummary = {
-  id: string;
-  title: string;
-  savedPlanId: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  createdAt: string;
-};
-
-/** A not-yet-saved ingredient entry produced by the generation step. */
+/** An item produced by building the list. */
 export type GroceryItemDraft = {
   ingredientName: string;
   quantity: string;
@@ -52,8 +33,3 @@ export type GrocerySource =
       startDate: string;
       endDate: string;
     };
-
-/** What a saved grocery list remembers it was built from. */
-export type GroceryListOrigin =
-  | { kind: "range"; startDate: string; endDate: string }
-  | { kind: "saved_plan"; savedPlanId: string };

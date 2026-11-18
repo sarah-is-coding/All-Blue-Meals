@@ -24,7 +24,6 @@ Workspace routes (all under `/app`):
 | `recipes/:recipeId` | View, edit, rate, delete, or add a recipe to a plan |
 | `meal-plans` | Weekly meal planner; copy past weeks or apply saved plans |
 | `saved-meal-plans` | Rename or delete saved plan templates |
-| `grocery` | Generate a grocery list from a week or saved plan |
-| `saved-grocery-lists` | View and check off saved grocery lists |
+| `grocery` | Generate and check off a grocery list from a date range or saved plan |
 
 Unknown routes redirect to `/`.

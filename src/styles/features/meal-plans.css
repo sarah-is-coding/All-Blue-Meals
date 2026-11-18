@@ -693,29 +693,10 @@
 
 .saved-plans-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1.4rem;
-}
-
-.saved-plans-back {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--color-brand-dark);
-  text-decoration: none;
-  align-self: start;
-}
-
-.saved-plans-back:hover {
-  text-decoration: underline;
-}
-
-.saved-plans-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: var(--color-ink);
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .saved-plans-empty {

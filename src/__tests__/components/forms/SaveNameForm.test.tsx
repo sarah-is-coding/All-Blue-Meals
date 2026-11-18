@@ -78,7 +78,7 @@ describe("SaveNameForm", () => {
   });
 
   it("adds the caller's class to the wrapper", () => {
-    const { input } = renderForm({ className: "grocery-save-form" });
-    expect(input.closest(".save-name-form")).toHaveClass("grocery-save-form");
+    const { input } = renderForm({ className: "custom-save-form" });
+    expect(input.closest(".save-name-form")).toHaveClass("custom-save-form");
   });
 });

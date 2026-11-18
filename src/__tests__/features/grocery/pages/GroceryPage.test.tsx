@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import GroceryPage from "../../../../features/grocery/pages/GroceryPage";
-import type { GroceryItemDraft, GroceryList, GroceryListOrigin } from "../../../../features/grocery/types";
+import type { GroceryItemDraft } from "../../../../features/grocery/types";
 import type { SavedMealPlan } from "../../../../features/meal-plans/types";
 import { getWeekEndIso, getWeekStartIso, shiftWeekStartIso } from "../../../../lib/utils/dates";
 import { renderWithProviders } from "../../../utils/renderWithProviders";
@@ -10,13 +10,6 @@ import { renderWithProviders } from "../../../utils/renderWithProviders";
 vi.mock("../../../../features/grocery/api", () => ({
   buildGroceryItemsForRange: vi.fn(),
   buildGroceryItemsForSavedPlan: vi.fn(),
-  saveGroceryList: vi.fn(),
-  toggleGroceryItem: vi.fn(),
-  getGroceryList: vi.fn(),
-  listSavedGroceryLists: vi.fn(),
-  uncheckAllGroceryItems: vi.fn(),
-  renameGroceryList: vi.fn(),
-  deleteGroceryList: vi.fn(),
 }));
 
 // The saved-plan list searches saved plans and previews the picked one.
@@ -50,7 +43,6 @@ vi.mock("../../../../features/meal-plans/components/MealDatesCalendar", () => ({
 import {
   buildGroceryItemsForSavedPlan,
   buildGroceryItemsForRange,
-  saveGroceryList,
 } from "../../../../features/grocery/api";
 import {
   listPlannedMealsBetween,
@@ -80,18 +72,6 @@ const SAVED_PLAN_ITEMS: GroceryItemDraft[] = [
   { ingredientName: "olive oil", quantity: "", unit: "", category: null, substitutes: [] },
 ];
 
-function savedListFor(origin: GroceryListOrigin, items: GroceryItemDraft[]): GroceryList {
-  return {
-    id: "list-1",
-    title: "Groceries",
-    savedPlanId: origin.kind === "saved_plan" ? origin.savedPlanId : null,
-    startDate: origin.kind === "range" ? origin.startDate : null,
-    endDate: origin.kind === "range" ? origin.endDate : null,
-    createdAt: "2026-05-25T12:00:00Z",
-    items: items.map((item, i) => ({ ...item, id: `item-${i}`, isChecked: false })),
-  };
-}
-
 function renderPage(
   initialEntries?: Parameters<typeof MemoryRouter>[0]["initialEntries"]
 ) {
@@ -105,13 +85,6 @@ function renderPage(
 const build = (user: ReturnType<typeof userEvent.setup>) =>
   user.click(screen.getByRole("button", { name: "Build Grocery List" }));
 
-async function save(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "Save list…" }));
-  await user.click(screen.getByRole("button", { name: "Save" }));
-  await waitFor(() => expect(saveGroceryList).toHaveBeenCalledTimes(1), T);
-  return vi.mocked(saveGroceryList).mock.calls[0];
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(searchSavedMealPlans).mockResolvedValue([SAVED_PLAN]);
@@ -119,11 +92,10 @@ beforeEach(() => {
   vi.mocked(previewSavedMealPlan).mockResolvedValue([]);
   vi.mocked(buildGroceryItemsForRange).mockResolvedValue(RANGE_ITEMS);
   vi.mocked(buildGroceryItemsForSavedPlan).mockResolvedValue(SAVED_PLAN_ITEMS);
-  vi.mocked(saveGroceryList).mockImplementation(async (_title, origin, items) => savedListFor(origin, items));
 });
 
 describe("GroceryPage — building from dates", () => {
-  it("defaults to this week, builds from those dates, and saves the list with that range", async () => {
+  it("defaults to this week and builds a checklist from those dates", async () => {
     const user = userEvent.setup();
     renderPage();
 
@@ -136,9 +108,9 @@ describe("GroceryPage — building from dates", () => {
     }
     expect(buildGroceryItemsForRange).toHaveBeenCalledWith(THIS_WEEK, getWeekEndIso(THIS_WEEK));
 
-    const [, origin, items] = await save(user);
-    expect(origin).toEqual({ kind: "range", startDate: THIS_WEEK, endDate: getWeekEndIso(THIS_WEEK) });
-    expect(items).toEqual(RANGE_ITEMS);
+    // Generated lists are used directly on this page.
+    expect(screen.queryByRole("button", { name: /save list/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /manage saved lists/i })).not.toBeInTheDocument();
   });
 
   it("builds from any dates you pick, of any length", async () => {
@@ -151,9 +123,9 @@ describe("GroceryPage — building from dates", () => {
     await screen.findByText("tortillas", undefined, T);
 
     expect(buildGroceryItemsForRange).toHaveBeenCalledWith("2026-05-28", "2026-06-08");
-    const [title, origin] = await save(user);
-    expect(origin).toEqual({ kind: "range", startDate: "2026-05-28", endDate: "2026-06-08" });
-    expect(title).toBe("Grocery – May 28, 2026 – Jun 8, 2026");
+    expect(screen.getByRole("heading", {
+      name: "Grocery List · May 28, 2026 – Jun 8, 2026",
+    })).toBeInTheDocument();
   });
 
   // The This week / Next week presets were removed with the always-open
@@ -184,7 +156,7 @@ describe("GroceryPage — building from dates", () => {
     expect(screen.getByRole("button", { name: "Build Grocery List" })).toBeEnabled();
   });
 
-  it("offers no save when the dates have no meals", async () => {
+  it("explains when the selected dates yield an empty checklist", async () => {
     vi.mocked(buildGroceryItemsForRange).mockResolvedValue([]);
     const user = userEvent.setup();
     renderPage();
@@ -192,12 +164,12 @@ describe("GroceryPage — building from dates", () => {
     await build(user);
 
     expect(await screen.findByText(/No ingredients found/, undefined, T)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save list…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });
 
-describe("GroceryPage — ticking items before saving", () => {
-  it("checks and unchecks just the item clicked on an unsaved list", async () => {
+describe("GroceryPage — ticking items", () => {
+  it("checks and unchecks just the selected item", async () => {
     const user = userEvent.setup();
     renderPage();
     await build(user);
@@ -228,7 +200,7 @@ describe("GroceryPage — ticking items before saving", () => {
 });
 
 describe("GroceryPage — building from a saved plan", () => {
-  it("builds from the chosen saved plan and saves the list linked to it, with every item", async () => {
+  it("builds from the chosen saved plan and shows its name and every item", async () => {
     const user = userEvent.setup();
     renderPage();
 
@@ -241,13 +213,10 @@ describe("GroceryPage — building from a saved plan", () => {
     expect(buildGroceryItemsForSavedPlan).toHaveBeenCalledWith("plan-saved");
     expect(buildGroceryItemsForRange).not.toHaveBeenCalled();
 
-    const [title, origin, items] = await save(user);
-    expect(origin).toEqual({ kind: "saved_plan", savedPlanId: "plan-saved" });
-    expect(items).toEqual(SAVED_PLAN_ITEMS);
-    expect(title).toContain("Lean week");
+    expect(screen.getByRole("heading", { name: "Grocery List · Lean week" })).toBeInTheDocument();
   });
 
-  it("never mixes sources: switching to a saved plan clears the dates' list, and saving uses only the plan", async () => {
+  it("clears the dates' list when switching sources and builds only from the saved plan", async () => {
     const user = userEvent.setup();
     renderPage();
 
@@ -262,9 +231,7 @@ describe("GroceryPage — building from a saved plan", () => {
     expect(await screen.findByText("lettuce", undefined, T)).toBeInTheDocument();
     expect(screen.queryByText("tortillas")).not.toBeInTheDocument();
 
-    const [, origin, items] = await save(user);
-    expect(origin).toEqual({ kind: "saved_plan", savedPlanId: "plan-saved" });
-    expect(items).toEqual(SAVED_PLAN_ITEMS);
+    expect(buildGroceryItemsForSavedPlan).toHaveBeenCalledWith(SAVED_PLAN.id);
   });
 
   // The "← Back to dates" button was replaced by the Browse plans tabs:

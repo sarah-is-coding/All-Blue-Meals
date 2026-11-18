@@ -28,7 +28,6 @@ const ITEMS = [
   item("3", "salt"),
 ];
 
-// The grocery checklist shared by the grocery page and the saved-lists page.
 describe("GroceryItemGroups", () => {
   it("groups items under their category, with their amounts", () => {
     render(<GroceryItemGroups items={ITEMS} onToggle={vi.fn()} />);
@@ -52,10 +51,12 @@ describe("GroceryItemGroups", () => {
     expect(onToggle).toHaveBeenCalledWith(ITEMS[0], true);
   });
 
-  it("disables only the item that's still saving", () => {
-    render(<GroceryItemGroups items={ITEMS} onToggle={vi.fn()} savingItemId="2" />);
-    expect(screen.getByRole("checkbox", { name: /milk/ })).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: /apples/ })).toBeEnabled();
+  // Checkmarks now update locally, so every checkbox stays available.
+  it("keeps both checked and unchecked items enabled", () => {
+    render(<GroceryItemGroups items={ITEMS} onToggle={vi.fn()} />);
+    for (const checkbox of screen.getAllByRole("checkbox")) {
+      expect(checkbox).toBeEnabled();
+    }
   });
 });
 
