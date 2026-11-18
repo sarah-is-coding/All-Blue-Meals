@@ -640,6 +640,8 @@ Each is its own commit; the app works after every one.
      it), remove the fallback to `name` in `findByKeys`, regenerate types.
      Not written into `supabase/migrations` before then, since `db push`
      applies every pending file.
+   **Done** (`20261118120000_ingredient_contract.sql`, applied 2026-11-18
+   after PR #1 was deployed; no `name_key` needed backfilling).
 9. **Categories** (section 11). Migration: `ingredient_categories` table
    seeded with the 8 categories (cleaned codes) and their descriptions,
    existing `ingredients` / `grocery_items` values rewritten to the codes,

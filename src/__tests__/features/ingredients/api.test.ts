@@ -146,12 +146,6 @@ describe("resolveIngredients", () => {
     expect(result.get("onion")).toEqual({ id: "i-1", name: "onion", category: "produce", defaultUnit: null });
   });
 
-  it("uses the oldest row when duplicates share a key", async () => {
-    db.returns.mockResolvedValueOnce(ok([row("old", "onion", "onion"), row("new", "onions", "onion")]));
-    const result = await resolveIngredients([{ name: "onion", category: "produce" }]);
-    expect(db.order).toHaveBeenCalledWith("created_at", { ascending: true });
-    expect(result.get("onion")?.id).toBe("old");
-  });
 
   it("falls back to an approved alias when no name has the key", async () => {
     db.returns
@@ -169,24 +163,25 @@ describe("resolveIngredients", () => {
     expect(result.get("scallion")?.name).toBe("green onion");
   });
 
-  it("falls back to the exact name for rows saved before keys existed", async () => {
+  // Step 8 made name_key required and unique, so the fallback lookup by
+  // exact name (for rows saved before keys existed) and the "oldest of
+  // several rows with one key" rule were removed.
+  it("looks up only by key and alias, never by exact name", async () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([row("i-9", "tomato", null)]));
+      .mockResolvedValueOnce(ok([row("n-1", "tomato", "tomato")]));
 
-    const result = await resolveIngredients([{ name: "Tomatoes", category: "produce" }]);
+    await resolveIngredients([{ name: "Tomatoes", category: "produce" }]);
 
-    // Both the name as written and the singular name a new row would get.
-    expect(db.in).toHaveBeenCalledWith("name", ["tomatoes", "tomato"]);
-    expect(db.insert).not.toHaveBeenCalled();
-    expect(result.get("tomato")?.id).toBe("i-9");
+    expect(db.in).not.toHaveBeenCalledWith("name", expect.anything());
+    expect(db.order).not.toHaveBeenCalled();
+    expect(db.insert).toHaveBeenCalledWith([{ name: "tomato", name_key: "tomato", category: "produce" }]);
   });
 
   it("creates every missing ingredient in one insert, with singular name, key and category", async () => {
     db.returns
       .mockResolvedValueOnce(ok([row("i-1", "garlic", "garlic")]))
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(
         ok([row("n-1", "shallot", "shallot"), row("n-2", "black beans", "blackbean", "pantry")])
@@ -211,7 +206,6 @@ describe("resolveIngredients", () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce({ data: null, error: { code: "23505", message: "duplicate key" } })
       .mockResolvedValueOnce(ok([row("i-1", "leek", "leek")]));
 
@@ -221,7 +215,6 @@ describe("resolveIngredients", () => {
 
   it("throws other insert errors", async () => {
     db.returns
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce({ data: null, error: { code: "42501", message: "permission denied" } });
@@ -248,7 +241,6 @@ describe("createIngredient", () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([row("n-1", "sumac", "sumac", "other")]));
 
     const ingredient = await createIngredient("  Sumac ");
@@ -266,7 +258,6 @@ describe("resolveIngredients with a canonical name", () => {
     db.returns
       .mockResolvedValueOnce(ok([])) // "scallions" by key
       .mockResolvedValueOnce(ok([])) // by alias
-      .mockResolvedValueOnce(ok([])) // by name
       .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")])); // canonical by key
 
     const result = await resolveIngredients([
@@ -283,7 +274,6 @@ describe("resolveIngredients with a canonical name", () => {
 
   it("saves a pending alias and creates the name as written when the category differs", async () => {
     db.returns
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([row("i-1", "butter", "butter", "dairy & eggs")]))
@@ -306,7 +296,6 @@ describe("resolveIngredients with a canonical name", () => {
     db.returns
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([row("i-1", "chicken breasts", "chickenbreast", "meat & seafood")]))
       .mockResolvedValueOnce(ok([row("n-1", "skinless boneless chicken breasts", "skinlessbonelesschickenbreast", "meat & seafood")]));
 
@@ -324,8 +313,8 @@ describe("resolveIngredients with a canonical name", () => {
   });
 
   it("adds no alias when the canonical name isn't in the catalog", async () => {
-    // Name: by key, alias, exact name; canonical: by key, alias, exact name; then the insert.
-    for (let lookup = 0; lookup < 6; lookup += 1) db.returns.mockResolvedValueOnce(ok([]));
+    // Name: by key, alias; canonical: by key, alias; then the insert.
+    for (let lookup = 0; lookup < 4; lookup += 1) db.returns.mockResolvedValueOnce(ok([]));
     db.returns.mockResolvedValueOnce(ok([row("n-1", "pak choi", "pakchoi")]));
 
     await resolveIngredients([{ name: "pak choi", category: "produce", canonicalName: "bok choy" }]);
@@ -342,7 +331,6 @@ describe("resolveIngredients with a canonical name", () => {
 
   it("still saves when adding the alias fails", async () => {
     db.returns
-      .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([]))
       .mockResolvedValueOnce(ok([row("i-1", "green onion", "greenonion", "produce")]));
