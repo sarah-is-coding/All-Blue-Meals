@@ -1,8 +1,17 @@
 // Parse and scale free-text ingredient quantities ("2", "1 1/2", "0.5").
 // Anything unparseable ("to taste") is returned unchanged.
 
+// "½" and "1½" as recipes write them, so they count when amounts are added up.
+const UNICODE_FRACTIONS: Record<string, string> = {
+  "¼": "1/4", "½": "1/2", "¾": "3/4", "⅓": "1/3", "⅔": "2/3", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
+  "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6",
+};
+
 const normalizeQuantityText = (value: string): string =>
-  value.replace(/\s+/g, " ").trim();
+  value
+    .replace(/[¼½¾⅓⅔⅛⅜⅝⅞⅕⅖⅗⅘⅙⅚]/g, (fraction) => ` ${UNICODE_FRACTIONS[fraction]}`)
+    .replace(/\s+/g, " ")
+    .trim();
 
 export const parseQuantityNumber = (value: string): number | null => {
   const normalized = normalizeQuantityText(value);

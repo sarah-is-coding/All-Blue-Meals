@@ -38,14 +38,15 @@ describe("mergeIngredients", () => {
     ]);
   });
 
-  it("treats different units as separate entries", () => {
+  // Changed: grocery lists now have one line per ingredient. Volumes convert
+  // and add up (1 cup + 2 tbsp = 18 tbsp = 1 1/8 cup, shown rounded up to the
+  // next 1/4 cup) instead of being a separate line per unit.
+  it("adds up different volume units on one line", () => {
     const result = mergeIngredients([
       ing("milk", "1", "cup", "dairy_eggs"),
       ing("milk", "2", "tbsp", "dairy_eggs"),
     ]);
-    expect(result).toHaveLength(2);
-    expect(result.find((r) => r.unit === "cup")?.quantity).toBe("1");
-    expect(result.find((r) => r.unit === "tbsp")?.quantity).toBe("2");
+    expect(result.map((r) => [r.quantity, r.unit])).toEqual([["1 1/4", "cup"]]);
   });
 
   it("de-dupes case-insensitively on name and unit", () => {
@@ -54,34 +55,39 @@ describe("mergeIngredients", () => {
       ing("salt", "0.5", "TSP"),
     ]);
     expect(result).toHaveLength(1);
-    expect(result[0].quantity).toBe("1.5");
+    // Measured totals are now shown as fractions, rounded up to a shopping step.
+    expect(result[0].quantity).toBe("1 1/2");
     // Preserves the casing of the first occurrence
     expect(result[0].ingredientName).toBe("Salt");
   });
 
-  it("handles non-parseable quantities (e.g. 'to taste') without crashing", () => {
+  // Changed: amounts with no number ("to taste") are left off the quantity;
+  // the item stays on the list (with no amount) so you check you have it.
+  it("keeps an ingredient that's only 'to taste' on the list with no amount", () => {
     const result = mergeIngredients([
       ing("pepper", "to taste", ""),
       ing("pepper", "to taste", ""),
     ]);
     expect(result).toHaveLength(1);
-    expect(result[0].quantity).toBe("to taste");
+    expect(result[0].quantity).toBe("");
   });
 
-  // Previously a non-numeric amount was dropped as soon as a numeric one for the
-  // same ingredient appeared (e.g. "1" + "2-3" cloves became "1"), so lists
-  // under-counted. Every amount is now kept.
+  // A range ("2-3") was once dropped when a numeric amount appeared, so
+  // lists under-counted. It's still kept, now written with its own unit
+  // since the line can hold several kinds of amount.
   it("keeps a range alongside a numeric amount instead of dropping it", () => {
     const result = mergeIngredients([
       ing("garlic", "1", "clove", "produce"),
       ing("garlic", "2-3", "clove", "produce"),
     ]);
     expect(result).toEqual([
-      { ingredientName: "garlic", quantity: "1 + 2-3", unit: "clove", category: "produce", substitutes: [] },
+      { ingredientName: "garlic", quantity: "1 clove + 2-3 clove", unit: "", category: "produce", substitutes: [] },
     ]);
   });
 
-  it("lists the numeric total first, then each distinct non-numeric amount", () => {
+  // Changed: "a pinch" and "to taste" aren't shopping amounts, so only the
+  // numeric total is shown (they used to be appended: "3 + a pinch + To taste").
+  it("shows only the numeric total, leaving off amounts with no number", () => {
     const result = mergeIngredients([
       ing("salt", "a pinch", ""),
       ing("salt", "1", ""),
@@ -89,15 +95,27 @@ describe("mergeIngredients", () => {
       ing("salt", "2", ""),
       ing("salt", "to taste", ""),
     ]);
-    expect(result[0].quantity).toBe("3 + a pinch + To taste");
+    expect(result[0].quantity).toBe("3");
   });
 
-  it("keeps every distinct non-numeric amount when there are no numbers", () => {
+  it("leaves off negligible units such as a pinch or a dash", () => {
+    const result = mergeIngredients([
+      ing("salt", "1", "pinch"),
+      ing("salt", "1", "tsp"),
+      ing("nutmeg", "1", "dash"),
+    ]);
+    expect(result.map((r) => [r.ingredientName, r.quantity, r.unit])).toEqual([
+      ["nutmeg", "", ""],
+      ["salt", "1", "tsp"],
+    ]);
+  });
+
+  it("has no amount when no amount has a number", () => {
     const result = mergeIngredients([
       ing("cilantro", "a handful", ""),
       ing("cilantro", "to garnish", ""),
     ]);
-    expect(result[0].quantity).toBe("a handful + to garnish");
+    expect(result[0].quantity).toBe("");
   });
 
   it("ignores blank amounts", () => {
@@ -115,8 +133,8 @@ describe("mergeIngredients", () => {
       ing("sugar", "1/4", "cup", "baking"),
     ]);
     expect(result).toHaveLength(1);
-    // 0.5 + 0.25 = 0.75
-    expect(result[0].quantity).toBe("0.75");
+    // 0.5 + 0.25 = 0.75, shown as a fraction (was "0.75")
+    expect(result[0].quantity).toBe("3/4");
   });
 
   it("handles mixed fractions", () => {
@@ -125,8 +143,8 @@ describe("mergeIngredients", () => {
       ing("oats", "1", "cup", "baking"),
     ]);
     expect(result).toHaveLength(1);
-    // 1.5 + 1 = 2.5
-    expect(result[0].quantity).toBe("2.5");
+    // 1.5 + 1 = 2.5, shown as a fraction (was "2.5")
+    expect(result[0].quantity).toBe("2 1/2");
   });
 
   it("sorts by category order then alphabetically within a category", () => {
@@ -176,7 +194,7 @@ describe("mergeIngredients", () => {
       ing("oil", "0.5", "cup"),
       ing("oil", "1", "cup"),
     ]);
-    expect(result[0].quantity).toBe("1.5");
+    expect(result[0].quantity).toBe("1 1/2");
   });
 
   it("produces a whole number when sum is exact", () => {
@@ -213,10 +231,10 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
       tomatoes("1", "28 oz, divided"),
       { ingredientId: "i-onion", ingredientName: "onion", quantity: "1", unit: "", notes: "diced", category: "produce" },
     ]);
+    // One line per ingredient: each can size adds up on its own, side by side.
     expect(result.map((item) => [item.ingredientName, item.quantity, item.unit])).toEqual([
       ["onion", "1", ""],
-      ["crushed tomatoes", "1", "can (14 oz/400 g)"],
-      ["crushed tomatoes", "3", "can (28 oz)"],
+      ["crushed tomatoes", "1 can (14 oz/400 g) + 3 can (28 oz)", ""],
     ]);
   });
 
@@ -232,15 +250,51 @@ describe("mergeIngredients: catalog ingredients, units, water, substitutes", () 
     expect(result.map((r) => r.quantity)).toEqual(["3"]);
   });
 
-  it("merges different spellings of the same unit", () => {
+  // Spellings normalize ("cups" = "Cup"), and since volumes now convert,
+  // 2 cups + 2 tbsp is one amount: 2 1/8 cups, rounded up to 2 1/4.
+  it("merges different spellings and sizes of volume units", () => {
     const result = mergeIngredients([
       ing("flour", "1", "cups", "baking"),
       ing("flour", "1", "Cup", "baking"),
       ing("flour", "2", "Tablespoons", "baking"),
     ]);
-    expect(result.map((r) => [r.quantity, r.unit])).toEqual([
-      ["2", "cup"],
-      ["2", "tbsp"],
+    expect(result.map((r) => [r.quantity, r.unit])).toEqual([["2 1/4", "cup"]]);
+  });
+
+  // The cases from the real grocery lists that prompted one line per
+  // ingredient: black pepper, olive oil and garlic each came out as 2-5 lines.
+  it("puts every amount of an ingredient on one line", () => {
+    const pepper = (quantity: string, unit: string) => ({ ingredientId: "i-pep", ingredientName: "black pepper", quantity, unit, category: "spices_seasonings" as const });
+    const oil = (quantity: string, unit: string) => ({ ingredientId: "i-oil", ingredientName: "olive oil", quantity, unit, category: "oils_sauces_condiments" as const });
+    const garlic = (quantity: string, unit: string) => ({ ingredientId: "i-gar", ingredientName: "garlic", quantity, unit, category: "produce" as const });
+    const result = mergeIngredients([
+      pepper("1/2", "tsp"), pepper("to taste", ""), pepper("1/4", "teaspoon"),
+      oil("2", "tbsp"), oil("1/4", "cup"), oil("2", "tsp"), oil("20", "g"),
+      garlic("3", "cloves"), garlic("2", "clove"), garlic("1", "tbsp"),
+    ]);
+    expect(result.map((r) => [r.ingredientName, r.quantity, r.unit])).toEqual([
+      ["garlic", "1 tbsp + 5 clove", ""],
+      ["black pepper", "3/4", "tsp"],
+      // 2 tbsp + 4 tbsp + 2/3 tbsp = 6 2/3 tbsp, rounded up to 7; grams can't
+      // convert to volume, so they're listed alongside.
+      ["olive oil", "7 tbsp + 20 g", ""],
+    ]);
+  });
+
+  it("converts weights and shows metric only when every amount was metric", () => {
+    const result = mergeIngredients([
+      ing("beef", "1", "lb", "meat_seafood"),
+      ing("beef", "8", "oz", "meat_seafood"),
+      ing("rice", "500", "g", "pasta_rice_grains"),
+      ing("rice", "0.75", "kg", "pasta_rice_grains"),
+      ing("cheese", "100", "g", "dairy_eggs"),
+      ing("cheese", "4", "oz", "dairy_eggs"),
+    ]);
+    expect(result.map((r) => [r.ingredientName, r.quantity, r.unit])).toEqual([
+      ["beef", "1 1/2", "lb"],
+      // 100 g + 4 oz = 7.53 oz, rounded up to the next 1/2 oz.
+      ["cheese", "8", "oz"],
+      ["rice", "1.3", "kg"],
     ]);
   });
 

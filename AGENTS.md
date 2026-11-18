@@ -227,8 +227,10 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 - Optimistic UI allowed  
 
 **Merge rules**
-- Same catalog ingredient (`ingredient_id`) + normalized unit (`normalizeUnit`: "cups" = "cup") → merge quantities  
-- Otherwise keep separate rows  
+- One line per catalog ingredient (`ingredient_id`); units are normalized first (`normalizeUnit`: "cups" = "cup")  
+- Volumes convert and add up within volume, weights within weight (`src/lib/utils/measures.ts`), shown in the most readable unit and rounded up ("2 tbsp" + "1/4 cup" = "6 tbsp"); no density table, so volume and weight are listed side by side ("7 tbsp + 20 g")  
+- Counts add up per unit ("5 clove", "2 can (15 oz)": a can's size is part of its unit); amounts with no number ("to taste") or negligible ones ("a pinch") are left off the quantity  
+- Different catalog ingredients stay separate (salt and kosher salt are different products)  
 - Water is left off; substitutes ("or avocado oil") are shown as options on their item, never as items to buy  
 
 ---

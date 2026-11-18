@@ -3,6 +3,7 @@ import type { CategoryInfo, IngredientCategory } from "../../ingredients/types";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
 import { parseName } from "../../ingredients/utils/ingredientText";
 import { parseQuantityNumber } from "../../../lib/utils/quantities";
+import { addMeasure, formatMeasure, measureOf, type MeasureTotal } from "../../../lib/utils/measures";
 import { applySizeQuantity, containerSize, normalizeUnit } from "../../../lib/utils/units";
 import type { GroceryItemDraft } from "../types";
 
@@ -28,13 +29,12 @@ export const isWater = (name: string): boolean => WATER_KEYS.has(ingredientKey(p
 /** Default walking order of each category, for sorting merged items. */
 const CATEGORY_ORDER = new Map<IngredientCategory, number>(CATEGORY_CODES.map((code, index) => [code, index]));
 
-/** Format a merged numeric quantity back to a display string. */
-function formatMergedQuantity(value: number): string {
+/** Format a summed count back to a display string ("1.5", "3"). */
+function formatCount(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   if (Math.abs(rounded - Math.round(rounded)) < 0.000001) {
     return String(Math.round(rounded));
   }
-  // e.g. 1.5 → "1.5", 0.75 → "0.75"
   return rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
@@ -44,86 +44,118 @@ const formatOption = (draft: GroceryItemDraft): string => {
   return amount ? `${draft.ingredientName}, ${amount}` : draft.ingredientName;
 };
 
+// Amounts too small to shop for: like "to taste", they leave no quantity.
+const NEGLIGIBLE_UNITS = new Set(["pinch", "dash", "drop", "drizzle"]);
+
+type Amount = { quantity: string; unit: string };
+
 /**
  * Merge a flat list of (possibly duplicated) scaled ingredients into a
- * de-duped grocery list, sorted by ingredient category then alphabetically.
+ * grocery list with one line per ingredient, sorted by category then name.
  *
- * Grouping key: the catalog ingredient (or the name's key when there's no
- * id) + the normalized unit, so "onions, 2 cups" and "onion, 1 cup" merge.
- * A container's size from the notes is part of the unit ("can (15 oz)"), so
- * 15 oz and 28 oz cans stay separate items. Other notes ("diced") are for
- * cooking and stay off the list.
- * Numeric amounts ("2", "1 1/2") are summed. Amounts that aren't numbers
- * ("2-3", "a pinch", "to taste") are never dropped: each distinct one is kept
- * alongside the total, e.g. "1 + 2-3", so nothing is silently under-bought.
+ * Rows of the same catalog ingredient (or the same name key when there's no
+ * id) share a line. Their amounts are added up: volumes (tsp, tbsp, cup, ml,
+ * …) and weights (oz, lb, g, kg) convert within their kind and show in the
+ * most readable unit, rounded up ("2 tbsp" + "1/4 cup" = "6 tbsp"); counts
+ * add up per unit ("3 clove", "2 can (15 oz)": a container's size from the
+ * notes is part of its unit). Amounts that can't be combined are listed side
+ * by side: "6 tbsp + 20 g". Ranges ("6-10 clove") are kept as written.
+ * Amounts with no number ("to taste", "for serving") and negligible ones ("a
+ * pinch") are left off; an ingredient with only those has no quantity, so
+ * it's still on the list to check you have it.
  * Water is left off. Substitutes become text options on their item, merged
  * the same way, without repeating the item itself.
  */
 export function mergeIngredients(ingredients: ScaledIngredient[]): GroceryItemDraft[] {
-  type Bucket = {
+  type Line = {
     ingredientName: string;
-    unit: string;
-    numericTotal: number | null;
-    /** Distinct non-numeric amounts, in first-seen order. */
-    otherAmounts: string[];
     category: IngredientCategory | null;
     substitutes: ScaledIngredient[];
     identity: string;
+    volume: MeasureTotal | null;
+    weight: MeasureTotal | null;
+    /** Summed counts per unit ("" for plain counts), in first-seen order. */
+    counts: Map<string, number>;
+    /** Amounts with a number that isn't a single value ("6-10 clove"). */
+    ranges: string[];
   };
 
-  const buckets = new Map<string, Bucket>();
+  const lines = new Map<string, Line>();
 
   for (const ing of ingredients) {
     const nameTrimmed = ing.ingredientName.trim();
     if (!nameTrimmed || isWater(nameTrimmed)) continue;
 
-    // "15" + "ounce can" (rows not yet cleaned) is one can, not 15.
-    const sized = applySizeQuantity(ing.quantity.trim(), normalizeUnit(ing.unit));
-    const size = containerSize(sized.unit, [...sized.notes, ing.notes ?? ""].join(", "));
-    const unit = size ? `${sized.unit} (${size})` : sized.unit;
     const identity = ing.ingredientId || ingredientKey(nameTrimmed);
-    const key = `${identity}|${unit}`;
-    const rawQty = sized.quantity.trim();
-    const qty = rawQty ? parseQuantityNumber(rawQty) : null;
-
-    let bucket = buckets.get(key);
-    if (!bucket) {
-      bucket = {
+    let line = lines.get(identity);
+    if (!line) {
+      line = {
         ingredientName: nameTrimmed,
-        unit,
-        numericTotal: null,
-        otherAmounts: [],
         category: ing.category,
         substitutes: [],
         identity,
+        volume: null,
+        weight: null,
+        counts: new Map(),
+        ranges: [],
       };
-      buckets.set(key, bucket);
+      lines.set(identity, line);
+    }
+    line.substitutes.push(...(ing.substitutes ?? []));
+
+    // "15" + "ounce can" (rows not yet cleaned) is one can, not 15.
+    const sized = applySizeQuantity(ing.quantity.trim(), normalizeUnit(ing.unit));
+    const rawQty = sized.quantity.trim();
+    if (!rawQty || !/\d/.test(rawQty) || NEGLIGIBLE_UNITS.has(sized.unit)) continue;
+
+    const size = containerSize(sized.unit, [...sized.notes, ing.notes ?? ""].join(", "));
+    const unit = size ? `${sized.unit} (${size})` : sized.unit;
+    const qty = parseQuantityNumber(rawQty);
+    if (qty === null) {
+      const written = [rawQty, unit].filter(Boolean).join(" ");
+      if (!line.ranges.some((range) => range.toLowerCase() === written.toLowerCase())) line.ranges.push(written);
+      continue;
     }
 
-    if (qty !== null) {
-      bucket.numericTotal = (bucket.numericTotal ?? 0) + qty;
-    } else if (
-      rawQty &&
-      !bucket.otherAmounts.some((amount) => amount.toLowerCase() === rawQty.toLowerCase())
-    ) {
-      bucket.otherAmounts.push(rawQty);
-    }
-    bucket.substitutes.push(...(ing.substitutes ?? []));
+    const measure = measureOf(unit);
+    if (measure?.kind === "volume") line.volume = addMeasure(line.volume, qty, unit);
+    else if (measure?.kind === "weight") line.weight = addMeasure(line.weight, qty, unit);
+    else line.counts.set(unit, (line.counts.get(unit) ?? 0) + qty);
   }
 
-  return Array.from(buckets.values())
-    .map(({ ingredientName, unit, numericTotal, otherAmounts, category, substitutes, identity }) => ({
-      ingredientName,
-      unit,
-      quantity: [
-        ...(numericTotal !== null ? [formatMergedQuantity(numericTotal)] : []),
-        ...otherAmounts,
-      ].join(" + "),
-      category,
-      substitutes: mergeIngredients(
-        substitutes.filter((option) => (option.ingredientId || ingredientKey(option.ingredientName)) !== identity)
-      ).map(formatOption),
-    }))
+  const amountsOf = (line: Line): Amount[] => [
+    ...[line.volume, line.weight].flatMap((total) => (total ? [formatMeasure(total)] : [])),
+    // Plain counts ("2 onions") before counted units ("3 clove").
+    ...[...line.counts.entries()]
+      .sort(([a], [b]) => Number(a !== "") - Number(b !== ""))
+      .map(([unit, count]) => ({ quantity: formatCount(count), unit })),
+    ...line.ranges.map((range) => ({ quantity: range, unit: "" })),
+  ];
+
+  return Array.from(lines.values())
+    .map((line) => {
+      const amounts = amountsOf(line);
+      // One amount keeps its unit separate; several read as one text.
+      const [only] = amounts;
+      const amount =
+        amounts.length === 1 && only
+          ? only
+          : {
+              quantity: amounts.map((part) => [part.quantity, part.unit].filter(Boolean).join(" ")).join(" + "),
+              unit: "",
+            };
+      return {
+        ingredientName: line.ingredientName,
+        quantity: amount.quantity,
+        unit: amount.unit,
+        category: line.category,
+        substitutes: mergeIngredients(
+          line.substitutes.filter(
+            (option) => (option.ingredientId || ingredientKey(option.ingredientName)) !== line.identity
+          )
+        ).map(formatOption),
+      };
+    })
     .sort((a, b) => {
       const catA = CATEGORY_ORDER.get(a.category ?? "other") ?? CATEGORY_CODES.length;
       const catB = CATEGORY_ORDER.get(b.category ?? "other") ?? CATEGORY_CODES.length;
