@@ -86,6 +86,7 @@ const recipe = {
       unit: "lb",
       notes: "",
       substituteFor: null,
+      category: "meat_seafood" as const,
     },
   ],
 };

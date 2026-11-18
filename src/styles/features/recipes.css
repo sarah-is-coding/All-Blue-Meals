@@ -903,16 +903,93 @@
   color: var(--color-ink-strong);
 }
 
+/* The note text box (NoteTextarea): grows with its text where supported. */
+.note-textarea {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.note-textarea__field {
+  width: 100%;
+  min-height: 3.2rem;
+  max-height: 18rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--alpha-slate-36);
+  border-radius: 0.75rem;
+  background: var(--color-white);
+  color: var(--color-ink-strong);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  field-sizing: content;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.note-textarea__field:hover {
+  border-color: var(--alpha-brand-dark-50);
+}
+
+.note-textarea__field:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+.note-textarea__field[aria-busy="true"] {
+  background: var(--color-bg-base);
+  color: var(--color-muted);
+}
+
+.note-textarea__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1rem;
+  font-size: 0.75rem;
+  color: var(--color-muted-faint);
+}
+
+/* The keyboard hint only matters while typing in the box. */
+.note-textarea__hint {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.note-textarea:focus-within .note-textarea__hint {
+  opacity: 1;
+}
+
+.note-textarea__count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
 /* Recipe notes: a dated log below the instructions */
 .recipe-notes {
   display: grid;
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
 .recipe-notes h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.14rem;
+}
+
+.recipe-notes__count {
+  min-width: 1.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--alpha-brand-12);
+  color: var(--color-brand-dark);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .recipe-notes__form {
@@ -920,14 +997,8 @@
   gap: 0.5rem;
 }
 
-.recipe-notes__form textarea {
-  width: 100%;
-  min-height: 4.5rem;
-  resize: vertical;
-  font: inherit;
-}
-
-.recipe-notes__actions {
+.recipe-notes__actions,
+.recipe-notes__confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -937,7 +1008,7 @@
 
 .recipe-notes__list {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.6rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -945,25 +1016,86 @@
 
 .recipe-notes__item {
   display: grid;
-  gap: 0.4rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--alpha-brand-20);
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--alpha-brand-20);
+  border-radius: 0.8rem;
+  background: var(--color-bg-base);
+  transition: opacity 160ms ease, background 600ms ease, border-color 600ms ease;
+  animation: recipe-note-in 220ms ease-out;
+}
+
+/* Just added: a soft highlight that fades back to normal. */
+.recipe-notes__item--new {
+  border-color: var(--color-brand-bright);
+  background: var(--color-bg-aqua);
+}
+
+.recipe-notes__item--busy {
+  opacity: 0.6;
+}
+
+.recipe-notes__item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.75rem;
 }
 
 .recipe-notes__date {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--color-muted-soft);
 }
 
 .recipe-notes__edited {
   font-weight: 400;
 }
 
+/* Small text actions, so a list of notes doesn't fill up with buttons. */
+.recipe-notes__item-actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.recipe-notes__action {
+  padding: 0.3rem 0.55rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-brand-dark);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.recipe-notes__action:hover,
+.recipe-notes__action:focus-visible {
+  background: var(--alpha-brand-12);
+}
+
+.recipe-notes__action:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 1px;
+}
+
+.recipe-notes__action--danger {
+  color: var(--color-danger);
+}
+
+.recipe-notes__action--danger:hover,
+.recipe-notes__action--danger:focus-visible {
+  background: rgba(185, 28, 28, 0.08);
+}
+
 .recipe-notes__body {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.55;
   color: var(--color-ink-strong);
 }
@@ -973,9 +1105,52 @@
   color: var(--muted);
 }
 
+.recipe-notes__confirm {
+  padding-top: 0.25rem;
+  animation: recipe-note-in 160ms ease-out;
+}
+
 .recipe-notes__confirm-label {
   margin-right: auto;
+  font-size: 0.9rem;
   font-weight: 600;
+  color: var(--color-ink-strong);
+}
+
+@keyframes recipe-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Bigger targets for thumbs. */
+  .recipe-notes__action {
+    padding: 0.5rem 0.7rem;
+  }
+
+  .recipe-notes__actions .btn,
+  .recipe-notes__confirm .btn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-notes__item,
+  .recipe-notes__confirm {
+    animation: none;
+    transition: none;
+  }
+
+  .note-textarea__field,
+  .note-textarea__hint {
+    transition: none;
+  }
 }
 
 @media (max-width: 960px) {

@@ -10,6 +10,7 @@ import type {
   RecipeUpsertInput,
 } from "../types";
 import { cleanMissingMultilineText } from "../../../lib/utils/text";
+import { toCategoryCode } from "../../ingredients/categories/codes";
 import { cleanText, saveIngredients } from "./ingredientRows";
 
 const cleanMultilineText = (value: string | null | undefined): string | null =>
@@ -24,7 +25,7 @@ type RecipeDetailRow = Pick<Tables<"recipes">, "id" | "title" | "description" | 
 type RecipeIngredientRow = Pick<
   Tables<"recipe_ingredients">,
   "id" | "ingredient_id" | "quantity" | "unit" | "notes" | "substitute_for"
-> & { ingredients: Pick<Tables<"ingredients">, "name"> | null };
+> & { ingredients: Pick<Tables<"ingredients">, "name" | "category"> | null };
 
 type RecipeIdRow = Pick<Tables<"recipes">, "id">;
 
@@ -48,6 +49,7 @@ const mapRecipeIngredientRow = (row: RecipeIngredientRow): RecipeIngredient => (
   unit: row.unit ?? "",
   notes: row.notes ?? "",
   substituteFor: row.substitute_for,
+  category: toCategoryCode(row.ingredients?.category),
 });
 
 const mapRecipeDetail = (row: RecipeDetailRow, ingredients: RecipeIngredient[]): RecipeDetail => ({
@@ -198,7 +200,7 @@ export async function getRecipeById(recipeId: string): Promise<RecipeDetail | nu
 
   const { data: ingredientRows, error: ingredientError } = await supabase
     .from("recipe_ingredients")
-    .select("id,ingredient_id,quantity,unit,notes,substitute_for,ingredients(name)")
+    .select("id,ingredient_id,quantity,unit,notes,substitute_for,ingredients(name,category)")
     .eq("recipe_id", recipeId)
     .order("position", { ascending: true })
     // Rows saved by older app versions all have position 0.

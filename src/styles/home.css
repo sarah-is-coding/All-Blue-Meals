@@ -1,0 +1,164 @@
+/* Home page: today's meals and the last meal to rate (src/app/pages/AppHomePage.tsx). */
+
+.home-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.home-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.home-card__header h1,
+.home-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.home-card h2 {
+  font-size: 1.2rem;
+}
+
+.home-card__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.home-card__empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.home-card__empty p {
+  margin: 0;
+}
+
+.home-meals {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-meal {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--alpha-brand-20);
+  border-radius: 0.8rem;
+}
+
+.home-meal__type {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-brand);
+}
+
+.home-meal__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.home-meal__title a {
+  color: var(--color-ink-strong);
+  text-decoration: none;
+}
+
+.home-meal__title a:hover,
+.home-meal__title a:focus-visible {
+  text-decoration: underline;
+}
+
+.home-meal__facts,
+.home-meal__description {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Two lines of the description, so the preview stays short. */
+.home-meal__description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.home-meal__meats {
+  margin: 0;
+  color: var(--color-ink-strong);
+}
+
+.home-meal__meats-label {
+  font-weight: 700;
+}
+
+.home-meal__meats--muted {
+  color: var(--muted);
+}
+
+.home-meal__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.home-last-meal {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.home-last-meal__rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+
+.home-last-meal__note {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.home-last-meal__added {
+  margin: 0;
+  animation: home-fade-in 200ms ease-out;
+}
+
+@keyframes home-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-last-meal__added {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Full-width buttons are easier to hit with a thumb. */
+  .home-meal__links .btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

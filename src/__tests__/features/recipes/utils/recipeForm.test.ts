@@ -41,8 +41,8 @@ describe("substitute rows", () => {
       cookMinutes: null, servings: null, tags: [], instructions: null, rating: null,
       createdAt: "2026-01-01T00:00:00Z",
       ingredients: [
-        { id: "ri-1", ingredientId: "i-1", ingredientName: "olive oil", quantity: "2", unit: "tbsp", notes: "", substituteFor: null },
-        { id: "ri-2", ingredientId: "i-2", ingredientName: "avocado oil", quantity: "2", unit: "tbsp", notes: "", substituteFor: "ri-1" },
+        { id: "ri-1", ingredientId: "i-1", ingredientName: "olive oil", quantity: "2", unit: "tbsp", notes: "", substituteFor: null, category: null },
+        { id: "ri-2", ingredientId: "i-2", ingredientName: "avocado oil", quantity: "2", unit: "tbsp", notes: "", substituteFor: "ri-1", category: null },
       ],
     };
     const input = mapRecipeFormValuesToInput(mapRecipeDetailToFormValues(recipe));
@@ -124,6 +124,7 @@ describe("mapRecipeDetailToFormValues", () => {
         unit: "lbs",
         notes: "boneless",
         substituteFor: null,
+        category: "meat_seafood",
       },
     ],
   };

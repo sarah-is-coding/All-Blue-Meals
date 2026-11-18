@@ -249,6 +249,13 @@
   border-color: #991b1b;
 }
 
+/* Compact buttons for secondary actions inside cards (note actions). */
+.btn--small {
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+}
+
 /* SaveNameForm (src/components/forms): "name it and save" */
 .save-name-form {
   display: grid;

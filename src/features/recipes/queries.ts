@@ -159,9 +159,11 @@ export function useRecipeNoteActions(recipeId: string) {
     };
 
     return {
-      async add(body: string): Promise<void> {
+      /** Saves the note and returns it, as saved. */
+      async add(body: string): Promise<RecipeNote> {
         const note = await addRecipeNote(recipeId, body);
         await updateCache((notes) => [note, ...notes]);
+        return note;
       },
 
       async edit(noteId: string, body: string): Promise<void> {

@@ -266,7 +266,7 @@ dependency, and never in a way that creates a cycle.
 - Styles are split by area, imported in cascade order by `src/styles/app.css`:
   `src/styles/features/<feature>.css` for a feature's components,
   `shared.css` for UI used across features (buttons, ads, loading modal,
-  form messages), `layout.css` for the app shell, `landing.css` for the
+  form messages), `layout.css` for the app shell, `home.css` for the home page, `landing.css` for the
   landing page
 - Add a component's styles to its area's file with a BEM-style class prefix
   matching the component name (e.g. `.ingredient-combobox__*`). A new file

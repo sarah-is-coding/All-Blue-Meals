@@ -311,11 +311,13 @@ describe("recipe api", () => {
     expect(row).not.toHaveProperty("ingredient_name");
   });
 
-  it("shows each ingredient with its catalog name", async () => {
+  // Also reads each ingredient's category, so the home page can show the
+  // meat and seafood a planned recipe uses.
+  it("shows each ingredient with its catalog name and category", async () => {
     db.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "recipe-1", title: "T" }, error: null });
     db.returns.mockResolvedValueOnce({
       data: [
-        { id: "ri-1", ingredient_id: "ing-onion", quantity: "1", unit: null, notes: "diced", substitute_for: null, ingredients: { name: "onion" } },
+        { id: "ri-1", ingredient_id: "ing-onion", quantity: "1", unit: null, notes: "diced", substitute_for: null, ingredients: { name: "onion", category: "produce" } },
         { id: "ri-2", ingredient_id: "ing-gone", quantity: null, unit: null, notes: null, substitute_for: null, ingredients: null },
       ],
       error: null,
@@ -323,8 +325,11 @@ describe("recipe api", () => {
 
     const recipe = await getRecipeById("recipe-1");
 
-    expect(db.select).toHaveBeenCalledWith("id,ingredient_id,quantity,unit,notes,substitute_for,ingredients(name)");
-    expect(recipe?.ingredients.map((ingredient) => ingredient.ingredientName)).toEqual(["onion", ""]);
+    expect(db.select).toHaveBeenCalledWith("id,ingredient_id,quantity,unit,notes,substitute_for,ingredients(name,category)");
+    expect(recipe?.ingredients.map((ingredient) => [ingredient.ingredientName, ingredient.category])).toEqual([
+      ["onion", "produce"],
+      ["", null],
+    ]);
   });
 
   it("loads ingredients in saved order", async () => {

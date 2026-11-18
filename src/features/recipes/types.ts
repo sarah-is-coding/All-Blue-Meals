@@ -30,6 +30,8 @@ export type RecipeIngredient = {
   notes: string;
   /** Id of the main row this is a substitute for ("or …"); null for a main ingredient. */
   substituteFor: string | null;
+  /** The catalog ingredient's store department ("meat_seafood"). */
+  category: IngredientCategory | null;
 };
 
 export type RecipeDetail = {
