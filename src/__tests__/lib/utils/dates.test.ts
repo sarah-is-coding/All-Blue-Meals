@@ -9,6 +9,7 @@ import {
   shiftWeekStartIso,
   toIsoDate,
   isValidIsoDate,
+  formatTimestampDate
 } from "../../../lib/utils/dates";
 
 // ─────────────────────────────────────────────────────────────
@@ -142,5 +143,12 @@ describe("isValidIsoDate", () => {
     expect(isValidIsoDate("2026-02-31")).toBe(false);
     expect(isValidIsoDate("2026-13-01")).toBe(false);
     expect(isValidIsoDate("2026-00-10")).toBe(false);
+  });
+});
+
+describe("formatTimestampDate", () => {
+  it("shows a timestamp's local date with the year", () => {
+    // Midday UTC is the same date in every US time zone.
+    expect(formatTimestampDate("2026-11-03T18:20:00Z")).toBe("Nov 3, 2026");
   });
 });

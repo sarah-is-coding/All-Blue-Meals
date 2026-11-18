@@ -47,6 +47,15 @@ export type RecipeDetail = {
   ingredients: RecipeIngredient[];
 };
 
+/** A dated note on a recipe ("doubled the garlic, needed 10 more minutes"). */
+export type RecipeNote = {
+  id: string;
+  body: string;
+  /** ISO timestamps; updatedAt is later than createdAt once edited. */
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type RecipeIngredientInput = {
   /** Any id unique within the list (the form's row id); links substitutes to their main row. */
   clientId: string;

@@ -89,9 +89,10 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 ### Table ownership patterns
 - Tables with `user_id`: `profiles`, `recipes`, `planned_meals`, `saved_plans`, `grocery_lists`  
   - Policies must enforce: `user_id = auth.uid()`
-- Child tables without `user_id`: `recipe_ingredients`, `saved_plan_meals`, `grocery_items`  
+- Child tables without `user_id`: `recipe_ingredients`, `recipe_notes`, `saved_plan_meals`, `grocery_items`  
   - Policies must enforce ownership via parent:
     - `recipe_ingredients.recipe_id → recipes.user_id`
+    - `recipe_notes.recipe_id → recipes.user_id`
     - `saved_plan_meals.saved_plan_id → saved_plans.user_id`
     - `grocery_items.list_id → grocery_lists.user_id`
 - Shared catalog: `ingredients` and `ingredient_aliases` (no `user_id`)

@@ -317,6 +317,38 @@ export type Database = {
           },
         ]
       }
+      recipe_notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          recipe_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          recipe_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          recipe_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_notes_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipes: {
         Row: {
           cook_minutes: number | null

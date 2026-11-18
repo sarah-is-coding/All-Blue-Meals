@@ -5,9 +5,11 @@ import {
   useRecipe,
   useRecipeActions,
   useRecipeList,
+  useRecipeNoteActions,
+  useRecipeNotes,
   type RecipeListParams,
 } from "../../../features/recipes/queries";
-import type { RecipeDetail, RecipeUpsertInput } from "../../../features/recipes/types";
+import type { RecipeDetail, RecipeNote, RecipeUpsertInput } from "../../../features/recipes/types";
 import { createDefaultRecipeListFilters } from "../../../features/recipes/utils/recipeListViewState";
 import {
   createTestQueryClient,
@@ -22,11 +24,19 @@ vi.mock("../../../features/recipes/api", () => ({
   updateRecipe: vi.fn(),
   rateRecipe: vi.fn(),
   deleteRecipe: vi.fn(),
+  listRecipeNotes: vi.fn(),
+  addRecipeNote: vi.fn(),
+  updateRecipeNote: vi.fn(),
+  deleteRecipeNote: vi.fn(),
 }));
 
 import {
+  addRecipeNote,
   createRecipe,
   deleteRecipe,
+  deleteRecipeNote,
+  listRecipeNotes,
+  updateRecipeNote,
   getRecipeById,
   listRecipes,
   rateRecipe,
@@ -152,4 +162,88 @@ describe("useRecipeActions — coverage of related cached data", () => {
     expect(client.getQueryState(previewKey)?.isInvalidated).toBe(true);
   });
 });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Recipe notes
+// ─────────────────────────────────────────────────────────────
+const note = (id: string, body: string): RecipeNote => ({
+  id,
+  body,
+  createdAt: "2026-11-03T18:20:00Z",
+  updatedAt: "2026-11-03T18:20:00Z",
+});
+
+describe("useRecipeNotes", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("loads a recipe's notes", async () => {
+    vi.mocked(listRecipeNotes).mockResolvedValue([note("n1", "Good")]);
+    const { result } = renderHookWithProviders(() => useRecipeNotes("r1"));
+
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.notes).toEqual([note("n1", "Good")]));
+    expect(listRecipeNotes).toHaveBeenCalledWith("r1");
+  });
+
+  it("reports a load error", async () => {
+    vi.mocked(listRecipeNotes).mockRejectedValue(new Error("offline"));
+    const { result } = renderHookWithProviders(() => useRecipeNotes("r1"));
+    await waitFor(() => expect(result.current.error).toBe("offline"));
+  });
+
+  it("doesn't load without a recipe", () => {
+    const { result } = renderHookWithProviders(() => useRecipeNotes(null));
+    expect(listRecipeNotes).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(false);
+  });
+});
+
+describe("useRecipeNoteActions", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const setup = () => {
+    const client = createTestQueryClient();
+    client.setQueryData(recipeKeys.notes(TEST_USER_ID, "r1"), [note("n1", "First")]);
+    const { result } = renderHookWithProviders(() => useRecipeNoteActions("r1"), { client });
+    const cached = () => client.getQueryData<RecipeNote[]>(recipeKeys.notes(TEST_USER_ID, "r1"));
+    return { result, cached };
+  };
+
+  it("adds a saved note to the top of the cached list", async () => {
+    vi.mocked(addRecipeNote).mockResolvedValue(note("n2", "Second"));
+    const { result, cached } = setup();
+
+    await act(() => result.current.add("Second"));
+
+    expect(addRecipeNote).toHaveBeenCalledWith("r1", "Second");
+    expect(cached()?.map((n) => n.id)).toEqual(["n2", "n1"]);
+  });
+
+  it("replaces an edited note", async () => {
+    vi.mocked(updateRecipeNote).mockResolvedValue(note("n1", "Edited"));
+    const { result, cached } = setup();
+
+    await act(() => result.current.edit("n1", "Edited"));
+
+    expect(cached()?.[0]?.body).toBe("Edited");
+  });
+
+  it("removes a deleted note", async () => {
+    vi.mocked(deleteRecipeNote).mockResolvedValue();
+    const { result, cached } = setup();
+
+    await act(() => result.current.remove("n1"));
+
+    expect(deleteRecipeNote).toHaveBeenCalledWith("n1");
+    expect(cached()).toEqual([]);
+  });
+
+  it("leaves the cache alone when saving fails", async () => {
+    vi.mocked(addRecipeNote).mockRejectedValue(new Error("denied"));
+    const { result, cached } = setup();
+
+    await expect(act(() => result.current.add("Second"))).rejects.toThrow("denied");
+    expect(cached()?.map((n) => n.id)).toEqual(["n1"]);
+  });
 });

@@ -5,6 +5,7 @@ import AddToPlanButton from "../../meal-plans/components/AddToPlanButton";
 import RecipeBackLinks, { type RecipeBackLinksState } from "../components/RecipeBackLinks";
 import RecipeDeleteControls from "../components/RecipeDeleteControls";
 import RecipeFormFields from "../components/RecipeFormFields";
+import RecipeNotes from "../components/RecipeNotes";
 import RecipeReadArticle from "../components/RecipeReadArticle";
 import RecipeScaleTools from "../components/RecipeScaleTools";
 import StarRating from "../components/StarRating";
@@ -267,12 +268,15 @@ export default function RecipeDetailPage() {
           </div>
         </form>
       ) : (
-        <RecipeReadArticle
-          values={formValues}
-          baseServings={recipeBaseServings}
-          viewServings={viewServings}
-          onViewServingsChange={setViewServings}
-        />
+        <>
+          <RecipeReadArticle
+            values={formValues}
+            baseServings={recipeBaseServings}
+            viewServings={viewServings}
+            onViewServingsChange={setViewServings}
+          />
+          {recipeId ? <RecipeNotes recipeId={recipeId} /> : null}
+        </>
       )}
       {editing ? (
         <div className="recipe-sticky-actions" aria-label="Recipe edit actions">

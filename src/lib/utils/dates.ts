@@ -58,3 +58,8 @@ export function formatDateRange(startIso: string, endIso: string): string {
 export function formatMonthDay(isoDate: string): string {
   return monthDayFormatter.format(createDateFromIso(isoDate));
 }
+
+/** "Nov 3, 2026": the local date of a timestamp ("2026-11-03T18:20:00Z"). */
+export function formatTimestampDate(isoTimestamp: string): string {
+  return monthDayYearFormatter.format(new Date(isoTimestamp));
+}

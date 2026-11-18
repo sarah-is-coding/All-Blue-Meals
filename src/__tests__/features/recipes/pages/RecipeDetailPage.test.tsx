@@ -28,6 +28,11 @@ vi.mock("../../../../features/recipes/api", () => ({
   updateRecipe: vi.fn(),
   deleteRecipe: vi.fn(),
   rateRecipe: vi.fn(),
+  // The page shows the recipe's notes under the instructions.
+  listRecipeNotes: vi.fn().mockResolvedValue([]),
+  addRecipeNote: vi.fn(),
+  updateRecipeNote: vi.fn(),
+  deleteRecipeNote: vi.fn(),
 }));
 
 vi.mock("../../../../features/ingredients/api", () => ({

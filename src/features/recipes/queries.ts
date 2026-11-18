@@ -3,14 +3,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUserId } from "../../lib/auth/sessionContext";
 import { useInvalidateMealPlanWeeks } from "../meal-plans/queries";
 import {
+  addRecipeNote,
   createRecipe,
   deleteRecipe,
+  deleteRecipeNote,
   getRecipeById,
+  listRecipeNotes,
   listRecipes,
   rateRecipe,
   updateRecipe,
+  updateRecipeNote,
 } from "./api";
-import type { RecipeDetail, RecipeListFilters, RecipeSummary, RecipeUpsertInput } from "./types";
+import type { RecipeDetail, RecipeListFilters, RecipeNote, RecipeSummary, RecipeUpsertInput } from "./types";
 
 // The only module in recipes that talks to TanStack Query (see "Data loading"
 // in CLAUDE.md). Components use these hooks; cache keys and updates live here.
@@ -29,6 +33,8 @@ export const recipeKeys = {
   list: (userId: string, params: RecipeListParams) => [...recipeKeys.lists(userId), params] as const,
   detail: (userId: string, recipeId: string) =>
     [...recipeKeys.user(userId), "detail", recipeId] as const,
+  notes: (userId: string, recipeId: string) =>
+    [...recipeKeys.user(userId), "notes", recipeId] as const,
 };
 
 const errorMessage = (error: Error | null, fallback: string): string | null =>
@@ -118,4 +124,55 @@ export function useRecipeActions() {
       },
     };
   }, [client, userId, invalidateMealPlanWeeks]);
+}
+
+const NO_NOTES: RecipeNote[] = [];
+
+/** A recipe's notes, newest first. */
+export function useRecipeNotes(recipeId: string | null) {
+  const userId = useCurrentUserId();
+  const query = useQuery({
+    queryKey: recipeKeys.notes(userId ?? "", recipeId ?? ""),
+    queryFn: () => listRecipeNotes(recipeId as string),
+    enabled: userId !== null && recipeId !== null,
+  });
+  return {
+    notes: query.data ?? NO_NOTES,
+    loading: recipeId !== null && query.isPending,
+    error: errorMessage(query.error, "Failed to load notes."),
+  };
+}
+
+/** Adding, editing and deleting a recipe's notes. Each saves first, then
+ *  updates the cached list (after cancelling a load in flight, so a stale
+ *  response can't overwrite the change). */
+export function useRecipeNoteActions(recipeId: string) {
+  const client = useQueryClient();
+  const userId = useCurrentUserId();
+
+  return useMemo(() => {
+    const updateCache = async (change: (notes: RecipeNote[]) => RecipeNote[]) => {
+      if (!userId) return;
+      const queryKey = recipeKeys.notes(userId, recipeId);
+      await client.cancelQueries({ queryKey });
+      client.setQueryData<RecipeNote[]>(queryKey, (prev) => change(prev ?? []));
+    };
+
+    return {
+      async add(body: string): Promise<void> {
+        const note = await addRecipeNote(recipeId, body);
+        await updateCache((notes) => [note, ...notes]);
+      },
+
+      async edit(noteId: string, body: string): Promise<void> {
+        const note = await updateRecipeNote(noteId, body);
+        await updateCache((notes) => notes.map((existing) => (existing.id === noteId ? note : existing)));
+      },
+
+      async remove(noteId: string): Promise<void> {
+        await deleteRecipeNote(noteId);
+        await updateCache((notes) => notes.filter((existing) => existing.id !== noteId));
+      },
+    };
+  }, [client, userId, recipeId]);
 }
