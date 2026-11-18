@@ -7,6 +7,7 @@ import {
   useRecipeList,
   useRecipeNoteActions,
   useRecipeNotes,
+  useRecipeTagFolders,
   type RecipeListParams,
 } from "../../../features/recipes/queries";
 import type { RecipeDetail, RecipeNote, RecipeUpsertInput } from "../../../features/recipes/types";
@@ -25,6 +26,7 @@ vi.mock("../../../features/recipes/api", () => ({
   rateRecipe: vi.fn(),
   deleteRecipe: vi.fn(),
   listRecipeNotes: vi.fn(),
+  listRecipeTags: vi.fn(),
   addRecipeNote: vi.fn(),
   updateRecipeNote: vi.fn(),
   deleteRecipeNote: vi.fn(),
@@ -36,6 +38,7 @@ import {
   deleteRecipe,
   deleteRecipeNote,
   listRecipeNotes,
+  listRecipeTags,
   updateRecipeNote,
   getRecipeById,
   listRecipes,
@@ -245,5 +248,33 @@ describe("useRecipeNoteActions", () => {
 
     await expect(act(() => result.current.add("Second"))).rejects.toThrow("denied");
     expect(cached()?.map((n) => n.id)).toEqual(["n1"]);
+  });
+});
+
+describe("useRecipeTagFolders", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("builds the folders from every recipe's tags", async () => {
+    vi.mocked(listRecipeTags).mockResolvedValue([["Italian"], ["italian", "dinner"]]);
+    const { result } = renderHookWithProviders(() => useRecipeTagFolders());
+
+    await waitFor(() =>
+      expect(result.current.folders).toEqual([
+        { key: "dinner", label: "dinner", count: 1 },
+        { key: "italian", label: "Italian", count: 2 },
+      ])
+    );
+  });
+
+  it("doesn't load when the folders aren't shown", () => {
+    const { result } = renderHookWithProviders(() => useRecipeTagFolders(false));
+    expect(listRecipeTags).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(false);
+  });
+
+  it("is refreshed whenever recipe lists are (after creating, editing or deleting)", () => {
+    expect(recipeKeys.tags(TEST_USER_ID).slice(0, recipeKeys.lists(TEST_USER_ID).length)).toEqual(
+      recipeKeys.lists(TEST_USER_ID)
+    );
   });
 });

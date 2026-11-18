@@ -19,6 +19,7 @@ vi.mock("../../../lib/supabaseClient", () => {
     "range",
     "order",
     "gte",
+    "contains",
   ];
 
   for (const method of chained) {
@@ -51,6 +52,7 @@ import {
   deleteRecipe,
   getRecipeById,
   listRecipes,
+  listRecipeTags,
   rateRecipe,
   updateRecipe,
 } from "../../../features/recipes/api";
@@ -68,6 +70,7 @@ const CHAINED_METHODS = [
   "range",
   "order",
   "gte",
+  "contains",
 ];
 
 const defaultFilters = {
@@ -377,6 +380,26 @@ describe("recipe api", () => {
     });
 
     await expect(rateRecipe("recipe-1", 4)).rejects.toThrow("Recipe not found");
+  });
+
+  it("loads every recipe's tags, and only that column, for the tag folders", async () => {
+    db.returns.mockResolvedValueOnce({ data: [{ tags: ["Italian", "dinner"] }, { tags: null }], error: null });
+
+    expect(await listRecipeTags()).toEqual([["Italian", "dinner"], []]);
+    expect(db.select).toHaveBeenCalledWith("tags");
+  });
+
+  // Tag search ignores case: it matches the lowercase copy of the tags.
+  it("filters by tag regardless of case", async () => {
+    await listRecipes("", { ...defaultFilters, tag: "  Italian " }, { page: 1, pageSize: 12 });
+
+    expect(db.contains).toHaveBeenCalledWith("tags_lower", ["italian"]);
+  });
+
+  it("doesn't filter by tag when none is given", async () => {
+    await listRecipes("", { ...defaultFilters, tag: "  " }, { page: 1, pageSize: 12 });
+
+    expect(db.contains).not.toHaveBeenCalled();
   });
 
   it("applies a minimum rating filter when set", async () => {

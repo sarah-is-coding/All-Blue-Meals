@@ -3,6 +3,7 @@ import {
   formatImportedInstructions,
   mapImportedRecipeToFormValues,
   mapImportedRecipeToInput,
+  normalizeImportedTags,
 } from "../../../../features/recipes/utils/recipeImport";
 import type { ImportedRecipe } from "../../../../features/recipes/types";
 
@@ -113,5 +114,35 @@ describe("recipe import mapping", () => {
     expect(input.instructions).toBe(
       "1. Make the meatballs.\n2. Make the tomato sauce.\n3. Simmer until cooked."
     );
+  });
+});
+
+// The import prompt suggests kinds of tags (meal, protein, cuisine,
+// features) without limiting them; the app only tidies what comes back.
+describe("normalizeImportedTags", () => {
+  it("lowercases, trims, collapses spaces and drops repeats and blanks", () => {
+    expect(normalizeImportedTags(["Dessert", " italian ", "dessert", "", "No-Bake", "air   fryer"])).toEqual([
+      "dessert",
+      "italian",
+      "no-bake",
+      "air fryer",
+    ]);
+  });
+
+  it("keeps every distinct tag, including ones outside the suggested kinds", () => {
+    const tags = ["dinner", "chicken", "italian", "one-pot", "weeknight", "tex-mex", "holiday", "comfort food"];
+    expect(normalizeImportedTags(tags)).toEqual(tags);
+  });
+
+  it("returns no tags for missing or empty input", () => {
+    expect(normalizeImportedTags(undefined)).toEqual([]);
+    expect(normalizeImportedTags(null)).toEqual([]);
+    expect(normalizeImportedTags([])).toEqual([]);
+  });
+
+  it("is applied when an import becomes a recipe or a form draft", () => {
+    const recipe = { ...importedRecipe, tags: ["Dinner", "Chicken", "dinner"] };
+    expect(mapImportedRecipeToInput(recipe).tags).toEqual(["dinner", "chicken"]);
+    expect(mapImportedRecipeToFormValues(recipe).tags).toBe("dinner, chicken");
   });
 });

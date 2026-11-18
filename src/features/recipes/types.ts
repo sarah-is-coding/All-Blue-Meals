@@ -2,6 +2,9 @@ import type { IngredientCategory } from "../ingredients/types";
 
 export type RecipeSortOption = "newest" | "oldest" | "title_asc" | "title_desc";
 
+/** How the recipes page shows recipes: the list, or folders by tag. */
+export type RecipeListView = "list" | "tags";
+
 export type RecipeListFilters = {
   sort: RecipeSortOption;
   tag: string;

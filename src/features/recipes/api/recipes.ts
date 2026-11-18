@@ -117,6 +117,18 @@ type RecipeListPageResult = {
   totalCount: number;
 };
 
+/** Every recipe's tags (only that column), for the "Tag folders" view. */
+export async function listRecipeTags(): Promise<string[][]> {
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("tags")
+    .returns<Array<Pick<Tables<"recipes">, "tags">>>();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return (data ?? []).map((row) => row.tags ?? []);
+}
+
 export async function listRecipes(
   searchTerm: string,
   filters: RecipeListFilters,
@@ -140,9 +152,10 @@ export async function listRecipes(
     query = query.ilike("title", `%${trimmedSearch}%`);
   }
 
-  const tag = filters.tag.trim();
+  // Case doesn't matter: tags_lower is the recipe's tags in lowercase.
+  const tag = filters.tag.trim().toLowerCase();
   if (tag) {
-    query = query.contains("tags", [tag]);
+    query = query.contains("tags_lower", [tag]);
   }
 
   if (filters.onlyWithSource) {

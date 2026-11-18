@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "../../../utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
@@ -10,9 +10,10 @@ import {
 
 vi.mock("../../../../features/recipes/api", () => ({
   listRecipes: vi.fn(),
+  listRecipeTags: vi.fn(),
 }));
 
-import { listRecipes } from "../../../../features/recipes/api";
+import { listRecipeTags, listRecipes } from "../../../../features/recipes/api";
 
 const mockListRecipes = vi.mocked(listRecipes);
 
@@ -126,6 +127,33 @@ describe("RecipesPage", () => {
     expect(screen.getByText("Chicken Caesar Taco Salad")).toBeInTheDocument();
   });
 
+  // Searching runs a moment after typing stops; the Search button (or Enter)
+  // runs it straight away, which makes how to search clearer.
+  it("searches right away with the Search button", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Chicken Caesar Taco Salad");
+
+    expect(screen.getByRole("search")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Search recipes"), "tacos");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    // Without waiting for the pause after typing.
+    expect(mockListRecipes).toHaveBeenLastCalledWith("tacos", expect.anything(), expect.objectContaining({ page: 1 }));
+  });
+
+  it("searches with Enter too", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Chicken Caesar Taco Salad");
+
+    await user.type(screen.getByLabelText("Search recipes"), "salad{Enter}");
+
+    await waitFor(() =>
+      expect(mockListRecipes).toHaveBeenLastCalledWith("salad", expect.anything(), expect.objectContaining({ page: 1 }))
+    );
+  });
+
   it("re-queries with the selected minimum rating filter", async () => {
     const user = userEvent.setup();
     renderPage();
@@ -148,6 +176,8 @@ describe("RecipesPage", () => {
       searchInput: "",
       filters: createDefaultRecipeListFilters(),
       currentPage: 2,
+      view: "list",
+      openTag: null,
     });
     mockListRecipes.mockResolvedValue({ recipes, totalCount: 30 });
     renderPage();
@@ -162,6 +192,8 @@ describe("RecipesPage", () => {
       searchInput: "",
       filters: createDefaultRecipeListFilters(),
       currentPage: 3,
+      view: "list",
+      openTag: null,
     });
     mockListRecipes.mockResolvedValue({ recipes, totalCount: recipes.length });
     renderPage();
@@ -169,5 +201,103 @@ describe("RecipesPage", () => {
     await waitFor(() =>
       expect(mockListRecipes).toHaveBeenLastCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }))
     );
+  });
+
+  // A second way to browse: folders by tag, picked from the View menu (the
+  // list stays the default).
+  describe("tag folders view", () => {
+    const switchToFolders = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole("button", { name: /View: List/ }));
+      await user.click(screen.getByRole("menuitemradio", { name: "Tag folders" }));
+    };
+
+    beforeEach(() => {
+      vi.mocked(listRecipeTags).mockResolvedValue([
+        ["Italian", "dinner"],
+        ["italian", "Dessert"],
+        ["dinner"],
+      ]);
+    });
+
+    it("shows the list by default, with the view menu offering other views", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByText("Chicken Caesar Taco Salad");
+
+      expect(listRecipeTags).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: /View: List/ }));
+      expect(screen.getByRole("menuitemradio", { name: "List" })).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByRole("menuitemradio", { name: "Tag folders" })).toHaveAttribute("aria-checked", "false");
+    });
+
+    it("shows a folder per tag, ignoring case, with recipe counts", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByText("Chicken Caesar Taco Salad");
+      await switchToFolders(user);
+
+      const folders = await screen.findByRole("list", { name: "Tag folders" });
+      expect(within(folders).getAllByRole("button").map((button) => button.textContent)).toEqual([
+        "📁Dessert1 recipe",
+        "📁dinner2 recipes",
+        "📁Italian2 recipes",
+      ]);
+      expect(screen.getByRole("button", { name: /View: Tag folders/ })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Search tags...")).toBeInTheDocument();
+    });
+
+    it("opens a folder to show its recipes, and goes back to all tags", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByText("Chicken Caesar Taco Salad");
+      await switchToFolders(user);
+
+      await user.click(await screen.findByRole("button", { name: /Italian/ }));
+
+      expect(screen.getByRole("heading", { name: "Italian" })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(mockListRecipes).toHaveBeenLastCalledWith(
+          "",
+          expect.objectContaining({ tag: "italian" }),
+          expect.objectContaining({ page: 1 })
+        )
+      );
+      expect(await screen.findByText("Chicken Caesar Taco Salad")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "← All tags" }));
+      expect(await screen.findByRole("list", { name: "Tag folders" })).toBeInTheDocument();
+    });
+
+    it("narrows the folders with the search box", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByText("Chicken Caesar Taco Salad");
+      await switchToFolders(user);
+      await screen.findByRole("list", { name: "Tag folders" });
+
+      await user.type(screen.getByLabelText("Search tags"), "din");
+      const folders = screen.getByRole("list", { name: "Tag folders" });
+      expect(within(folders).getAllByRole("button")).toHaveLength(1);
+
+      await user.clear(screen.getByLabelText("Search tags"));
+      await user.type(screen.getByLabelText("Search tags"), "zzz");
+      expect(screen.getByText("No tags match")).toBeInTheDocument();
+    });
+
+    it("comes back to the open folder after visiting a recipe", async () => {
+      saveRecipeListViewState({
+        searchInput: "",
+        filters: createDefaultRecipeListFilters(),
+        currentPage: 1,
+        view: "tags",
+        openTag: "italian",
+      });
+      renderPage();
+
+      expect(await screen.findByRole("heading", { name: "Italian" })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(mockListRecipes).toHaveBeenCalledWith("", expect.objectContaining({ tag: "italian" }), expect.anything())
+      );
+    });
   });
 });

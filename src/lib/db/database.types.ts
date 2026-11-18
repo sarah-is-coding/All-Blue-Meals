@@ -272,6 +272,7 @@ export type Database = {
           servings: number | null
           source_url: string | null
           tags: string[] | null
+          tags_lower: string[] | null
           title: string
           user_id: string
         }
@@ -286,6 +287,7 @@ export type Database = {
           servings?: number | null
           source_url?: string | null
           tags?: string[] | null
+          tags_lower?: string[] | null
           title: string
           user_id: string
         }
@@ -300,6 +302,7 @@ export type Database = {
           servings?: number | null
           source_url?: string | null
           tags?: string[] | null
+          tags_lower?: string[] | null
           title?: string
           user_id?: string
         }
@@ -390,6 +393,7 @@ export type Database = {
       }
       ingredient_name_words: { Args: { p_name: string }; Returns: string[] }
       ingredient_word_forms: { Args: { p_word: string }; Returns: string[] }
+      lowercase_tags: { Args: { p_tags: string[] }; Returns: string[] }
       save_recipe_ingredients: {
         Args: { p_recipe_id: string; p_rows: Json }
         Returns: undefined

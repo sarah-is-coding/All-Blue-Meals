@@ -3,6 +3,6 @@
 // - ingredientRows.ts: preparing and atomically saving a recipe's ingredients
 // - importRecipes.ts: AI import and generation (edge function)
 // - notes.ts: a recipe's dated notes
-export { createRecipe, deleteRecipe, getRecipeById, listRecipes, rateRecipe, updateRecipe } from "./recipes";
+export { createRecipe, deleteRecipe, getRecipeById, listRecipes, listRecipeTags, rateRecipe, updateRecipe } from "./recipes";
 export { extractRecipesFromText, generateRecipesFromPrompt } from "./importRecipes";
 export { addRecipeNote, deleteRecipeNote, listRecipeNotes, updateRecipeNote } from "./notes";

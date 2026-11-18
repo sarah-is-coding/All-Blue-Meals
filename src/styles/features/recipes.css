@@ -94,9 +94,123 @@
   outline: none;
 }
 
+/* The View menu reuses the Add Recipe menu's panel; its items are buttons. */
+.recipe-view-menu .recipe-add-menu__item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recipe-view-menu__item--current::after {
+  content: " ✓";
+  color: var(--color-brand);
+}
+
+/* Tag folders view: a grid of folders, then a folder's recipes. */
+.recipe-tag-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipe-tag-folder {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon name"
+    "icon count";
+  align-items: center;
+  column-gap: 0.6rem;
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 0.9rem;
+  background: var(--color-white);
+  color: var(--color-ink-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 160ms ease, transform 140ms ease;
+}
+
+.recipe-tag-folder:hover,
+.recipe-tag-folder:focus-visible {
+  border-color: var(--color-brand);
+  box-shadow: 0 6px 18px var(--alpha-brand-20);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.recipe-tag-folder__icon {
+  grid-area: icon;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.recipe-tag-folder__name {
+  grid-area: name;
+  font-weight: 700;
+  text-transform: capitalize;
+  overflow-wrap: anywhere;
+}
+
+.recipe-tag-folder__count {
+  grid-area: count;
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
+}
+
+.recipe-tag-folder-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.recipe-tag-folder-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  text-transform: capitalize;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-tag-folder {
+    transition: none;
+  }
+
+  .recipe-tag-folder:hover,
+  .recipe-tag-folder:focus-visible {
+    transform: none;
+  }
+}
+
+/* The search box and its Search button, side by side. */
+.recipe-search-form {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
 .recipe-search {
   position: relative;
-  flex: 1 1 280px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.recipe-search-form__submit {
+  flex: 0 0 auto;
 }
 
 .recipe-search input {

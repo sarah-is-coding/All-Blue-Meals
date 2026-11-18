@@ -18,6 +18,8 @@ describe("recipeListViewState minRating", () => {
       searchInput: "",
       filters: { ...createDefaultRecipeListFilters(), minRating: 4 },
       currentPage: 1,
+      view: "list",
+      openTag: null,
     });
 
     expect(loadRecipeListViewState().filters.minRating).toBe(4);
@@ -43,5 +45,34 @@ describe("recipeListViewState minRating", () => {
       })
     );
     expect(loadRecipeListViewState().filters.minRating).toBe(0);
+  });
+});
+
+describe("recipeListViewState view", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it("defaults to the list view with no open folder", () => {
+    expect(loadRecipeListViewState()).toMatchObject({ view: "list", openTag: null });
+  });
+
+  it("remembers the tag folders view and its open folder (lowercase)", () => {
+    saveRecipeListViewState({
+      searchInput: "",
+      filters: createDefaultRecipeListFilters(),
+      currentPage: 1,
+      view: "tags",
+      openTag: "Italian",
+    });
+    expect(loadRecipeListViewState()).toMatchObject({ view: "tags", openTag: "italian" });
+  });
+
+  it("falls back to the list view for an unknown view, and ignores a blank folder", () => {
+    window.sessionStorage.setItem(
+      "planmymeals:recipes:list-view",
+      JSON.stringify({ searchInput: "", filters: {}, currentPage: 1, view: "grid", openTag: "  " })
+    );
+    expect(loadRecipeListViewState()).toMatchObject({ view: "list", openTag: null });
   });
 });

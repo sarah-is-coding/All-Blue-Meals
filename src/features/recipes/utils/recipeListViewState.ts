@@ -1,4 +1,4 @@
-import type { RecipeListFilters, RecipeSortOption } from "../types";
+import type { RecipeListFilters, RecipeListView, RecipeSortOption } from "../types";
 
 const STORAGE_KEY = "planmymeals:recipes:list-view";
 
@@ -13,7 +13,19 @@ type RecipeListViewState = {
   searchInput: string;
   filters: RecipeListFilters;
   currentPage: number;
+  /** How recipes are shown: the list (default) or tag folders. */
+  view: RecipeListView;
+  /** In the tag folders view, the open folder's tag (lowercase), if any. */
+  openTag: string | null;
 };
+
+const VALID_VIEWS: RecipeListView[] = ["list", "tags"];
+
+const sanitizeView = (value: unknown): RecipeListView =>
+  VALID_VIEWS.includes(value as RecipeListView) ? (value as RecipeListView) : "list";
+
+const sanitizeOpenTag = (value: unknown): string | null =>
+  typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
 
 type PartialRecipeListFilters = Partial<RecipeListFilters> & {
   sort?: string;
@@ -50,6 +62,8 @@ export const loadRecipeListViewState = (): RecipeListViewState => {
       searchInput: "",
       filters: createDefaultRecipeListFilters(),
       currentPage: 1,
+      view: "list",
+      openTag: null,
     };
   }
 
@@ -60,6 +74,8 @@ export const loadRecipeListViewState = (): RecipeListViewState => {
         searchInput: "",
         filters: createDefaultRecipeListFilters(),
         currentPage: 1,
+        view: "list",
+        openTag: null,
       };
     }
 
@@ -67,6 +83,8 @@ export const loadRecipeListViewState = (): RecipeListViewState => {
       searchInput?: string;
       filters?: PartialRecipeListFilters;
       currentPage?: number;
+      view?: string;
+      openTag?: string | null;
     };
 
     return {
@@ -76,12 +94,16 @@ export const loadRecipeListViewState = (): RecipeListViewState => {
         Number.isInteger(parsedState.currentPage) && (parsedState.currentPage ?? 0) > 0
           ? parsedState.currentPage!
           : 1,
+      view: sanitizeView(parsedState.view),
+      openTag: sanitizeOpenTag(parsedState.openTag),
     };
   } catch {
     return {
       searchInput: "",
       filters: createDefaultRecipeListFilters(),
       currentPage: 1,
+      view: "list",
+      openTag: null,
     };
   }
 };

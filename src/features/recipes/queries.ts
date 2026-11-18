@@ -9,12 +9,14 @@ import {
   deleteRecipeNote,
   getRecipeById,
   listRecipeNotes,
+  listRecipeTags,
   listRecipes,
   rateRecipe,
   updateRecipe,
   updateRecipeNote,
 } from "./api";
 import type { RecipeDetail, RecipeListFilters, RecipeNote, RecipeSummary, RecipeUpsertInput } from "./types";
+import { tagFolders, type RecipeTagFolder } from "./utils/recipeTagFolders";
 
 // The only module in recipes that talks to TanStack Query (see "Data loading"
 // in CLAUDE.md). Components use these hooks; cache keys and updates live here.
@@ -31,6 +33,8 @@ export const recipeKeys = {
   user: (userId: string) => [...recipeKeys.all, userId] as const,
   lists: (userId: string) => [...recipeKeys.user(userId), "list"] as const,
   list: (userId: string, params: RecipeListParams) => [...recipeKeys.lists(userId), params] as const,
+  // Under lists, so whatever refreshes the lists (create, update, delete) refreshes tags too.
+  tags: (userId: string) => [...recipeKeys.lists(userId), "tags"] as const,
   detail: (userId: string, recipeId: string) =>
     [...recipeKeys.user(userId), "detail", recipeId] as const,
   notes: (userId: string, recipeId: string) =>
@@ -42,8 +46,9 @@ const errorMessage = (error: Error | null, fallback: string): string | null =>
 
 const NO_RECIPES: RecipeSummary[] = [];
 
-/** One page of the recipe list for a search and set of filters. */
-export function useRecipeList(params: RecipeListParams) {
+/** One page of the recipe list for a search and set of filters. Pass
+ *  `enabled: false` when the page isn't showing a list (e.g. tag folders). */
+export function useRecipeList(params: RecipeListParams, enabled = true) {
   const userId = useCurrentUserId();
   const query = useQuery({
     queryKey: recipeKeys.list(userId ?? "", params),
@@ -52,13 +57,30 @@ export function useRecipeList(params: RecipeListParams) {
         page: params.page,
         pageSize: params.pageSize,
       }),
-    enabled: userId !== null,
+    enabled: userId !== null && enabled,
   });
   return {
     recipes: query.data?.recipes ?? NO_RECIPES,
     totalCount: query.data?.totalCount ?? 0,
-    loading: query.isPending,
+    loading: enabled && query.isPending,
     error: errorMessage(query.error, "Failed to load recipes."),
+  };
+}
+
+const NO_FOLDERS: RecipeTagFolder[] = [];
+
+/** The "Tag folders" view: a folder per tag (case ignored) with its count. */
+export function useRecipeTagFolders(enabled = true) {
+  const userId = useCurrentUserId();
+  const query = useQuery({
+    queryKey: recipeKeys.tags(userId ?? ""),
+    queryFn: async () => tagFolders(await listRecipeTags()),
+    enabled: userId !== null && enabled,
+  });
+  return {
+    folders: query.data ?? NO_FOLDERS,
+    loading: enabled && query.isPending,
+    error: errorMessage(query.error, "Failed to load tags."),
   };
 }
 

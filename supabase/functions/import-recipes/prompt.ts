@@ -30,6 +30,19 @@ Ingredient examples (input → entry):
 - "salt and freshly ground pepper to taste" → two entries: {"ingredientName": "salt", "notes": "to taste", …} and {"ingredientName": "black pepper", "notes": "freshly ground, to taste", …}
 `;
 
+// Tags are for browsing and filtering your own recipes. The kinds below are
+// guidance, not a fixed list: any short tag that fits is fine.
+const tagRules = `
+Tag rules:
+- Tags help someone browse and filter their own recipes. Give a handful of short, lowercase tags that describe the dish, usually 3 to 6.
+- Useful kinds of tags, with examples (not a fixed list; use any tag that fits the dish):
+  - meal or course: breakfast, lunch, dinner, dessert, snack, side, appetizer, drink
+  - main protein or diet: chicken, beef, pork, seafood, vegetarian, vegan
+  - cuisine: italian, mexican, american, thai, indian, mediterranean
+  - cooking method or notable feature: no-bake, one-pot, slow cooker, air fryer, grill, sheet pan, quick, make-ahead, gluten-free
+- Prefer general, reusable tags over the source page's search keywords: "easy dinner recipes", "creamy tortellini soup" or "chicken recipes" are better as "dinner", "soup" or "chicken". Don't repeat the title or list the ingredients as tags.
+- Examples: tiramisu → ["dessert", "italian", "no-bake"]; chicken francese → ["dinner", "chicken", "italian"]; dutch oven beef stew → ["dinner", "beef", "stew", "one-pot", "comfort food"].`;
+
 const recipeOutputRules = (categories: Category[]) => `
 Rules:
 - Do not invent exact quantities, times, or servings when extracting from a source. Leave them empty when missing (use null for the number fields).
@@ -39,6 +52,7 @@ Rules:
 - If a source step references another recipe, package, video, or external page, rewrite it into direct cooking instructions using the available text. If details are unavailable, state the missing detail plainly in warnings instead of referencing the source.
 - Include ingredient details directly in the steps when needed. A user must be able to cook from the saved recipe without visiting sourceUrl.
 - Add warnings for inaccessible URLs, missing details, social/video links that could not be read, or low-confidence extraction.
+${tagRules}
 ${ingredientRules(categories)}`;
 
 export const buildImportPrompt = (notes: string, sources: SourceContent[], categories: Category[]): string => {

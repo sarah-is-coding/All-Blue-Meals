@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import StarRating from "../components/StarRating";
-import { useRecipeList } from "../queries";
+import RecipeFiltersPanel from "../components/RecipeFiltersPanel";
+import RecipeResults from "../components/RecipeResults";
+import RecipeTagFolders from "../components/RecipeTagFolders";
+import RecipeViewMenu from "../components/RecipeViewMenu";
+import { useRecipeList, useRecipeTagFolders } from "../queries";
 import { MEAL_TYPE_OPTIONS } from "../../meal-plans/constants";
 import { createDateFromIso } from "../../../lib/utils/dates";
 import type { MealType } from "../../meal-plans/types";
-import type { RecipeListFilters, RecipeSummary } from "../types";
+import type { RecipeListFilters, RecipeListView } from "../types";
 import {
   clearRecipeListViewState,
-  createDefaultRecipeListFilters,
   loadRecipeListViewState,
   saveRecipeListViewState,
 } from "../utils/recipeListViewState";
+import { filterTagFolders } from "../utils/recipeTagFolders";
 
 const RECIPES_PER_PAGE = 12;
 
@@ -31,14 +34,6 @@ const formatMealSlot = (mealSlot: MealSlot): string => {
   return `${mealSlotDateFormatter.format(createDateFromIso(mealSlot.date))} · ${mealTypeLabel}`;
 };
 
-const formatTotalMinutes = (recipe: RecipeSummary): string => {
-  const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
-  if (totalMinutes <= 0) {
-    return "No time set";
-  }
-  return `${totalMinutes} min total`;
-};
-
 export default function RecipesPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -50,6 +45,10 @@ export default function RecipesPage() {
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [view, setView] = useState<RecipeListView>(initialState.view);
+  // In the tag folders view: the open folder's tag (lowercase), or null for all folders.
+  const [openTag, setOpenTag] = useState<string | null>(initialState.view === "tags" ? initialState.openTag : null);
+  const showingFolders = view === "tags" && openTag === null;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -60,16 +59,22 @@ export default function RecipesPage() {
     return () => window.clearTimeout(debounceId);
   }, [searchInput]);
 
-  const { recipes, totalCount, loading, error } = useRecipeList({
-    searchTerm,
-    filters,
-    page: currentPage,
-    pageSize: RECIPES_PER_PAGE,
-  });
+  // Inside a tag folder, the folder decides the tag; the other filters still apply.
+  const { recipes, totalCount, loading, error } = useRecipeList(
+    {
+      searchTerm,
+      filters: view === "tags" ? { ...filters, tag: openTag ?? "" } : filters,
+      page: currentPage,
+      pageSize: RECIPES_PER_PAGE,
+    },
+    !showingFolders
+  );
+  const tagFolders = useRecipeTagFolders(view === "tags");
+  // While looking at the folders, the search box narrows down the folders.
+  const visibleFolders = filterTagFolders(tagFolders.folders, searchInput);
+  const openFolder = tagFolders.folders.find((folder) => folder.key === openTag);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / RECIPES_PER_PAGE));
-  const pageStartIndex = totalCount === 0 ? 0 : (currentPage - 1) * RECIPES_PER_PAGE + 1;
-  const pageEndIndex = Math.min(currentPage * RECIPES_PER_PAGE, totalCount);
 
   // If filters shrink the results below the current page, go to the last page.
   // Only once the count has loaded: while a page loads it reads as 0.
@@ -82,7 +87,22 @@ export default function RecipesPage() {
       searchInput,
       filters,
       currentPage,
+      view,
+      openTag,
     });
+  };
+
+  const changeView = (nextView: RecipeListView) => {
+    setView(nextView);
+    setOpenTag(null);
+    setCurrentPage(1);
+  };
+
+  const openTagFolder = (tag: string | null) => {
+    setOpenTag(tag);
+    setSearchInput("");
+    setSearchTerm("");
+    setCurrentPage(1);
   };
 
   return (
@@ -105,34 +125,48 @@ export default function RecipesPage() {
         ) : null}
 
         <div className="recipe-toolbar">
-          <label className="recipe-search" htmlFor="recipe-search-input">
-            <span className="sr-only">Search recipes</span>
-            <input
-              ref={searchInputRef}
-              id="recipe-search-input"
-              type="search"
-              placeholder="Search recipes..."
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value);
-                setCurrentPage(1);
-              }}
-            />
-            {searchInput ? (
-              <button
-                type="button"
-                className="recipe-search__clear"
-                aria-label="Clear recipe search"
-                onClick={() => {
-                  setSearchInput("");
+          {/* Typing searches after a short pause; Search (or Enter) searches now. */}
+          <form
+            className="recipe-search-form"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearchTerm(searchInput.trim());
+              setCurrentPage(1);
+            }}
+          >
+            <label className="recipe-search" htmlFor="recipe-search-input">
+              <span className="sr-only">{showingFolders ? "Search tags" : "Search recipes"}</span>
+              <input
+                ref={searchInputRef}
+                id="recipe-search-input"
+                type="search"
+                placeholder={showingFolders ? "Search tags..." : "Search recipes..."}
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
                   setCurrentPage(1);
-                  searchInputRef.current?.focus();
                 }}
-              >
-                &times;
-              </button>
-            ) : null}
-          </label>
+              />
+              {searchInput ? (
+                <button
+                  type="button"
+                  className="recipe-search__clear"
+                  aria-label="Clear recipe search"
+                  onClick={() => {
+                    setSearchInput("");
+                    setCurrentPage(1);
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  &times;
+                </button>
+              ) : null}
+            </label>
+            <button type="submit" className="btn btn--primary recipe-search-form__submit">
+              Search
+            </button>
+          </form>
           <button
             type="button"
             className="btn btn--ghost"
@@ -142,6 +176,7 @@ export default function RecipesPage() {
           >
             Filters
           </button>
+          <RecipeViewMenu view={view} onChange={changeView} />
           <div className="recipe-add-menu">
             <button
               type="button"
@@ -189,169 +224,50 @@ export default function RecipesPage() {
         </div>
 
         {showFilters ? (
-          <section id="recipe-filters-panel" className="recipe-filters" aria-label="Recipe filters">
-            <label className="recipe-field">
-              <span>Sort</span>
-              <select
-                value={filters.sort}
-                onChange={(event) => {
-                  setFilters((previousFilters) => ({
-                    ...previousFilters,
-                    sort: event.target.value as RecipeListFilters["sort"],
-                  }));
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="title_asc">Title A-Z</option>
-                <option value="title_desc">Title Z-A</option>
-              </select>
-            </label>
-
-            <label className="recipe-field">
-              <span>Tag</span>
-              <input
-                type="text"
-                placeholder="weeknight"
-                value={filters.tag}
-                onChange={(event) => {
-                  setFilters((previousFilters) => ({
-                    ...previousFilters,
-                    tag: event.target.value,
-                  }));
-                  setCurrentPage(1);
-                }}
-              />
-            </label>
-
-            <label className="recipe-checkbox">
-              <input
-                type="checkbox"
-                checked={filters.onlyWithSource}
-                onChange={(event) => {
-                  setFilters((previousFilters) => ({
-                    ...previousFilters,
-                    onlyWithSource: event.target.checked,
-                  }));
-                  setCurrentPage(1);
-                }}
-              />
-              <span>Only recipes with source URL</span>
-            </label>
-
-            <label className="recipe-field">
-              <span>Minimum rating</span>
-              <select
-                value={filters.minRating}
-                onChange={(event) => {
-                  setFilters((previousFilters) => ({
-                    ...previousFilters,
-                    minRating: Number(event.target.value),
-                  }));
-                  setCurrentPage(1);
-                }}
-              >
-                <option value={0}>Any</option>
-                <option value={1}>1+ stars</option>
-                <option value={2}>2+ stars</option>
-                <option value={3}>3+ stars</option>
-                <option value={4}>4+ stars</option>
-                <option value={5}>5 stars</option>
-              </select>
-            </label>
-
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => {
-                setFilters(createDefaultRecipeListFilters());
-                setCurrentPage(1);
-              }}
-            >
-              Reset filters
-            </button>
-          </section>
+          <RecipeFiltersPanel
+            filters={filters}
+            showTag={view === "list"}
+            onChange={(nextFilters) => {
+              setFilters(nextFilters);
+              setCurrentPage(1);
+            }}
+          />
         ) : null}
 
         {error ? <p className="error">{error}</p> : null}
       </article>
 
-      <section aria-live="polite" aria-busy={loading}>
-        {loading ? (
-          <article className="workspace-card">
-            <p>Loading recipes...</p>
-          </article>
-        ) : recipes.length === 0 ? (
-          <article className="workspace-card">
-            <h2>No recipes found</h2>
-            <p>Try a different search or add your first recipe.</p>
-          </article>
-        ) : (
-          <>
-            <ul className="recipe-list">
-              {recipes.map((recipe) => (
-                <li key={recipe.id}>
-                  <Link
-                    className="recipe-card"
-                    to={`/app/recipes/${recipe.id}`}
-                    state={mealSlot ? { from: "meal-planner", mealSlot } : undefined}
-                    onClick={persistListState}
-                  >
-                    <div className="recipe-card__head">
-                      <h2>{recipe.title}</h2>
-                      <span>{formatTotalMinutes(recipe)}</span>
-                    </div>
-                    <StarRating value={recipe.rating} size="sm" />
-                    {recipe.description ? <p>{recipe.description}</p> : null}
-                    <div className="recipe-card__meta">
-                      {recipe.tags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="recipe-tag">
-                          {tag}
-                        </span>
-                      ))}
-                      {recipe.hasSource ? (
-                        <span className="recipe-tag recipe-tag--source">Has source</span>
-                      ) : null}
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            {totalPages > 1 ? (
-              <nav className="recipe-pagination" aria-label="Recipe result pages">
-                <p className="recipe-pagination__summary">
-                  Showing {pageStartIndex}-{pageEndIndex} of {totalCount}
-                </p>
-                <div className="recipe-pagination__controls">
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </button>
-                  <span className="recipe-pagination__count">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() =>
-                      setCurrentPage((page) => Math.min(totalPages, page + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </button>
-                </div>
-              </nav>
-            ) : null}
-          </>
-        )}
-      </section>
+      {showingFolders ? (
+        <RecipeTagFolders
+          folders={visibleFolders}
+          loading={tagFolders.loading}
+          error={tagFolders.error}
+          filtered={tagFolders.folders.length > 0 && searchInput.trim() !== ""}
+          onOpen={(folder) => openTagFolder(folder.key)}
+        />
+      ) : (
+        <>
+          {view === "tags" ? (
+            <div className="recipe-tag-folder-header">
+              <button type="button" className="btn btn--ghost" onClick={() => openTagFolder(null)}>
+                ← All tags
+              </button>
+              <h2>{openFolder?.label ?? openTag}</h2>
+            </div>
+          ) : null}
+          <RecipeResults
+            recipes={recipes}
+            loading={loading}
+            totalCount={totalCount}
+            currentPage={currentPage}
+            pageSize={RECIPES_PER_PAGE}
+            onPageChange={setCurrentPage}
+            mealSlot={mealSlot}
+            onOpenRecipe={persistListState}
+            emptyMessage={view === "tags" ? "No recipes in this folder match the search or filters." : undefined}
+          />
+        </>
+      )}
     </section>
   );
 }
