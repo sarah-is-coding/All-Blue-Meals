@@ -269,7 +269,8 @@ as options, so you can grab avocado oil if the store is out of olive oil.
 
 ### 6. One-time cleanup of existing data
 
-A script (`scripts/ingredient-cleanup/`, run locally, not shipped) reads the
+A script (`scripts/ingredient-cleanup/`, run locally, not shipped; removed
+once applied, see step 7) reads the
 catalog and recipe rows, runs them through the naming module, and writes a
 **mapping file for review**: which ingredients merge into which, which recipe
 rows get new names/notes, which "or" rows split into main + substitute rows.
@@ -612,7 +613,11 @@ Each is its own commit; the app works after every one.
    Merged-away names become `merge` alias rows of the kept ingredient; the
    `seed` synonyms are added once their pairs are merged. Tooling in
    `scripts/ingredient-cleanup/` (`npm run cleanup:review`, then
-   `npm run cleanup:migration`); decisions from the review: plain `pepper`
+   `npm run cleanup:migration`), removed after the migration was applied:
+   it was one-time, and its snapshot and plan were ~14,000 lines. To see or
+   rerun it, check it out from commit `55a516c`
+   (`git checkout 55a516c -- scripts/ingredient-cleanup src/__tests__/scripts`).
+   Decisions from the review: plain `pepper`
    merges into black pepper (no `pepper` alias, since it can mean a bell
    pepper), the Stonefire naan becomes `naan` with a note, placeholders and
    made-in-recipe parts stay (the latter until recipe sections). **Done**
