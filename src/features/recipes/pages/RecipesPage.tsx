@@ -44,7 +44,9 @@ export default function RecipesPage() {
   const [filters, setFilters] = useState<RecipeListFilters>(initialState.filters);
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [showFilters, setShowFilters] = useState(false);
-  const [showAddMenu, setShowAddMenu] = useState(false);
+  // One toolbar menu open at a time: on phones they open in the same place.
+  const [openMenu, setOpenMenu] = useState<"view" | "add" | null>(null);
+  const showAddMenu = openMenu === "add";
   const [view, setView] = useState<RecipeListView>(initialState.view);
   // In the tag folders view: the open folder's tag (lowercase), or null for all folders.
   const [openTag, setOpenTag] = useState<string | null>(initialState.view === "tags" ? initialState.openTag : null);
@@ -176,12 +178,17 @@ export default function RecipesPage() {
           >
             Filters
           </button>
-          <RecipeViewMenu view={view} onChange={changeView} />
+          <RecipeViewMenu
+            view={view}
+            onChange={changeView}
+            open={openMenu === "view"}
+            onOpenChange={(open) => setOpenMenu(open ? "view" : null)}
+          />
           <div className="recipe-add-menu">
             <button
               type="button"
               className="btn btn--primary"
-              onClick={() => setShowAddMenu((currentState) => !currentState)}
+              onClick={() => setOpenMenu(showAddMenu ? null : "add")}
               aria-expanded={showAddMenu}
               aria-controls="recipe-add-menu"
             >

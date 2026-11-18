@@ -234,6 +234,25 @@ describe("RecipesPage", () => {
       expect(screen.getByRole("menuitemradio", { name: "Tag folders" })).toHaveAttribute("aria-checked", "false");
     });
 
+    // On phones both menus open full width under the toolbar, so only one
+    // can be open at a time.
+    it("closes the other toolbar menu when one opens", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByText("Chicken Caesar Taco Salad");
+
+      await user.click(screen.getByRole("button", { name: "View: List" }));
+      expect(screen.getByRole("menu", { name: "Recipe view" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Add Recipe" }));
+      expect(screen.queryByRole("menu", { name: "Recipe view" })).not.toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Import Recipe" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "View: List" }));
+      expect(screen.queryByRole("menuitem", { name: "Import Recipe" })).not.toBeInTheDocument();
+      expect(screen.getByRole("menu", { name: "Recipe view" })).toBeInTheDocument();
+    });
+
     it("shows a folder per tag, ignoring case, with recipe counts", async () => {
       const user = userEvent.setup();
       renderPage();

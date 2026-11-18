@@ -1,15 +1,16 @@
-import { useState } from "react";
 import { RECIPE_VIEWS } from "../constants";
 import type { RecipeListView } from "../types";
 
 type RecipeViewMenuProps = {
   view: RecipeListView;
   onChange: (view: RecipeListView) => void;
+  /** Whether the menu is open; the page keeps one toolbar menu open at a time. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
 /** "View: List ▾", a dropdown like Add Recipe's, to switch how recipes are shown. */
-export default function RecipeViewMenu({ view, onChange }: RecipeViewMenuProps) {
-  const [open, setOpen] = useState(false);
+export default function RecipeViewMenu({ view, onChange, open, onOpenChange }: RecipeViewMenuProps) {
   const current = RECIPE_VIEWS.find((option) => option.value === view) ?? RECIPE_VIEWS[0]!;
 
   return (
@@ -17,7 +18,7 @@ export default function RecipeViewMenu({ view, onChange }: RecipeViewMenuProps) 
       <button
         type="button"
         className="btn btn--ghost"
-        onClick={() => setOpen((isOpen) => !isOpen)}
+        onClick={() => onOpenChange(!open)}
         aria-expanded={open}
         aria-controls="recipe-view-menu"
         aria-haspopup="menu"
@@ -42,7 +43,7 @@ export default function RecipeViewMenu({ view, onChange }: RecipeViewMenuProps) 
                 .filter(Boolean)
                 .join(" ")}
               onClick={() => {
-                setOpen(false);
+                onOpenChange(false);
                 if (option.value !== view) onChange(option.value);
               }}
             >
