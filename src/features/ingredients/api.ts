@@ -6,8 +6,8 @@ import { dropsWords, ingredientKey, singularDisplayName } from "./utils/ingredie
 // Matching follows docs/ingredient-normalization.md: a name matches an
 // ingredient when their keys match (ingredientKey ignores case, accents,
 // punctuation, spaces and plurals), or through an approved row in
-// ingredient_aliases ("scallions" → green onion). Rows created before
-// name_key existed are also matched by exact name until step 8.
+// ingredient_aliases ("scallions" → green onion). Every ingredient has a
+// unique name_key (step 8).
 
 type IngredientRow = Pick<Tables<"ingredients">, "id" | "name" | "name_key" | "category" | "default_unit">;
 
@@ -159,7 +159,7 @@ const linkCanonicalNames = async (
   }
 };
 
-/** Existing ingredients for the given keys: by name_key, then alias, then exact name. */
+/** Existing ingredients for the given keys: by name_key (unique), then approved alias. */
 const findByKeys = async (requests: Map<string, IngredientRequest>): Promise<Map<string, Ingredient>> => {
   const found = new Map<string, Ingredient>();
   const missing = () => [...requests.keys()].filter((key) => !found.has(key));
@@ -168,12 +168,10 @@ const findByKeys = async (requests: Map<string, IngredientRequest>): Promise<Map
     .from("ingredients")
     .select(INGREDIENT_COLUMNS)
     .in("name_key", missing())
-    .order("created_at", { ascending: true })
     .returns<IngredientRow[]>();
   throwIfError(keyError);
   for (const row of byKey ?? []) {
-    // Duplicates share a key until the cleanup; the oldest wins.
-    if (row.name_key && !found.has(row.name_key)) found.set(row.name_key, mapIngredientRow(row));
+    found.set(row.name_key, mapIngredientRow(row));
   }
 
   if (missing().length > 0) {
@@ -186,24 +184,6 @@ const findByKeys = async (requests: Map<string, IngredientRequest>): Promise<Map
     throwIfError(aliasError);
     for (const row of byAlias ?? []) {
       if (row.ingredients) found.set(row.alias_key, mapIngredientRow(row.ingredients));
-    }
-  }
-
-  if (missing().length > 0) {
-    // Both the name as written and the singular form a new row would get.
-    const names = missing().flatMap((key) => {
-      const name = requests.get(key)?.name.trim().toLowerCase() ?? "";
-      return [name, singularDisplayName(name)];
-    });
-    const { data: byName, error: nameError } = await supabase
-      .from("ingredients")
-      .select(INGREDIENT_COLUMNS)
-      .in("name", names)
-      .returns<IngredientRow[]>();
-    throwIfError(nameError);
-    for (const row of byName ?? []) {
-      const key = ingredientKey(row.name);
-      if (requests.has(key) && !found.has(key)) found.set(key, mapIngredientRow(row));
     }
   }
 
@@ -253,7 +233,7 @@ export async function resolveIngredients(
   }
 
   for (const row of created ?? []) {
-    if (row.name_key) found.set(row.name_key, mapIngredientRow(row));
+    found.set(row.name_key, mapIngredientRow(row));
   }
   return found;
 }

@@ -141,7 +141,7 @@ export type Database = {
           default_unit: string | null
           id: string
           name: string
-          name_key: string | null
+          name_key: string
         }
         Insert: {
           category?: string | null
@@ -149,7 +149,7 @@ export type Database = {
           default_unit?: string | null
           id?: string
           name: string
-          name_key?: string | null
+          name_key: string
         }
         Update: {
           category?: string | null
@@ -157,7 +157,7 @@ export type Database = {
           default_unit?: string | null
           id?: string
           name?: string
-          name_key?: string | null
+          name_key?: string
         }
         Relationships: []
       }
@@ -225,7 +225,6 @@ export type Database = {
           created_at: string
           id: string
           ingredient_id: string
-          ingredient_name: string
           notes: string | null
           position: number
           quantity: string | null
@@ -238,7 +237,6 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_id: string
-          ingredient_name: string
           notes?: string | null
           position?: number
           quantity?: string | null
@@ -251,7 +249,6 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_id?: string
-          ingredient_name?: string
           notes?: string | null
           position?: number
           quantity?: string | null
