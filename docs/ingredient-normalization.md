@@ -623,6 +623,18 @@ Each is its own commit; the app works after every one.
    generation read the name from `ingredients` (the grocery query already
    joins it for the category), saving stops writing it, then a migration
    drops the column. Regenerate types.
+   In two parts, because the app on main (live on Vercel) still reads and
+   inserts `ingredient_name` and creates ingredients without a `name_key`:
+   - **Part 1 (this branch, done):** recipe detail and grocery generation
+     read the catalog name; saving stops sending `ingredient_name`, and
+     `save_recipe_ingredients` fills it from the catalog meanwhile
+     (`20261118030000`). Works before and after the contract.
+   - **Part 2 (after this branch is merged and deployed):** the contract
+     migration (backfill any `name_key` main created, then `not null`
+     unique; drop `ingredient_name` and rewrite the save function without
+     it), remove the fallback to `name` in `findByKeys`, regenerate types.
+     Not written into `supabase/migrations` before then, since `db push`
+     applies every pending file.
 9. **Categories** (section 11). Migration: `ingredient_categories` table
    seeded with the 8 categories (cleaned codes) and their descriptions,
    existing `ingredients` / `grocery_items` values rewritten to the codes,

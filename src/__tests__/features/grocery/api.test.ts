@@ -99,10 +99,10 @@ function meal(
 
 const ingredientRow = (recipeId: string, name: string, quantity: string, unit = "", category: string | null = null) => ({
   recipe_id: recipeId,
-  ingredient_name: name,
   quantity,
   unit,
-  ingredients: category ? { category } : null,
+  // Step 8: the name comes from the catalog row, not recipe_ingredients.
+  ingredients: { name, category },
 });
 
 beforeEach(() => {
@@ -143,9 +143,9 @@ describe("buildGroceryItemsForSavedPlan", () => {
     vi.mocked(listSavedPlanMeals).mockResolvedValue([meal("r1", { servings: 2, override: 4 })]);
     builder.returns.mockResolvedValueOnce({
       data: [
-        { id: "ri-1", recipe_id: "r1", ingredient_id: "i-olive", ingredient_name: "Olive oil", quantity: "1",
+        { id: "ri-1", recipe_id: "r1", ingredient_id: "i-olive", quantity: "1",
           unit: "tbsp", substitute_for: null, ingredients: { name: "olive oil", category: "pantry" } },
-        { id: "ri-2", recipe_id: "r1", ingredient_id: "i-avo", ingredient_name: "avocado oil", quantity: "1",
+        { id: "ri-2", recipe_id: "r1", ingredient_id: "i-avo", quantity: "1",
           unit: "tbsp", substitute_for: "ri-1", ingredients: { name: "avocado oil", category: "pantry" } },
       ],
       error: null,

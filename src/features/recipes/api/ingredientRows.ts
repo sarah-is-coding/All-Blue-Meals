@@ -49,9 +49,11 @@ const getIngredientRows = async (input: RecipeUpsertInput) => {
       return {
         id: ingredient.clientId,
         substituteFor: ingredient.substituteFor,
+        hasName: ingredientName.length > 0,
+        // No ingredient_name: the save function takes the catalog's name
+        // (step 8 of docs/ingredient-normalization.md).
         row: {
           ingredient_id: ingredientId,
-          ingredient_name: ingredientName,
           quantity: quantityText,
           quantity_numeric: quantityText ? parseQuantityNumber(quantityText) : null,
           unit: sized.unit || null,
@@ -59,7 +61,7 @@ const getIngredientRows = async (input: RecipeUpsertInput) => {
         },
       };
     })
-    .filter(({ row }) => row.ingredient_name.length > 0 && row.ingredient_id);
+    .filter(({ hasName, row }) => hasName && row.ingredient_id);
 
   // Main rows first, each followed by its substitutes pointing at its index.
   const rows: Array<(typeof saved)[number]["row"] & { substitute_of: number | null }> = [];

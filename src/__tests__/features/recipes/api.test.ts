@@ -152,8 +152,8 @@ describe("recipe api", () => {
     expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", {
       p_recipe_id: "recipe-1",
       p_rows: [
-        expect.objectContaining({ ingredient_id: "ing-oil", ingredient_name: "Olive oil", quantity_numeric: 2 }),
-        expect.objectContaining({ ingredient_id: "ing-onion", ingredient_name: "Onions", notes: "diced" }),
+        expect.objectContaining({ ingredient_id: "ing-oil", quantity_numeric: 2 }),
+        expect.objectContaining({ ingredient_id: "ing-onion", notes: "diced" }),
       ],
     });
   });
@@ -228,9 +228,9 @@ describe("recipe api", () => {
     expect(db.rpc).toHaveBeenCalledWith("save_recipe_ingredients", {
       p_recipe_id: "recipe-1",
       p_rows: [
-        { ingredient_id: "ing-oil", ingredient_name: "olive oil", quantity: "2", quantity_numeric: 2, unit: "tbsp", notes: null, substitute_of: null },
-        { ingredient_id: "ing-onion", ingredient_name: "onion", quantity: "1", quantity_numeric: 1, unit: null, notes: "large, diced", substitute_of: null },
-        { ingredient_id: "ing-tom", ingredient_name: "diced tomatoes", quantity: null, quantity_numeric: null, unit: "can", notes: "15 oz", substitute_of: null },
+        { ingredient_id: "ing-oil", quantity: "2", quantity_numeric: 2, unit: "tbsp", notes: null, substitute_of: null },
+        { ingredient_id: "ing-onion", quantity: "1", quantity_numeric: 1, unit: null, notes: "large, diced", substitute_of: null },
+        { ingredient_id: "ing-tom", quantity: null, quantity_numeric: null, unit: "can", notes: "15 oz", substitute_of: null },
       ],
     });
   });
@@ -249,10 +249,10 @@ describe("recipe api", () => {
     });
 
     const rows = vi.mocked(db.rpc).mock.calls[0][1].p_rows;
-    expect(rows.map((row: { ingredient_name: string; substitute_of: number | null }) => [row.ingredient_name, row.substitute_of])).toEqual([
-      ["olive oil", null],
-      ["avocado oil", 0],
-      ["salt", null],
+    expect(rows.map((row: { ingredient_id: string; substitute_of: number | null }) => [row.ingredient_id, row.substitute_of])).toEqual([
+      ["ing-oil", null],
+      ["ing-avo", 0],
+      ["ing-salt", null],
     ]);
   });
 
@@ -266,7 +266,7 @@ describe("recipe api", () => {
     });
 
     expect(vi.mocked(db.rpc).mock.calls[0][1].p_rows).toEqual([
-      expect.objectContaining({ ingredient_name: "avocado oil", substitute_of: null }),
+      expect.objectContaining({ ingredient_id: "ing-avo", substitute_of: null }),
     ]);
   });
 
@@ -296,6 +296,35 @@ describe("recipe api", () => {
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: "permission denied" } });
 
     await expect(updateRecipe("recipe-7", recipeInput)).rejects.toThrow("permission denied");
+  });
+
+  // Step 8 of docs/ingredient-normalization.md: recipe_ingredients.ingredient_name
+  // is going away. The save function fills it from the catalog meanwhile.
+  it("doesn't send ingredient_name when saving", async () => {
+    await createRecipe({
+      ...recipeInput,
+      ingredients: [line({ ingredientId: "ing-oil", ingredientName: "Olive Oil " })],
+    });
+
+    const [row] = vi.mocked(db.rpc).mock.calls[0][1].p_rows;
+    expect(row).toMatchObject({ ingredient_id: "ing-oil" });
+    expect(row).not.toHaveProperty("ingredient_name");
+  });
+
+  it("shows each ingredient with its catalog name", async () => {
+    db.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "recipe-1", title: "T" }, error: null });
+    db.returns.mockResolvedValueOnce({
+      data: [
+        { id: "ri-1", ingredient_id: "ing-onion", quantity: "1", unit: null, notes: "diced", substitute_for: null, ingredients: { name: "onion" } },
+        { id: "ri-2", ingredient_id: "ing-gone", quantity: null, unit: null, notes: null, substitute_for: null, ingredients: null },
+      ],
+      error: null,
+    });
+
+    const recipe = await getRecipeById("recipe-1");
+
+    expect(db.select).toHaveBeenCalledWith("id,ingredient_id,quantity,unit,notes,substitute_for,ingredients(name)");
+    expect(recipe?.ingredients.map((ingredient) => ingredient.ingredientName)).toEqual(["onion", ""]);
   });
 
   it("loads ingredients in saved order", async () => {

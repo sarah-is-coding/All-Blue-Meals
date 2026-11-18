@@ -19,10 +19,12 @@ type RecipeSummaryRow = Pick<Tables<"recipes">, "id" | "title" | "description" |
 
 type RecipeDetailRow = Pick<Tables<"recipes">, "id" | "title" | "description" | "source_url" | "prep_minutes" | "cook_minutes" | "servings" | "tags" | "instructions" | "rating" | "created_at">;
 
+// The name comes from the catalog, not recipe_ingredients.ingredient_name
+// (dropped in step 8 of docs/ingredient-normalization.md).
 type RecipeIngredientRow = Pick<
   Tables<"recipe_ingredients">,
-  "id" | "ingredient_id" | "ingredient_name" | "quantity" | "unit" | "notes" | "substitute_for"
->;
+  "id" | "ingredient_id" | "quantity" | "unit" | "notes" | "substitute_for"
+> & { ingredients: Pick<Tables<"ingredients">, "name"> | null };
 
 type RecipeIdRow = Pick<Tables<"recipes">, "id">;
 
@@ -41,7 +43,7 @@ const mapRecipeSummaryRow = (row: RecipeSummaryRow): RecipeSummary => ({
 const mapRecipeIngredientRow = (row: RecipeIngredientRow): RecipeIngredient => ({
   id: row.id,
   ingredientId: row.ingredient_id,
-  ingredientName: row.ingredient_name,
+  ingredientName: row.ingredients?.name ?? "",
   quantity: row.quantity ?? "",
   unit: row.unit ?? "",
   notes: row.notes ?? "",
@@ -196,7 +198,7 @@ export async function getRecipeById(recipeId: string): Promise<RecipeDetail | nu
 
   const { data: ingredientRows, error: ingredientError } = await supabase
     .from("recipe_ingredients")
-    .select("id,ingredient_id,ingredient_name,quantity,unit,notes,substitute_for")
+    .select("id,ingredient_id,quantity,unit,notes,substitute_for,ingredients(name)")
     .eq("recipe_id", recipeId)
     .order("position", { ascending: true })
     // Rows saved by older app versions all have position 0.
