@@ -4,6 +4,14 @@ import { parseQuantityNumber, scaleQuantityText } from "../../../lib/utils/quant
 // parseQuantityNumber
 // ─────────────────────────────────────────────────────────────
 describe("parseQuantityNumber", () => {
+  // Recipes write "½" and "1½"; they were ignored when amounts were added up.
+  it("parses Unicode fractions, alone or after a whole number", () => {
+    expect(parseQuantityNumber("½")).toBe(0.5);
+    expect(parseQuantityNumber("1½")).toBe(1.5);
+    expect(parseQuantityNumber("2 ¾")).toBe(2.75);
+    expect(parseQuantityNumber("⅓")).toBeCloseTo(1 / 3);
+  });
+
   it("parses plain integers", () => {
     expect(parseQuantityNumber("2")).toBe(2);
     expect(parseQuantityNumber("10")).toBe(10);
