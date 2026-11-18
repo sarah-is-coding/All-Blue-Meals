@@ -225,7 +225,11 @@ describe("RecipesPage", () => {
       await screen.findByText("Chicken Caesar Taco Salad");
 
       expect(listRecipeTags).not.toHaveBeenCalled();
-      await user.click(screen.getByRole("button", { name: /View: List/ }));
+      // Phones hide the visible "View:" prefix to fit the toolbar on one line;
+      // the button's name keeps it.
+      const viewButton = screen.getByRole("button", { name: "View: List" });
+      expect(viewButton.querySelector(".recipe-view-menu__prefix")).toHaveTextContent("View:");
+      await user.click(viewButton);
       expect(screen.getByRole("menuitemradio", { name: "List" })).toHaveAttribute("aria-checked", "true");
       expect(screen.getByRole("menuitemradio", { name: "Tag folders" })).toHaveAttribute("aria-checked", "false");
     });

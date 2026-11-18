@@ -21,8 +21,11 @@ export default function RecipeViewMenu({ view, onChange }: RecipeViewMenuProps) 
         aria-expanded={open}
         aria-controls="recipe-view-menu"
         aria-haspopup="menu"
+        aria-label={`View: ${current.label}`}
       >
-        View: {current.label} <span aria-hidden="true">▾</span>
+        {/* The prefix is dropped on phones so the toolbar fits on one line. */}
+        <span className="recipe-view-menu__prefix">View: </span>
+        {current.label} <span aria-hidden="true">▾</span>
       </button>
       {open ? (
         <div id="recipe-view-menu" className="recipe-add-menu__panel" role="menu" aria-label="Recipe view">

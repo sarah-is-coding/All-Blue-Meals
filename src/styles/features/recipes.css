@@ -105,6 +105,21 @@
   cursor: pointer;
 }
 
+/* On phones, Filters, View and Add Recipe fit on one line under the search
+   box: a little less padding, no wrapping inside a button, and the View
+   button without its "View:" prefix. */
+@media (max-width: 640px) {
+  .recipe-toolbar .btn {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .recipe-view-menu__prefix {
+    display: none;
+  }
+}
+
 .recipe-view-menu__item--current::after {
   content: " ✓";
   color: var(--color-brand);
