@@ -12,11 +12,22 @@ type Props = {
   startIso: string | null;
   endIso: string | null;
   onChange: (startIso: string, endIso: string) => void;
-  rangeSummary?: ReactNode;
+  mealCount?: number;
+  countingMeals?: boolean;
+  /** Optional content between the week arrows. */
+  weekNavContent?: ReactNode;
 };
 
-export default function DateRangePicker({ startIso, endIso, onChange, rangeSummary }: Props) {
+export default function DateRangePicker({
+  startIso,
+  endIso,
+  onChange,
+  mealCount = 0,
+  countingMeals = false,
+  weekNavContent,
+}: Props) {
   const hasRange = startIso !== null && endIso !== null;
+  const showMealCount = hasRange && (countingMeals || mealCount > 0);
   // A pending first tap on the calendar, waiting for the range's last day.
   const [anchor, setAnchor] = useState<string | null>(null);
 
@@ -110,7 +121,16 @@ export default function DateRangePicker({ startIso, endIso, onChange, rangeSumma
         >
           ←
         </button>
-        {rangeSummary}
+        <div className="date-range-picker__week-info">
+          {showMealCount && (
+            <p className="date-range-picker__meal-count" aria-live="polite">
+              {countingMeals
+                ? "Counting planned meals…"
+                : `${mealCount} planned meal${mealCount === 1 ? "" : "s"} in these dates`}
+            </p>
+          )}
+          {weekNavContent}
+        </div>
         <button
           type="button"
           className="btn btn--ghost date-range-picker__week-button"

@@ -13,6 +13,7 @@ type MealPlannerCalendarProps = {
   items: PlannedMeal[];
   heading?: string;
   headingTag?: "h1" | "h2";
+  centerDayIso?: string | null;
   removingItemId?: string | null;
   movingItemId?: string | null;
   updatingServingsItemId?: string | null;
@@ -43,12 +44,19 @@ function getServingsOverride(
   return nextEffectiveServings;
 }
 
+function focusMealDay(card: HTMLElement | null) {
+  if (!card) return;
+  card.focus({ preventScroll: true });
+  card.scrollIntoView?.({ block: "center", inline: "center", behavior: "instant" });
+}
+
 export default function MealPlannerCalendar({
   weekLabel,
   weekDays,
   items,
   heading = "Meal Planner",
   headingTag = "h1",
+  centerDayIso = null,
   removingItemId = null,
   movingItemId = null,
   updatingServingsItemId = null,
@@ -131,9 +139,15 @@ export default function MealPlannerCalendar({
         </div>
       </header>
 
-      <div className="meal-calendar__grid">
+      <div className={`meal-calendar__grid${centerDayIso ? " meal-calendar__grid--center-day" : ""}`}>
         {weekDays.map((day) => (
-          <section key={day.dateIso} className="meal-day">
+          <section
+            key={day.dateIso}
+            className="meal-day"
+            ref={day.dateIso === centerDayIso ? focusMealDay : undefined}
+            tabIndex={day.dateIso === centerDayIso ? -1 : undefined}
+            aria-label={day.dateIso === centerDayIso ? day.fullLabel : undefined}
+          >
             <header className="meal-day__header">
               <h2>{day.weekdayShort}</h2>
               <span>{day.monthDayLabel}</span>

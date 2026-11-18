@@ -965,6 +965,16 @@
   color: var(--color-muted);
 }
 
+@media (max-width: 960px), (pointer: coarse) {
+  .note-textarea__hint {
+    display: none;
+  }
+
+  .note-textarea__footer {
+    min-height: 0;
+  }
+}
+
 /* Recipe notes: a dated log below the instructions */
 .recipe-notes {
   display: grid;

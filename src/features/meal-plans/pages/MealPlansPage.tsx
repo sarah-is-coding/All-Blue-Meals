@@ -31,6 +31,7 @@ export default function MealPlansPage() {
     return { weekStartIso: getPlannerStartWeek() };
   });
   const [weekStartIso, setWeekStartIso] = useState(initialState.weekStartIso);
+  const [centerDayIso, setCenterDayIso] = useState<string | null>(null);
   const week = useMealPlanWeek(weekStartIso);
   const { items } = week;
   const actions = useMealPlanActions();
@@ -44,10 +45,15 @@ export default function MealPlansPage() {
   const weekDays = useMemo(() => getWeekDays(weekStartIso), [weekStartIso]);
   const weekLabel = useMemo(() => formatWeekRangeLabel(weekStartIso), [weekStartIso]);
 
-  const changeWeek = useCallback((nextWeekStartIso: string) => {
+  const changeWeek = useCallback((nextWeekStartIso: string, dayToCenter: string | null = null) => {
     setWeekStartIso(nextWeekStartIso);
+    setCenterDayIso(dayToCenter);
     setActionError(null);
   }, []);
+
+  const handleViewWeek = (dateIso: string) => {
+    changeWeek(getWeekStartIso(createDateFromIso(dateIso)), dateIso);
+  };
 
   useEffect(() => {
     saveMealPlannerViewState({ weekStartIso });
@@ -142,6 +148,7 @@ export default function MealPlansPage() {
 
       <div className="meal-planner-layout">
         <MealPlannerCalendar
+          centerDayIso={week.loading ? null : centerDayIso}
           weekLabel={weekLabel}
           weekDays={weekDays}
           items={items}
@@ -159,7 +166,7 @@ export default function MealPlansPage() {
           <PlanBrowserPanel
             currentWeekStartIso={weekStartIso}
             currentWeekHasItems={items.length > 0}
-            onJumpToWeek={changeWeek}
+            onJumpToWeek={handleViewWeek}
             onCopyRange={handleCopyRange}
             onApplySavedPlan={handleApplySavedPlan}
             initialTab={opensSavedPlansTab(location.state) ? "saved" : "calendar"}

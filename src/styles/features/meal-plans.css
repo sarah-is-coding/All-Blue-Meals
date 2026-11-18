@@ -43,6 +43,17 @@
   padding-bottom: 0.2rem;
 }
 
+.meal-calendar__grid--center-day {
+  /* Leave enough scroll space to center the first and last day too. */
+  --day-edge-space: max(0px, calc((100% - 190px) / 2 - 0.66rem));
+  grid-template-columns: var(--day-edge-space) repeat(7, minmax(190px, 1fr)) var(--day-edge-space);
+}
+
+.meal-calendar__grid--center-day::before,
+.meal-calendar__grid--center-day::after {
+  content: "";
+}
+
 .meal-day {
   border: 1px solid var(--alpha-brand-20);
   border-radius: 0.9rem;
@@ -357,6 +368,33 @@
   gap: 0.5rem;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.plan-browser__calendar-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0.5rem;
+}
+
+.plan-browser__calendar-actions .btn {
+  min-height: 2.75rem;
+  padding-inline: 0.3rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.plan-browser__range-action {
+  display: block;
+  min-height: 2.75rem;
+  margin-inline: auto;
+  border: 0;
+  padding: 0 0.25rem;
+  background: transparent;
+  color: var(--color-brand-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* Unlike an absolutely-positioned target anchor, this deliberately has no
@@ -820,6 +858,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
+}
+
+.date-range-picker__week-info {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.date-range-picker__meal-count {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--color-muted-soft);
 }
 
 .date-range-picker__week-button {

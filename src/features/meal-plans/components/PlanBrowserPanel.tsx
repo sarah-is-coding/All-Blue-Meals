@@ -7,7 +7,7 @@ import SavedPlansTab from "./SavedPlansTab";
 type Props = {
   currentWeekStartIso: string;
   currentWeekHasItems: boolean;
-  onJumpToWeek: (weekStartIso: string) => void;
+  onJumpToWeek: (dateIso: string) => void;
   /** Copy the meals planned between two dates to the current week. */
   onCopyRange: (startIso: string, endIso: string, mode: CopyMode) => Promise<void>;
   /** Apply a saved plan to the current week. */

@@ -68,7 +68,7 @@ export default function SavedPlansTab({ currentWeekStartIso, currentWeekHasItems
                 ? "Applying…"
                 : applyDone
                   ? "✓ Applied"
-                  : `Apply, starting ${startLabel}`}
+                  : `Apply from ${startLabel}`}
             </button>
           </div>
         )

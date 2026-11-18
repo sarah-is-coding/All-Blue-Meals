@@ -11,12 +11,10 @@ import MealPreviewDays from "./MealPreviewDays";
 type Props = {
   currentWeekStartIso: string;
   currentWeekHasItems: boolean;
-  onJumpToWeek: (weekStartIso: string) => void;
+  onJumpToWeek: (dateIso: string) => void;
   /** Copy the meals planned between two dates to the current week. */
   onCopyRange: (startIso: string, endIso: string, mode: CopyMode) => Promise<void>;
 };
-
-type DateRange = { startIso: string; endIso: string };
 
 /** The planner's Calendar tab: pick dates, then copy their meals or save them as a plan. */
 export default function CopyDatesTab({
@@ -26,7 +24,7 @@ export default function CopyDatesTab({
   onCopyRange,
 }: Props) {
   // Start with the viewed week, then keep the source independent of the destination.
-  const [range, setRange] = useState<DateRange | null>(() => ({
+  const [range, setRange] = useState(() => ({
     startIso: currentWeekStartIso,
     endIso: getWeekEndIso(currentWeekStartIso),
   }));
@@ -53,26 +51,15 @@ export default function CopyDatesTab({
     setSavedLabel(null);
   };
 
-  const clearSelection = () => {
-    setRange(null);
-    setConfirmWeek(null);
-    setShowSaveInput(false);
-  };
-
   // Preview the meals planned on the chosen dates.
-  const previewQuery = usePlannedMealsBetween(
-    range?.startIso ?? "",
-    range?.endIso ?? "",
-    range !== null
-  );
+  const previewQuery = usePlannedMealsBetween(range.startIso, range.endIso);
   const preview = useMemo(() => groupMealsByDay(previewQuery.items), [previewQuery.items]);
   const isEmpty = preview.length === 0;
-  const canCopy = range !== null && range.startIso !== currentWeekStartIso && !isEmpty;
+  const canCopy = range.startIso !== currentWeekStartIso && !isEmpty;
   const savedNotice = isEmpty ? null : savedLabel;
   const showSelectionDetails =
     showSaveInput || showConfirm || previewQuery.error || savedNotice;
-  const rangeIsCurrentWeek =
-    range !== null && getWeekStartIso(createDateFromIso(range.startIso)) === currentWeekStartIso;
+  const sourceWeek = getWeekStartIso(createDateFromIso(range.startIso));
 
   const executeCopy = (mode: CopyMode) => {
     if (!showConfirm || !canCopy) return;
@@ -87,7 +74,6 @@ export default function CopyDatesTab({
 
   // The form shows save errors itself.
   const handleSave = async (name: string) => {
-    if (!range) return;
     const saved = await saveAs(name, range.startIso, range.endIso);
     setSavedLabel(`Saved as "${saved.savedName}"`);
     setShowSaveInput(false);
@@ -96,15 +82,23 @@ export default function CopyDatesTab({
   return (
     <div className="plan-browser__body">
       <DateRangePicker
-        startIso={range?.startIso ?? null}
-        endIso={range?.endIso ?? null}
+        startIso={range.startIso}
+        endIso={range.endIso}
         onChange={handleRangeChange}
+        mealCount={previewQuery.error ? 0 : previewQuery.items.length}
+        weekNavContent={sourceWeek !== currentWeekStartIso && (
+          <button
+            type="button"
+            className="plan-browser__range-action"
+            onClick={() => onJumpToWeek(range.startIso)}
+          >
+            View week
+          </button>
+        )}
       />
 
-      {/* The actions sit above the (possibly long) meal list so they never
-          scroll out of reach; they enable once a range is chosen. The From/To
-          fields already show the chosen dates, so there's no range label. */}
-      {range !== null && showSelectionDetails && (
+      {/* Keep the actions above the meal preview so they stay easy to reach. */}
+      {showSelectionDetails && (
         <div className="plan-browser__selection">
           {savedNotice && (
             <p className="plan-browser__save-done">✓ {savedNotice}</p>
@@ -131,55 +125,28 @@ export default function CopyDatesTab({
         </div>
       )}
 
-      {!showConfirm && (
-        <>
-          <div className="plan-browser__actions">
-            {range !== null && (
-              <button type="button" className="btn btn--ghost btn--small" onClick={clearSelection}>
-                Clear
-              </button>
-            )}
-            {!rangeIsCurrentWeek && (
-              <button
-                type="button"
-                className="btn btn--ghost btn--small"
-                disabled={range === null}
-                onClick={() => {
-                  if (range) onJumpToWeek(getWeekStartIso(createDateFromIso(range.startIso)));
-                }}
-              >
-                View week ↗
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn btn--ghost btn--small"
-              disabled={range === null || isEmpty || showSaveInput || savedLabel !== null}
-              onClick={() => setShowSaveInput(true)}
-            >
-              Save as Meal Plan…
-            </button>
-          </div>
-          {/* The main action. It reads "Apply" like the Saved plans tab's,
-              since both put meals onto the planner starting that day. */}
-          <div className="plan-browser__actions">
-            <button
-              type="button"
-              className="btn btn--primary btn--small"
-              disabled={!canCopy || copying || copyDone || showSaveInput}
-              onClick={() => setConfirmWeek(currentWeekStartIso)}
-            >
-              {copying
-                ? "Applying…"
-                : copyDone
-                  ? "✓ Applied"
-                  : `Apply, starting ${startLabel}`}
-            </button>
-          </div>
-        </>
+      {!showConfirm && !showSaveInput && (
+        <div className="plan-browser__calendar-actions" role="group" aria-label="Meal plan actions">
+          <button
+            type="button"
+            className="btn btn--primary btn--small"
+            disabled={!canCopy || copying || copyDone}
+            onClick={() => setConfirmWeek(currentWeekStartIso)}
+          >
+            {copying ? "Applying…" : copyDone ? "✓ Applied" : `Apply from ${startLabel}`}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            disabled={isEmpty || savedLabel !== null}
+            onClick={() => setShowSaveInput(true)}
+          >
+            Save plan
+          </button>
+        </div>
       )}
 
-      {range !== null && !previewQuery.loading && !isEmpty && (
+      {!previewQuery.loading && !isEmpty && (
         <>
           <h3 className="plan-browser__preview-heading">Meals in these dates</h3>
           <MealPreviewDays preview={preview} />

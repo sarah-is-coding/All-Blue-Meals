@@ -16,7 +16,6 @@ type Props = {
  */
 export default function GroceryCalendarTab({ startIso, endIso, onChange, actions }: Props) {
   const meals = usePlannedMealsBetween(startIso, endIso);
-  const mealCount = meals.items.length;
 
   return (
     <div className="plan-browser__body">
@@ -24,15 +23,8 @@ export default function GroceryCalendarTab({ startIso, endIso, onChange, actions
         startIso={startIso}
         endIso={endIso}
         onChange={onChange}
-        rangeSummary={
-          !meals.error && (meals.loading || mealCount > 0) && (
-            <p className="grocery-source__meal-count" aria-live="polite">
-              {meals.loading
-                ? "Counting planned meals…"
-                : `${mealCount} planned meal${mealCount === 1 ? "" : "s"} in these dates`}
-            </p>
-          )
-        }
+        mealCount={meals.error ? 0 : meals.items.length}
+        countingMeals={meals.loading && !meals.error}
       />
 
       {meals.error && <p className="error">{meals.error}</p>}

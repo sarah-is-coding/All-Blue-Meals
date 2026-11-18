@@ -1,4 +1,4 @@
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "../../../utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -104,9 +104,12 @@ describe("PlanBrowserPanel — always open", () => {
     expect(screen.getByLabelText("From")).toHaveValue(CURRENT_WEEK);
     expect(screen.getByLabelText("To")).toHaveValue("2026-06-06");
     expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-31..2026-06-06");
-    expect(screen.getByRole("button", { name: "Clear" })).toHaveClass("btn--small");
-    expect(screen.getByRole("button", { name: /save as meal plan/i })).toHaveClass("btn--small");
-    expect(screen.getByRole("button", { name: /apply, starting/i })).toHaveClass("btn--small");
+    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+    const actions = within(screen.getByRole("group", { name: "Meal plan actions" }));
+    expect(actions.getAllByRole("button")).toEqual([
+      actions.getByRole("button", { name: "Apply from May 31" }),
+      actions.getByRole("button", { name: "Save plan" }),
+    ]);
     expect(screen.queryByRole("button", { name: /view week/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Pick dates to apply.")).not.toBeInTheDocument();
   });
@@ -130,8 +133,31 @@ describe("PlanBrowserPanel — Calendar tab", () => {
 
     expect(await screen.findByText("Pasta")).toBeInTheDocument();
     expect(listPlannedMealsBetween).toHaveBeenCalledWith(CURRENT_WEEK, "2026-06-06");
-    expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /apply, starting/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /save plan/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /apply from/i })).toBeDisabled();
+  });
+
+  it("shows the selected meal count between the arrows and updates it as dates change", async () => {
+    vi.mocked(listPlannedMealsBetween).mockImplementation(async (start) =>
+      start === CURRENT_WEEK
+        ? [{ ...pastaMeal, plannedFor: start }]
+        : [
+            { ...pastaMeal, plannedFor: start },
+            { ...pastaMeal, id: "i2", recipeTitle: "Soup", plannedFor: start },
+          ]
+    );
+    renderPanel();
+
+    const back = screen.getByRole("button", { name: "Move dates back a week" });
+    const forward = screen.getByRole("button", { name: "Move dates forward a week" });
+    const count = await screen.findByText("1 planned meal in these dates");
+    expect(count.parentElement?.previousElementSibling).toBe(back);
+    expect(count.parentElement?.nextElementSibling).toBe(forward);
+
+    fireEvent.click(back);
+    expect(await screen.findByText("2 planned meals in these dates")).toBeInTheDocument();
+    fireEvent.click(forward);
+    expect(await screen.findByText("1 planned meal in these dates")).toBeInTheDocument();
   });
 
   it("picks a range in two taps and highlights it on the calendar", () => {
@@ -179,30 +205,33 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     await waitFor(() =>
       expect(listPlannedMealsBetween).toHaveBeenCalledWith("2026-05-18", "2026-05-24"),
     { timeout: 1500 });
-    expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /apply, starting/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /save plan/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /apply from/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /view week/i })).toBeEnabled();
+    expect(screen.queryByText(/planned meals? in these dates/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/no meals planned on these dates/i)).not.toBeInTheDocument();
   });
 
-  it("Clear forgets the selection", async () => {
+  it("dismisses an Apply confirmation when the source range changes", async () => {
     vi.mocked(listPlannedMealsBetween).mockResolvedValue([pastaMeal]);
     renderPanel();
     pickDay("2026-05-18");
     pickDay("2026-05-24");
-    await waitFor(() => expect(screen.getByText(/Pasta/)).toBeInTheDocument(), { timeout: 1500 });
+    const apply = screen.getByRole("button", { name: "Apply from May 31" });
+    await waitFor(() => expect(apply).toBeEnabled());
+    fireEvent.click(apply);
+    expect(screen.getByRole("button", { name: "Confirm apply" })).toBeInTheDocument();
 
-    const clear = screen.getByRole("button", { name: /^clear$/i });
-    expect(clear).toHaveClass("btn--small");
-    fireEvent.click(clear);
-    expect(screen.queryByText(/Pasta/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /apply, starting may 31/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Move dates back a week" }));
+    expect(screen.getByLabelText("From")).toHaveValue("2026-05-11");
+    expect(screen.getByLabelText("To")).toHaveValue("2026-05-17");
+    expect(screen.queryByRole("button", { name: "Confirm apply" })).not.toBeInTheDocument();
   });
 
-  it("starts a new single-day range after clearing a pending first tap", () => {
+  it("starts a new single-day range after completing the previous range", () => {
     renderPanel();
     pickDay("2026-05-18");
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    pickDay("2026-05-20");
     pickDay("2026-05-24");
     expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute(
       "data-range",
@@ -217,11 +246,11 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /apply, starting may 31/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /apply from may 31/i })).toBeEnabled(),
     { timeout: 1500 });
 
     // The actions sit above the meal list, so long previews never bury them.
-    const copyButton = screen.getByRole("button", { name: /apply, starting may 31/i });
+    const copyButton = screen.getByRole("button", { name: /apply from may 31/i });
     const mealList = screen.getByText(/Pasta/);
     expect(copyButton.compareDocumentPosition(mealList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
@@ -229,7 +258,7 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     expect(onCopyRange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCopyRange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 31/i }));
+    fireEvent.click(screen.getByRole("button", { name: /apply from may 31/i }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm apply" }));
     await waitFor(() =>
       expect(onCopyRange).toHaveBeenCalledWith("2026-05-18", "2026-05-24", "add"),
@@ -244,9 +273,9 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /apply, starting may 31/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /apply from may 31/i })).toBeEnabled(),
     { timeout: 1500 });
-    fireEvent.click(screen.getByRole("button", { name: /apply, starting may 31/i }));
+    fireEvent.click(screen.getByRole("button", { name: /apply from may 31/i }));
 
     expect(onCopyRange).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /add on top/i })).toBeInTheDocument();
@@ -266,10 +295,11 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     pickDay("2026-05-18");
     pickDay("2026-05-24");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /save as meal plan/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /save plan/i })).toBeEnabled(),
     { timeout: 1500 });
 
-    fireEvent.click(screen.getByRole("button", { name: /save as meal plan/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save plan/i }));
+    expect(screen.queryByRole("group", { name: "Meal plan actions" })).not.toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/meal plan name/i), {
       target: { value: "My Plan" },
     });
@@ -286,12 +316,9 @@ describe("PlanBrowserPanel — Calendar tab", () => {
     const { onJumpToWeek } = renderPanel();
     pickDay("2026-05-20");
     pickDay("2026-05-24");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /view week/i })).toBeInTheDocument(),
-    { timeout: 1500 });
-    fireEvent.click(screen.getByRole("button", { name: /view week/i }));
-    // 2026-05-20 is a Wednesday; its week starts Sunday 2026-05-17.
-    expect(onJumpToWeek).toHaveBeenCalledWith("2026-05-17");
+    fireEvent.click(screen.getByRole("button", { name: "View week" }));
+    // Keep the selected day so the planner can center its card.
+    expect(onJumpToWeek).toHaveBeenCalledWith("2026-05-20");
   });
 });
 
@@ -349,7 +376,7 @@ describe("PlanBrowserPanel — Saved plans tab", () => {
   // disabled until a plan is picked. It used to sit inside the opened plan.
   const HEALTHY = { id: "sp1", savedName: "Healthy Week", startDate: "2026-05-18", endDate: "2026-05-24" };
   const T = { timeout: 1500 };
-  const applyButton = () => screen.getByRole("button", { name: /apply, starting may 31/i });
+  const applyButton = () => screen.getByRole("button", { name: /apply from may 31/i });
   const pickHealthy = async () => {
     fireEvent.click(await screen.findByRole("button", { name: /^Healthy Week/ }, T));
   };

@@ -377,8 +377,8 @@ describe("GroceryPage — planned meal count", () => {
     const back = screen.getByRole("button", { name: "Move dates back a week" });
     const forward = screen.getByRole("button", { name: "Move dates forward a week" });
     const buildButton = screen.getByRole("button", { name: "Build Grocery List" });
-    expect(count.previousElementSibling).toBe(back);
-    expect(count.nextElementSibling).toBe(forward);
+    expect(count.parentElement?.previousElementSibling).toBe(back);
+    expect(count.parentElement?.nextElementSibling).toBe(forward);
     expect(count.compareDocumentPosition(buildButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The same meals the grocery list will be built from.
     expect(listPlannedMealsBetween).toHaveBeenCalledWith(THIS_WEEK, getWeekEndIso(THIS_WEEK));

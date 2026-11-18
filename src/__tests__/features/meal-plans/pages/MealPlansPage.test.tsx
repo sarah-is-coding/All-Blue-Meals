@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import {
   createTestQueryClient,
   renderWithProviders,
@@ -115,7 +115,22 @@ describe("MealPlansPage", () => {
     expect(screen.getByLabelText("To")).toHaveValue("2026-04-11");
     expect(screen.getByRole("grid", { name: "April 2026" })).toBeInTheDocument();
     expect(screen.getByRole("gridcell", { name: "2026-04-05" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Apply, starting Mar 15" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply from Mar 15" })).toBeInTheDocument();
+  });
+
+  it("opens the selected week and focuses the day card for the first selected date", async () => {
+    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-11" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "View week" }));
+
+    expect(screen.getByText("Mar 8, 2026 - Mar 14, 2026")).toBeInTheDocument();
+    const day = await screen.findByRole("region", { name: "Wednesday, March 11" });
+    expect(day).toHaveFocus();
+    for (const meal of ["Breakfast", "Lunch", "Dinner"]) {
+      expect(within(day).getByText(meal)).toBeInTheDocument();
+    }
+    expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith("2026-03-08");
   });
 
   it("dismisses an open confirmation when the destination week changes", async () => {
@@ -125,14 +140,14 @@ describe("MealPlansPage", () => {
     renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
     const back = screen.getByRole("button", { name: "Move dates back a week" });
     fireEvent.click(back);
-    const apply = screen.getByRole("button", { name: "Apply, starting Mar 15" });
+    const apply = screen.getByRole("button", { name: "Apply from Mar 15" });
     await waitFor(() => expect(apply).toBeEnabled());
     fireEvent.click(apply);
     expect(screen.getByRole("button", { name: "Confirm apply" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     expect(screen.queryByRole("button", { name: "Confirm apply" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Apply, starting Mar 22" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply from Mar 22" })).toBeInTheDocument();
     expect(copyMealsBetween).not.toHaveBeenCalled();
   });
 
