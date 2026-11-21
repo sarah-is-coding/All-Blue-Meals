@@ -1,4 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
+import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AuthPage from "../features/auth/pages/AuthPage";
 import GroceryPage from "../features/grocery/pages/GroceryPage";
@@ -9,9 +10,14 @@ import RecipeDetailPage from "../features/recipes/pages/RecipeDetailPage";
 import RecipeGeneratePage from "../features/recipes/pages/RecipeGeneratePage";
 import RecipeImportPage from "../features/recipes/pages/RecipeImportPage";
 import RecipesPage from "../features/recipes/pages/RecipesPage";
+import LoadingModal from "../components/feedback/LoadingModal";
 import AppWorkspaceLayout from "./components/AppWorkspaceLayout";
 import AppHomePage from "./pages/AppHomePage";
 import LandingPage from "./pages/LandingPage";
+
+// If the home page never reports in (e.g. it isn't the page that opened),
+// stop blocking the app with the sign-in modal after this long.
+const SIGN_IN_MODAL_MAX_MS = 15_000;
 
 type AppRouterProps = {
   session: Session | null;
@@ -48,6 +54,19 @@ export default function AppRouter({
 }: AppRouterProps) {
   const signedIn = session !== null && !passwordRecovery;
 
+  // The sign-in loading modal lives here, outside the routes, so it stays up
+  // (without flickering) from "Sign in" until the home page has loaded, even
+  // though the sign-in page is replaced by the app in between. Null: hidden.
+  const [signInMessage, setSignInMessage] = useState<string | null>(null);
+  const finishSignIn = useCallback(() => setSignInMessage(null), []);
+
+  const waitingForHome = signedIn && signInMessage !== null;
+  useEffect(() => {
+    if (!waitingForHome) return;
+    const timer = window.setTimeout(finishSignIn, SIGN_IN_MODAL_MAX_MS);
+    return () => window.clearTimeout(timer);
+  }, [waitingForHome, finishSignIn]);
+
   if (!authReady) {
     return (
       <main className="status-page">
@@ -58,6 +77,11 @@ export default function AppRouter({
 
   return (
     <BrowserRouter>
+      <LoadingModal
+        open={signInMessage !== null}
+        title="Please wait..."
+        message={signedIn ? "Loading your meals…" : (signInMessage ?? "")}
+      />
       <Routes>
         {/* One layout route at "/" for the whole signed-in app, so moving
             between pages keeps the same layout. Signed out, "/" is the landing
@@ -67,7 +91,7 @@ export default function AppRouter({
           path="/"
           element={signedIn ? <AppWorkspaceLayout /> : <SignedOutRoot passwordRecovery={passwordRecovery} />}
         >
-          <Route index element={<AppHomePage />} />
+          <Route index element={<AppHomePage onReady={finishSignIn} />} />
           <Route path="recipes" element={<RecipesPage />} />
           <Route path="recipes/new" element={<RecipeCreatePage />} />
           <Route path="recipes/import" element={<RecipeImportPage />} />
@@ -87,6 +111,7 @@ export default function AppRouter({
                 recovery={passwordRecovery}
                 linkError={linkError}
                 onLinkErrorShown={onLinkErrorShown}
+                onSignInProgress={setSignInMessage}
               />
             )
           }

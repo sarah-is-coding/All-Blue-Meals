@@ -143,6 +143,7 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 - On mobile, reduce ad density and keep core task flow uninterrupted.
 - Loading states should use a modal component at `src/components/feedback/LoadingModal.tsx` when appropriate.
 - `LoadingModal` owns its timing: it only appears if work takes longer than ~280 ms and, once shown, stays up at least ~480 ms. Pass `open={loading}` and keep it mounted (toggle `open` instead of rendering it only while loading). Do not add per-caller timing.
+- After sign-in, one loading modal (owned by `src/app/AppRouter.tsx`) stays up until the home page has loaded. Anything new the home page loads must be added to `src/app/home/useHomeReady.ts`, or the modal closes before it's in.
 - If a loading modal includes an ad slot, prevent accidental clicks:
   - Render the ad slot in non-interactive mode.
   - Keep full-screen overlay blocking background interaction.

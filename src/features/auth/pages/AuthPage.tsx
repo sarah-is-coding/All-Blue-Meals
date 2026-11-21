@@ -15,12 +15,18 @@ type AuthPageProps = {
   linkError?: string | null;
   /** Called once `linkError` is on screen, so the parent can forget it. */
   onLinkErrorShown?: () => void;
+  /** Signing in (or up) is in progress, with what to say ("Signing you in…"),
+   *  or null once it failed or needs no session (confirm-your-email sign-up).
+   *  When given, the parent shows the loading modal for these, and keeps it up
+   *  after a successful sign-in until the home page has loaded. */
+  onSignInProgress?: (message: string | null) => void;
 };
 
 export default function AuthPage({
   recovery = false,
   linkError = null,
   onLinkErrorShown,
+  onSignInProgress,
 }: AuthPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,6 +70,7 @@ export default function AuthPage({
       return;
     }
 
+    onSignInProgress?.(loadingMessageByMode[mode]);
     const action =
       mode === "signUp"
         ? authService.signUpWithEmail(email, password, authLinkRedirectUrl())
@@ -75,6 +82,8 @@ export default function AuthPage({
     } else if (mode === "signUp" && !data.session) {
       setMessage("Check your inbox for a link to confirm your email.");
     }
+    // Signed in: the parent keeps its modal up until the home page loads.
+    if (authError || !data.session) onSignInProgress?.(null);
 
     setLoading(false);
   };
@@ -136,8 +145,9 @@ export default function AuthPage({
 
   return (
     <main className="auth-page">
+      {/* Sign-in and sign-up use the parent's modal when it provides one. */}
       <LoadingModal
-        open={loading}
+        open={loading && !(onSignInProgress && (mode === "signIn" || mode === "signUp"))}
         title="Please wait..."
         message={loadingMessageByMode[mode]}
       />

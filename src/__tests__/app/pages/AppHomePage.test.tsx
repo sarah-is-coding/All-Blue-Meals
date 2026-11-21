@@ -92,6 +92,8 @@ const renderHome = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getRecipeById).mockImplementation(async (recipeId) => RECIPES[recipeId] ?? null);
+  // Some tests give recipes notes; clearAllMocks keeps implementations, so reset.
+  vi.mocked(listRecipeNotes).mockResolvedValue([]);
 });
 
 describe("AppHomePage", () => {
@@ -176,6 +178,50 @@ describe("AppHomePage", () => {
     expect(await screen.findByText("Nothing planned for today.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Plan a meal" })).toHaveAttribute("href", "/meal-plans");
     expect(screen.getByText(/No meals planned in the last 30 days/)).toBeInTheDocument();
+  });
+
+  // The sign-in loading modal stays up until this fires (see AppRouter).
+  it("reports ready only once the plan, every recipe and the previewed notes have loaded", async () => {
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([
+      meal("tacos", TODAY, "dinner", "Chicken tacos"),
+      meal("kebabs", TOMORROW, "dinner", "Lamb kebabs"),
+      meal("soup", YESTERDAY, "dinner", "Tortellini soup"),
+    ]);
+    let releaseNotes: () => void = () => {};
+    const notesHeld = new Promise<void>((resolve) => (releaseNotes = resolve));
+    vi.mocked(listRecipeNotes).mockImplementation(async () => {
+      await notesHeld;
+      return [];
+    });
+    const onReady = vi.fn();
+    renderWithProviders(
+      <MemoryRouter>
+        <AppHomePage onReady={onReady} />
+      </MemoryRouter>
+    );
+
+    // Plan and recipes are in, but notes are still loading.
+    expect(await screen.findByText("chicken thighs, bacon")).toBeInTheDocument();
+    expect(await screen.findByText("lamb shoulder")).toBeInTheDocument();
+    expect(onReady).not.toHaveBeenCalled();
+
+    releaseNotes();
+    await waitFor(() => expect(onReady).toHaveBeenCalled());
+    // Every meal's recipe was loaded, including the last meal's (for its rating).
+    expect(getRecipeById).toHaveBeenCalledWith("r-soup");
+    // Notes only for the meals that preview them (today and tomorrow).
+    expect(vi.mocked(listRecipeNotes).mock.calls.map(([id]) => id).sort()).toEqual(["r-kebabs", "r-tacos"]);
+  });
+
+  it("reports ready when the plan fails to load, so sign-in isn't stuck", async () => {
+    vi.mocked(listPlannedMealsBetween).mockRejectedValue(new Error("Failed to load planned meals."));
+    const onReady = vi.fn();
+    renderWithProviders(
+      <MemoryRouter>
+        <AppHomePage onReady={onReady} />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(onReady).toHaveBeenCalled());
   });
 
   it("shows an error when the plan can't load", async () => {

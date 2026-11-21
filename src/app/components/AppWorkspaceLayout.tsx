@@ -5,11 +5,12 @@ import LoadingModal from "../../components/feedback/LoadingModal";
 import { authService } from "../../features/auth/api";
 import { clearRecipeListViewState } from "../../features/recipes/utils/recipeListViewState";
 
+// The same short names in the desktop header and the mobile bottom bar.
 const appNavItems = [
-  { label: "Dashboard", mobileLabel: "Home", to: "/", end: true },
-  { label: "Recipes", mobileLabel: "Recipes", to: "/recipes" },
-  { label: "Meal Plans", mobileLabel: "Plans", to: "/meal-plans" },
-  { label: "Grocery Lists", mobileLabel: "Grocery", to: "/grocery" },
+  { label: "Home", to: "/", end: true },
+  { label: "Recipes", to: "/recipes" },
+  { label: "Plans", to: "/meal-plans" },
+  { label: "Grocery", to: "/grocery" },
 ];
 
 export default function AppWorkspaceLayout() {
@@ -93,7 +94,7 @@ export default function AppWorkspaceLayout() {
                   `workspace-nav__link${isActive ? " workspace-nav__link--active" : ""}`
                 }
               >
-                {item.mobileLabel}
+                {item.label}
               </NavLink>
             ))}
           </nav>

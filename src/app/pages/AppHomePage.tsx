@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePlannedMealsBetween } from "../../features/meal-plans/queries";
 import { addDays, createDateFromIso, toIsoDate } from "../../lib/utils/dates";
 import LastMealCard from "../home/LastMealCard";
 import MealPreviewCard from "../home/MealPreviewCard";
 import { lastMealBefore, mealsOn } from "../home/homeMeals";
+import { useHomeReady } from "../home/useHomeReady";
 
 // How far back to look for the last meal to rate.
 const LOOKBACK_DAYS = 30;
@@ -15,8 +17,11 @@ const todayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "long", month
  * use, their tags, and their latest note), and the last meal before today to
  * rate and leave a note on. One request for the plan: the planned meals from
  * the last 30 days through tomorrow.
+ *
+ * `onReady` is called once everything on the page has loaded (see
+ * useHomeReady), so the sign-in loading modal can wait for it.
  */
-export default function AppHomePage() {
+export default function AppHomePage({ onReady }: { onReady?: () => void }) {
   const todayIso = toIsoDate(new Date());
   const tomorrowIso = toIsoDate(addDays(createDateFromIso(todayIso), 1));
   const startIso = toIsoDate(addDays(createDateFromIso(todayIso), -LOOKBACK_DAYS));
@@ -24,6 +29,11 @@ export default function AppHomePage() {
   const today = mealsOn(items, todayIso);
   const tomorrow = mealsOn(items, tomorrowIso);
   const lastMeal = lastMealBefore(items, todayIso);
+  const ready = useHomeReady({ planLoading: loading, today, tomorrow, lastMeal });
+
+  useEffect(() => {
+    if (ready) onReady?.();
+  }, [ready, onReady]);
 
   return (
     <section className="workspace-route home">

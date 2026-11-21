@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUserId } from "../../lib/auth/sessionContext";
 import { useInvalidateMealPlanWeeks } from "../meal-plans/queries";
 import {
@@ -84,13 +84,23 @@ export function useRecipeTagFolders(enabled = true) {
   };
 }
 
+// Shared by the single-recipe hooks and useRecipesSettled, so they use one cache entry.
+const recipeDetailQuery = (userId: string, recipeId: string) => ({
+  queryKey: recipeKeys.detail(userId, recipeId),
+  queryFn: () => getRecipeById(recipeId),
+});
+
+const recipeNotesQuery = (userId: string, recipeId: string) => ({
+  queryKey: recipeKeys.notes(userId, recipeId),
+  queryFn: () => listRecipeNotes(recipeId),
+});
+
 /** One recipe with its ingredients. `recipe` is null when it doesn't exist
  *  (or isn't the user's) and undefined while loading. */
 export function useRecipe(recipeId: string | null) {
   const userId = useCurrentUserId();
   const query = useQuery({
-    queryKey: recipeKeys.detail(userId ?? "", recipeId ?? ""),
-    queryFn: () => getRecipeById(recipeId as string),
+    ...recipeDetailQuery(userId ?? "", recipeId ?? ""),
     enabled: userId !== null && recipeId !== null,
   });
   return {
@@ -154,8 +164,7 @@ const NO_NOTES: RecipeNote[] = [];
 export function useRecipeNotes(recipeId: string | null) {
   const userId = useCurrentUserId();
   const query = useQuery({
-    queryKey: recipeKeys.notes(userId ?? "", recipeId ?? ""),
-    queryFn: () => listRecipeNotes(recipeId as string),
+    ...recipeNotesQuery(userId ?? "", recipeId ?? ""),
     enabled: userId !== null && recipeId !== null,
   });
   return {
@@ -163,6 +172,31 @@ export function useRecipeNotes(recipeId: string | null) {
     loading: recipeId !== null && query.isPending,
     error: errorMessage(query.error, "Failed to load notes."),
   };
+}
+
+/**
+ * Whether these recipes, and the notes of `notesFor`, have all finished
+ * loading (or failed), for a page that waits until everything it shows is in
+ * (e.g. the home page after sign-in). Loads them into the same cache entries
+ * as useRecipe / useRecipeNotes, so nothing is fetched twice.
+ */
+export function useRecipesSettled({
+  recipeIds,
+  notesFor = [],
+}: {
+  recipeIds: ReadonlyArray<string>;
+  notesFor?: ReadonlyArray<string>;
+}): boolean {
+  const userId = useCurrentUserId();
+  return useQueries({
+    queries: userId
+      ? [
+          ...[...new Set(recipeIds)].map((id) => recipeDetailQuery(userId, id)),
+          ...[...new Set(notesFor)].map((id) => recipeNotesQuery(userId, id)),
+        ]
+      : [],
+    combine: (results) => results.every((result) => !result.isPending),
+  });
 }
 
 /** Adding, editing and deleting a recipe's notes. Each saves first, then
