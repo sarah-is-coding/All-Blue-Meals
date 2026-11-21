@@ -6,10 +6,10 @@ import { authService } from "../../features/auth/api";
 import { clearRecipeListViewState } from "../../features/recipes/utils/recipeListViewState";
 
 const appNavItems = [
-  { label: "Dashboard", mobileLabel: "Home", to: "/app", end: true },
-  { label: "Recipes", mobileLabel: "Recipes", to: "/app/recipes" },
-  { label: "Meal Plans", mobileLabel: "Plans", to: "/app/meal-plans" },
-  { label: "Grocery Lists", mobileLabel: "Grocery", to: "/app/grocery" },
+  { label: "Dashboard", mobileLabel: "Home", to: "/", end: true },
+  { label: "Recipes", mobileLabel: "Recipes", to: "/recipes" },
+  { label: "Meal Plans", mobileLabel: "Plans", to: "/meal-plans" },
+  { label: "Grocery Lists", mobileLabel: "Grocery", to: "/grocery" },
 ];
 
 export default function AppWorkspaceLayout() {
@@ -18,7 +18,7 @@ export default function AppWorkspaceLayout() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!location.pathname.startsWith("/app/recipes")) {
+    if (!location.pathname.startsWith("/recipes")) {
       clearRecipeListViewState();
     }
   }, [location.pathname]);

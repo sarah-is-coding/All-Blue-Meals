@@ -30,9 +30,9 @@ function renderApp(startPath: string) {
   renderWithProviders(
     <MemoryRouter initialEntries={[startPath]}>
       <Routes>
-        <Route path="/app/meal-plans" element={<PageWithSavedPlansTab name="Planner page" />} />
-        <Route path="/app/grocery" element={<PageWithSavedPlansTab name="Grocery page" />} />
-        <Route path="/app/saved-meal-plans" element={<SavedMealPlansPage />} />
+        <Route path="/meal-plans" element={<PageWithSavedPlansTab name="Planner page" />} />
+        <Route path="/grocery" element={<PageWithSavedPlansTab name="Grocery page" />} />
+        <Route path="/saved-meal-plans" element={<SavedMealPlansPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -43,7 +43,7 @@ function renderApp(startPath: string) {
 describe("Saved plans round trip", () => {
   it("from the planner, comes back to the planner's Saved plans tab", async () => {
     const user = userEvent.setup();
-    renderApp("/app/meal-plans");
+    renderApp("/meal-plans");
     expect(screen.getByText("Calendar tab open")).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Manage saved plans" }));
@@ -56,7 +56,7 @@ describe("Saved plans round trip", () => {
 
   it("from the grocery page, comes back to grocery's Saved plans tab", async () => {
     const user = userEvent.setup();
-    renderApp("/app/grocery");
+    renderApp("/grocery");
 
     await user.click(screen.getByRole("link", { name: "Manage saved plans" }));
     await user.click(await screen.findByRole("link", { name: "Back to Grocery Lists" }));
@@ -66,7 +66,7 @@ describe("Saved plans round trip", () => {
 
   it("visiting Saved Meal Plans directly links back to the planner's Saved plans tab", async () => {
     const user = userEvent.setup();
-    renderApp("/app/saved-meal-plans");
+    renderApp("/saved-meal-plans");
     await user.click(screen.getByRole("link", { name: "Back to Meal Plans" }));
     expect(screen.getByRole("heading", { name: "Planner page" })).toBeInTheDocument();
     expect(screen.getByText("Saved plans tab open")).toBeInTheDocument();

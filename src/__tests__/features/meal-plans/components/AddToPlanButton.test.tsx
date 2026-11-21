@@ -101,7 +101,7 @@ describe("AddToPlanButton", () => {
 
     await user.click(screen.getByRole("button", { name: "View meal plan" }));
 
-    expect(navigate).toHaveBeenCalledWith("/app/meal-plans", {
+    expect(navigate).toHaveBeenCalledWith("/meal-plans", {
       state: { jumpToDate: targetDay.dateIso },
     });
     expect(screen.queryByRole("dialog", { name: "Recipe added to plan" })).not.toBeInTheDocument();

@@ -337,7 +337,7 @@ describe("GroceryPage — Browse plans card", () => {
 
   // Coming back from the Saved Meal Plans page.
   it("opens on the Saved plans tab when asked to", () => {
-    renderPage([{ pathname: "/app/grocery", state: { planBrowserTab: "saved" } }]);
+    renderPage([{ pathname: "/grocery", state: { planBrowserTab: "saved" } }]);
     expect(screen.getByRole("tab", { name: "Saved plans" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("link", { name: "Manage saved plans" })).toBeInTheDocument();
   });

@@ -226,7 +226,7 @@ cleans junk values the model returns (see "Junk values" below).
 Import and generate each have **two save paths** (`RecipeImportPage`,
 `RecipeGeneratePage`):
 
-- **Use draft** opens `/app/recipes/new` with the recipe filled in. Here the
+- **Use draft** opens `/recipes/new` with the recipe filled in. Here the
   form can show each ingredient as **matched** to a catalog entry or **new**.
 - **Create** saves every extracted recipe straight away with
   `mapImportedRecipeToInput`. No person sees the ingredients, so this path

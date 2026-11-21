@@ -38,9 +38,9 @@ const mockCreateRecipe = vi.mocked(createRecipe);
 
 const renderPage = (state?: unknown) =>
   renderWithProviders(
-    <MemoryRouter initialEntries={[{ pathname: "/app/recipes/new", state }]}>
+    <MemoryRouter initialEntries={[{ pathname: "/recipes/new", state }]}>
       <Routes>
-        <Route path="/app/recipes/new" element={<RecipeCreatePage />} />
+        <Route path="/recipes/new" element={<RecipeCreatePage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -69,7 +69,7 @@ describe("RecipeCreatePage", () => {
         })
       );
     });
-    expect(navigate).toHaveBeenCalledWith("/app/recipes/recipe-1");
+    expect(navigate).toHaveBeenCalledWith("/recipes/recipe-1");
   });
 
   // Step 4 of docs/ingredient-normalization.md: the full substitute journey.

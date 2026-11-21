@@ -93,9 +93,9 @@ const recipe = {
 
 const renderPage = (client = createTestQueryClient()) =>
   renderWithProviders(
-    <MemoryRouter initialEntries={["/app/recipes/recipe-1"]}>
+    <MemoryRouter initialEntries={["/recipes/recipe-1"]}>
       <Routes>
-        <Route path="/app/recipes/:recipeId" element={<RecipeDetailPage />} />
+        <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
       </Routes>
     </MemoryRouter>,
     { client }
@@ -106,13 +106,13 @@ const renderPageWithMealSlot = (mealSlot: { date: string; mealType: string }) =>
     <MemoryRouter
       initialEntries={[
         {
-          pathname: "/app/recipes/recipe-1",
+          pathname: "/recipes/recipe-1",
           state: { from: "meal-planner", mealSlot },
         },
       ]}
     >
       <Routes>
-        <Route path="/app/recipes/:recipeId" element={<RecipeDetailPage />} />
+        <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -121,11 +121,11 @@ const renderPageWithMealSlot = (mealSlot: { date: string; mealType: string }) =>
  *  that shows the location state it was returned to with. */
 const renderPageArrivingWith = (state: Record<string, unknown> | undefined) =>
   renderWithProviders(
-    <MemoryRouter initialEntries={[{ pathname: "/app/recipes/recipe-1", state }]}>
+    <MemoryRouter initialEntries={[{ pathname: "/recipes/recipe-1", state }]}>
       <Routes>
-        <Route path="/app/recipes/:recipeId" element={<RecipeDetailPage />} />
-        <Route path="/app/recipes" element={<RecipesListStandIn />} />
-        <Route path="/app/meal-plans" element={<p>Meal planner page</p>} />
+        <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
+        <Route path="/recipes" element={<RecipesListStandIn />} />
+        <Route path="/meal-plans" element={<p>Meal planner page</p>} />
       </Routes>
     </MemoryRouter>
   );
@@ -289,7 +289,7 @@ describe("RecipeDetailPage", () => {
       expect(mockDeleteRecipe).toHaveBeenCalledWith("recipe-1");
     });
     await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith("/app/recipes");
+      expect(navigate).toHaveBeenCalledWith("/recipes");
     });
   });
 

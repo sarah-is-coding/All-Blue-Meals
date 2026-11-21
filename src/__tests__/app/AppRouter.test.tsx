@@ -16,11 +16,45 @@ const renderAt = (path: string, props: Partial<Parameters<typeof AppRouter>[0]> 
   return render(<AppRouter session={null} authReady {...props} />);
 };
 
+// App pages live at the site root (they used to be under /app).
+describe("AppRouter — app pages at the root", () => {
+  it("shows the landing page at / when signed out", () => {
+    renderAt("/");
+    expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Sign In" }).length).toBeGreaterThan(0);
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("shows the app at / when signed in", () => {
+    renderAt("/", { session });
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("sends a signed-out visitor from an app page to sign in", () => {
+    renderAt("/recipes/r-1");
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/auth");
+  });
+
+  it("redirects old /app links to the same page without /app", () => {
+    renderAt("/app/recipes/r-1#notes", { session });
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/recipes/r-1");
+    expect(window.location.hash).toBe("#notes");
+  });
+
+  it("redirects /app itself to the home page", () => {
+    renderAt("/app", { session });
+    expect(window.location.pathname).toBe("/");
+  });
+});
+
 describe("AppRouter — password recovery", () => {
   it("sends a signed-in user from /auth to the app", () => {
     renderAt("/auth", { session });
     expect(screen.getByText("Workspace")).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/app");
+    expect(window.location.pathname).toBe("/");
   });
 
   it("keeps a user who followed a reset link on the new-password form", () => {
@@ -30,7 +64,7 @@ describe("AppRouter — password recovery", () => {
   });
 
   it("does not let a recovering user into the app before setting a password", () => {
-    renderAt("/app", { session, passwordRecovery: true });
+    renderAt("/", { session, passwordRecovery: true });
     expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Set a new password" })).toBeInTheDocument();
   });

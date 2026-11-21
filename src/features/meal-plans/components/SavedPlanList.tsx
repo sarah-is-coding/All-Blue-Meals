@@ -50,7 +50,7 @@ export default function SavedPlanList({
           onChange={(e) => setSearchInput(e.target.value)}
         />
         <Link
-          to="/app/saved-meal-plans"
+          to="/saved-meal-plans"
           state={manageSavedPlansState(pathname)}
           className="btn btn--ghost"
           aria-label="Manage saved plans"

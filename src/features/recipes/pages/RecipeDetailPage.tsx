@@ -162,7 +162,7 @@ export default function RecipeDetailPage() {
     }
     // Also refreshes recipe lists and the planner, whose meals lose this recipe.
     await recipeActions.remove(recipeId);
-    navigate("/app/recipes");
+    navigate("/recipes");
   };
 
   // Rendered as the first child of every branch below so it stays mounted

@@ -21,14 +21,14 @@ export default function RecipeBackLinks({ state }: { state: RecipeBackLinksState
       {!isFromMealPlanner || pickingForSlot ? (
         <Link
           className="btn btn--ghost"
-          to="/app/recipes"
+          to="/recipes"
           state={pickingForSlot ? { mealSlot: pickingForSlot } : undefined}
         >
           Back to Recipes
         </Link>
       ) : null}
       {isFromMealPlanner ? (
-        <Link className="btn btn--ghost" to="/app/meal-plans">
+        <Link className="btn btn--ghost" to="/meal-plans">
           Back to Meal Planner
         </Link>
       ) : null}

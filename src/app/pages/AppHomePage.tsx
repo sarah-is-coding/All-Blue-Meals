@@ -33,7 +33,7 @@ export default function AppHomePage() {
             <p className="home-card__eyebrow">{todayFormatter.format(createDateFromIso(todayIso))}</p>
             <h1>Today's meals</h1>
           </div>
-          <Link className="btn btn--ghost" to="/app/meal-plans">
+          <Link className="btn btn--ghost" to="/meal-plans">
             Open planner
           </Link>
         </div>
@@ -45,7 +45,7 @@ export default function AppHomePage() {
         ) : today.length === 0 ? (
           <div className="home-card__empty">
             <p>Nothing planned for today.</p>
-            <Link className="btn btn--primary" to="/app/meal-plans">
+            <Link className="btn btn--primary" to="/meal-plans">
               Plan a meal
             </Link>
           </div>

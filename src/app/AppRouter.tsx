@@ -1,5 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AuthPage from "../features/auth/pages/AuthPage";
 import GroceryPage from "../features/grocery/pages/GroceryPage";
 import MealPlansPage from "../features/meal-plans/pages/MealPlansPage";
@@ -25,6 +25,20 @@ type AppRouterProps = {
   onLinkErrorShown?: () => void;
 };
 
+/** Signed out: the landing page at "/", sign-in for any app page. A user
+ *  who followed a reset link goes to the new-password form. */
+function SignedOutRoot({ passwordRecovery }: { passwordRecovery: boolean }) {
+  const { pathname } = useLocation();
+  if (passwordRecovery || pathname !== "/") return <Navigate to="/auth" replace />;
+  return <LandingPage />;
+}
+
+/** "/app/recipes/1#notes" → "/recipes/1#notes" (and "/app" → "/"). */
+function LegacyAppRedirect() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate to={`${pathname.replace(/^\/app/, "") || "/"}${search}${hash}`} replace />;
+}
+
 export default function AppRouter({
   session,
   authReady,
@@ -45,35 +59,13 @@ export default function AppRouter({
   return (
     <BrowserRouter>
       <Routes>
+        {/* One layout route at "/" for the whole signed-in app, so moving
+            between pages keeps the same layout. Signed out, "/" is the landing
+            page and every other page sends you to sign in (SignedOutRoot
+            renders no outlet, so no app page shows). */}
         <Route
           path="/"
-          element={
-            signedIn ? (
-              <Navigate to="/app" replace />
-            ) : passwordRecovery ? (
-              <Navigate to="/auth" replace />
-            ) : (
-              <LandingPage />
-            )
-          }
-        />
-        <Route
-          path="/auth"
-          element={
-            signedIn ? (
-              <Navigate to="/app" replace />
-            ) : (
-              <AuthPage
-                recovery={passwordRecovery}
-                linkError={linkError}
-                onLinkErrorShown={onLinkErrorShown}
-              />
-            )
-          }
-        />
-        <Route
-          path="/app"
-          element={signedIn ? <AppWorkspaceLayout /> : <Navigate to="/auth" replace />}
+          element={signedIn ? <AppWorkspaceLayout /> : <SignedOutRoot passwordRecovery={passwordRecovery} />}
         >
           <Route index element={<AppHomePage />} />
           <Route path="recipes" element={<RecipesPage />} />
@@ -85,6 +77,22 @@ export default function AppRouter({
           <Route path="saved-meal-plans" element={<SavedMealPlansPage />} />
           <Route path="grocery" element={<GroceryPage />} />
         </Route>
+        <Route
+          path="/auth"
+          element={
+            signedIn ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthPage
+                recovery={passwordRecovery}
+                linkError={linkError}
+                onLinkErrorShown={onLinkErrorShown}
+              />
+            )
+          }
+        />
+        {/* The app used to live under /app; keep old bookmarks and shared links working. */}
+        <Route path="/app/*" element={<LegacyAppRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

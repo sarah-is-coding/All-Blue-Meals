@@ -123,6 +123,6 @@ describe("RecipeImportPage", () => {
         sourceUrl: "https://www.allrecipes.com/recipe/269613/walking-tacos/",
       })
     );
-    expect(navigate).toHaveBeenCalledWith("/app/recipes");
+    expect(navigate).toHaveBeenCalledWith("/recipes");
   });
 });

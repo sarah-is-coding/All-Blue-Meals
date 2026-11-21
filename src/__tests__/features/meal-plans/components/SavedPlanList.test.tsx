@@ -123,7 +123,7 @@ describe("SavedPlanList", () => {
   it("links to the saved plans page from beside the search box", async () => {
     renderList({ belowList: <button type="button">Build</button> });
     const link = screen.getByRole("link", { name: "Manage saved plans" });
-    expect(link).toHaveAttribute("href", "/app/saved-meal-plans");
+    expect(link).toHaveAttribute("href", "/saved-meal-plans");
     expect(link).toHaveTextContent("Manage");
     const firstPlan = await screen.findByText(SUMMER.savedName, undefined, T);
     expect(link.compareDocumentPosition(firstPlan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

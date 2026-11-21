@@ -28,10 +28,10 @@ function LocationProbe() {
 
 const renderCalendar = () =>
   render(
-    <MemoryRouter initialEntries={["/app/meal-plans"]}>
+    <MemoryRouter initialEntries={["/meal-plans"]}>
       <Routes>
         <Route
-          path="/app/meal-plans"
+          path="/meal-plans"
           element={
             <MealPlannerCalendar
               weekLabel="Jan 5 - Jan 11, 2026"
@@ -48,7 +48,7 @@ const renderCalendar = () =>
             />
           }
         />
-        <Route path="/app/recipes" element={<LocationProbe />} />
+        <Route path="/recipes" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>
   );

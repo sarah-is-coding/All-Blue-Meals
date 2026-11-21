@@ -202,7 +202,7 @@ export default function RecipesPage() {
               >
                 <Link
                   className="recipe-add-menu__item"
-                  to="/app/recipes/new"
+                  to="/recipes/new"
                   state={{ prefillTitle: searchInput.trim() }}
                   role="menuitem"
                   onClick={() => clearRecipeListViewState()}
@@ -211,7 +211,7 @@ export default function RecipesPage() {
                 </Link>
                 <Link
                   className="recipe-add-menu__item"
-                  to="/app/recipes/import"
+                  to="/recipes/import"
                   role="menuitem"
                   onClick={() => clearRecipeListViewState()}
                 >
@@ -219,7 +219,7 @@ export default function RecipesPage() {
                 </Link>
                 <Link
                   className="recipe-add-menu__item"
-                  to="/app/recipes/generate"
+                  to="/recipes/generate"
                   role="menuitem"
                   onClick={() => clearRecipeListViewState()}
                 >

@@ -82,7 +82,7 @@ describe("MealPlansPage", () => {
     const expectedWeekStartIso = getWeekStartIso(createDateFromIso(jumpToDate));
     const expectedWeekEndIso = getWeekEndIso(expectedWeekStartIso);
 
-    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate } }]);
+    renderPage([{ pathname: "/meal-plans", state: { jumpToDate } }]);
 
     expect(screen.getByLabelText("From")).toHaveValue(expectedWeekStartIso);
     expect(screen.getByLabelText("To")).toHaveValue(expectedWeekEndIso);
@@ -96,7 +96,7 @@ describe("MealPlansPage", () => {
   });
 
   it("keeps the initial Browse plans selection when the destination week changes", async () => {
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
 
@@ -106,7 +106,7 @@ describe("MealPlansPage", () => {
   });
 
   it("shifts the Browse plans week into the next month without moving the planner week", () => {
-    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
+    renderPage([{ pathname: "/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
     const forward = screen.getByRole("button", { name: "Move dates forward a week" });
 
     for (let week = 0; week < 3; week += 1) fireEvent.click(forward);
@@ -119,7 +119,7 @@ describe("MealPlansPage", () => {
   });
 
   it("opens the selected week and focuses the day card for the first selected date", async () => {
-    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
+    renderPage([{ pathname: "/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-11" } });
 
     fireEvent.click(screen.getByRole("button", { name: "View week" }));
@@ -137,7 +137,7 @@ describe("MealPlansPage", () => {
     vi.mocked(listPlannedMealsBetween).mockImplementation(async (start) =>
       start === "2026-03-08" ? [item("source", "Pasta", start)] : []
     );
-    renderPage([{ pathname: "/app/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
+    renderPage([{ pathname: "/meal-plans", state: { jumpToDate: "2026-03-18" } }]);
     const back = screen.getByRole("button", { name: "Move dates back a week" });
     fireEvent.click(back);
     const apply = screen.getByRole("button", { name: "Apply from Mar 15" });
@@ -152,20 +152,20 @@ describe("MealPlansPage", () => {
   });
 
   it("opens Browse plans on Calendar by default", () => {
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     expect(screen.getByRole("tab", { name: "Calendar" })).toHaveAttribute("aria-selected", "true");
   });
 
   // Coming back from the Saved Meal Plans page.
   it("opens Browse plans on Saved plans when asked to", () => {
-    renderPage([{ pathname: "/app/meal-plans", state: { planBrowserTab: "saved" } }]);
+    renderPage([{ pathname: "/meal-plans", state: { planBrowserTab: "saved" } }]);
     expect(screen.getByRole("tab", { name: "Saved plans" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("falls back to the current week when there is no jumpToDate", async () => {
     const expectedWeekStartIso = getWeekStartIso(new Date());
 
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
 
     await waitFor(() => {
       expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith(expectedWeekStartIso);
@@ -188,7 +188,7 @@ describe("MealPlansPage — loading weeks", () => {
   // it up for at least 480 ms. LoadingModal now applies one shared timing
   // everywhere: it only appears if loading takes longer than ~280 ms.
   it("does not flash the loading modal when a load is fast", async () => {
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     expect(await screen.findByText("Tacos", undefined, T)).toBeInTheDocument();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
@@ -204,7 +204,7 @@ describe("MealPlansPage — loading weeks", () => {
         })
     );
     const finishLoading = () => pending.get(THIS_WEEK)?.();
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
     expect(await screen.findByRole("alertdialog", undefined, T)).toHaveTextContent(
@@ -222,7 +222,7 @@ describe("MealPlansPage — loading weeks", () => {
     await prefetchMealPlanWeeks(client, TEST_USER_ID, [THIS_WEEK, NEXT_WEEK]);
     mockListPlannedMealsForWeek.mockClear();
 
-    renderPage(["/app/meal-plans"], client);
+    renderPage(["/meal-plans"], client);
     expect(screen.getByText("Tacos")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
@@ -231,7 +231,7 @@ describe("MealPlansPage — loading weeks", () => {
   });
 
   it("loads the next week, showing its meals once they arrive", async () => {
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     await screen.findByText("Tacos", undefined, T);
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(), T);
 
@@ -251,7 +251,7 @@ describe("MealPlansPage — loading weeks", () => {
           })
         : Promise.resolve(ITEMS_BY_WEEK[weekStartIso] ?? [])
     );
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     expect(await screen.findByText("Lasagna", undefined, T)).toBeInTheDocument();
@@ -263,7 +263,7 @@ describe("MealPlansPage — loading weeks", () => {
 
   it("removes an item from the calendar after deleting it", async () => {
     vi.mocked(deletePlannedMeal).mockResolvedValue(undefined);
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     await screen.findByText("Tacos", undefined, T);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Tacos" }));
@@ -274,7 +274,7 @@ describe("MealPlansPage — loading weeks", () => {
 
   it("shows an action error, and clears it when changing weeks", async () => {
     vi.mocked(deletePlannedMeal).mockRejectedValue(new Error("Could not delete"));
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     await screen.findByText("Tacos", undefined, T);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Tacos" }));
@@ -287,7 +287,7 @@ describe("MealPlansPage — loading weeks", () => {
 
   it("shows the error when a week fails to load", async () => {
     mockListPlannedMealsForWeek.mockRejectedValue(new Error("Network down"));
-    renderPage(["/app/meal-plans"]);
+    renderPage(["/meal-plans"]);
     expect(await screen.findByText("Network down", undefined, T)).toBeInTheDocument();
   });
 });

@@ -53,7 +53,7 @@ describe("RecipeBackLinks", () => {
 
   it("links back to recipes by default", () => {
     renderLinks(null);
-    expect(screen.getByRole("link", { name: "Back to Recipes" })).toHaveAttribute("href", "/app/recipes");
+    expect(screen.getByRole("link", { name: "Back to Recipes" })).toHaveAttribute("href", "/recipes");
     expect(screen.queryByRole("link", { name: "Back to Meal Planner" })).not.toBeInTheDocument();
   });
 

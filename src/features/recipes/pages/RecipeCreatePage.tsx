@@ -75,7 +75,7 @@ export default function RecipeCreatePage() {
 
     try {
       const recipeId = await createRecipe(mapRecipeFormValuesToInput(values));
-      navigate(`/app/recipes/${recipeId}`);
+      navigate(`/recipes/${recipeId}`);
     } catch (saveError) {
       setError(
         saveError instanceof Error ? saveError.message : "Failed to create recipe."
@@ -89,7 +89,7 @@ export default function RecipeCreatePage() {
       <article className="workspace-card">
         <div className="recipe-page-header">
           <h1>Add Recipe</h1>
-          <Link className="btn btn--ghost" to="/app/recipes">
+          <Link className="btn btn--ghost" to="/recipes">
             Back to Recipes
           </Link>
         </div>
@@ -113,7 +113,7 @@ export default function RecipeCreatePage() {
           <button type="submit" className="btn btn--primary" disabled={saving}>
             {saving ? "Saving..." : "Save Recipe"}
           </button>
-          <Link className="btn btn--ghost" to="/app/recipes">
+          <Link className="btn btn--ghost" to="/recipes">
             Cancel
           </Link>
         </div>

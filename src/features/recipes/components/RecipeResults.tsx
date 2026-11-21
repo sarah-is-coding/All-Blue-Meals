@@ -60,7 +60,7 @@ export default function RecipeResults({
               <li key={recipe.id}>
                 <Link
                   className="recipe-card"
-                  to={`/app/recipes/${recipe.id}`}
+                  to={`/recipes/${recipe.id}`}
                   state={mealSlot ? { from: "meal-planner", mealSlot } : undefined}
                   onClick={onOpenRecipe}
                 >

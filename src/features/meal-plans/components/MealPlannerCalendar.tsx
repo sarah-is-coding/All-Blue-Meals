@@ -110,7 +110,7 @@ export default function MealPlannerCalendar({
       return;
     }
 
-    navigate(`/app/recipes/${item.recipeId}`, {
+    navigate(`/recipes/${item.recipeId}`, {
       state: {
         ...RECIPE_DETAIL_MEAL_PLANNER_STATE,
         plannedMealId: item.id,
@@ -338,7 +338,7 @@ export default function MealPlannerCalendar({
                     {!isPickerMode ? (
                       <Link
                         className="meal-slot__search-link"
-                        to="/app/recipes"
+                        to="/recipes"
                         state={{ mealSlot: { date: day.dateIso, mealType: option.value } }}
                       >
                         Search recipes

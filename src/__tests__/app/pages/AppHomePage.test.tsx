@@ -108,15 +108,15 @@ describe("AppHomePage", () => {
 
     // Breakfast first, with no meat.
     expect(within(meals[0]!).getByText("Breakfast")).toBeInTheDocument();
-    expect(within(meals[0]!).getByRole("link", { name: "Overnight oats" })).toHaveAttribute("href", "/app/recipes/r-oats");
+    expect(within(meals[0]!).getByRole("link", { name: "Overnight oats" })).toHaveAttribute("href", "/recipes/r-oats");
     expect(await within(meals[0]!).findByText("none")).toBeInTheDocument();
     expect(within(meals[0]!).getByText("Serves 4 · 5 min")).toBeInTheDocument();
 
     // Dinner lists its meats, and links to the recipe and its notes.
     expect(await within(meals[1]!).findByText("chicken thighs, bacon")).toBeInTheDocument();
     expect(within(meals[1]!).getByText("Serves 4 · 45 min")).toBeInTheDocument();
-    expect(within(meals[1]!).getByRole("link", { name: "Open recipe" })).toHaveAttribute("href", "/app/recipes/r-tacos");
-    expect(within(meals[1]!).getByRole("link", { name: "Notes" })).toHaveAttribute("href", "/app/recipes/r-tacos#notes");
+    expect(within(meals[1]!).getByRole("link", { name: "Open recipe" })).toHaveAttribute("href", "/recipes/r-tacos");
+    expect(within(meals[1]!).getByRole("link", { name: "Notes" })).toHaveAttribute("href", "/recipes/r-tacos#notes");
   });
 
   // The range now runs through tomorrow (it used to end today) so the page can
@@ -174,7 +174,7 @@ describe("AppHomePage", () => {
     renderHome();
 
     expect(await screen.findByText("Nothing planned for today.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Plan a meal" })).toHaveAttribute("href", "/app/meal-plans");
+    expect(screen.getByRole("link", { name: "Plan a meal" })).toHaveAttribute("href", "/meal-plans");
     expect(screen.getByText(/No meals planned in the last 30 days/)).toBeInTheDocument();
   });
 
@@ -197,7 +197,7 @@ describe("AppHomePage", () => {
     renderHome();
 
     expect(await screen.findByText("Yesterday's dinner")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See all notes" })).toHaveAttribute("href", "/app/recipes/r-soup#notes");
+    expect(screen.getByRole("link", { name: "See all notes" })).toHaveAttribute("href", "/recipes/r-soup#notes");
 
     // Rate it four stars.
     const rating = screen.getByRole("radiogroup", { name: "Rate Tortellini soup" });

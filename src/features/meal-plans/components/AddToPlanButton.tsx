@@ -119,7 +119,7 @@ export default function AddToPlanButton({
               type="button"
               className="btn btn--primary"
               onClick={() => {
-                navigate("/app/meal-plans", { state: { jumpToDate: addedTo.plannedFor } });
+                navigate("/meal-plans", { state: { jumpToDate: addedTo.plannedFor } });
                 setAddedTo(null);
               }}
             >

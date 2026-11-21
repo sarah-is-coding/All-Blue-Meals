@@ -44,7 +44,7 @@ const recipes = [
 
 const renderPage = () =>
   renderWithProviders(
-    <MemoryRouter initialEntries={["/app/recipes"]}>
+    <MemoryRouter initialEntries={["/recipes"]}>
       <RecipesPage />
     </MemoryRouter>
   );
@@ -59,14 +59,14 @@ const renderPageWithMealSlot = () =>
     <MemoryRouter
       initialEntries={[
         {
-          pathname: "/app/recipes",
+          pathname: "/recipes",
           state: { mealSlot: { date: "2026-01-05", mealType: "dinner" } },
         },
       ]}
     >
       <Routes>
-        <Route path="/app/recipes" element={<RecipesPage />} />
-        <Route path="/app/recipes/:recipeId" element={<RecipeDetailLocationProbe />} />
+        <Route path="/recipes" element={<RecipesPage />} />
+        <Route path="/recipes/:recipeId" element={<RecipeDetailLocationProbe />} />
       </Routes>
     </MemoryRouter>
   );

@@ -114,6 +114,6 @@ describe("RecipeGeneratePage", () => {
       2,
       expect.objectContaining({ title: "Lemony Chickpea Rice Bowls" })
     );
-    expect(navigate).toHaveBeenCalledWith("/app/recipes");
+    expect(navigate).toHaveBeenCalledWith("/recipes");
   });
 });

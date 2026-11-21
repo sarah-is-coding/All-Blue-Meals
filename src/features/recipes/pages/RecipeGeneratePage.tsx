@@ -10,7 +10,7 @@ export default function RecipeGeneratePage() {
   const { create: createRecipe } = useRecipeActions();
 
   const handleUseGeneratedDraft = (recipe: ImportedRecipe) => {
-    navigate("/app/recipes/new", { state: { importedRecipe: recipe } });
+    navigate("/recipes/new", { state: { importedRecipe: recipe } });
   };
 
   const handleCreateGeneratedRecipes = async (recipes: ImportedRecipe[]) => {
@@ -21,7 +21,7 @@ export default function RecipeGeneratePage() {
     }
 
     navigate(
-      recipeIds.length === 1 ? `/app/recipes/${recipeIds[0]}` : "/app/recipes"
+      recipeIds.length === 1 ? `/recipes/${recipeIds[0]}` : "/recipes"
     );
   };
 
@@ -30,7 +30,7 @@ export default function RecipeGeneratePage() {
       <article className="workspace-card">
         <div className="recipe-page-header">
           <h1>Generate Recipe</h1>
-          <Link className="btn btn--ghost" to="/app/recipes">
+          <Link className="btn btn--ghost" to="/recipes">
             Back to Recipes
           </Link>
         </div>

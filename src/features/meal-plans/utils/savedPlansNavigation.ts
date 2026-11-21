@@ -4,13 +4,13 @@
 
 /** Pages with a Saved plans tab, and how the back link names them. */
 const RETURN_PAGES = {
-  "/app/meal-plans": "Meal Plans",
-  "/app/grocery": "Grocery Lists",
+  "/meal-plans": "Meal Plans",
+  "/grocery": "Grocery Lists",
 } as const;
 
 type ReturnPath = keyof typeof RETURN_PAGES;
 
-const DEFAULT_RETURN: ReturnPath = "/app/meal-plans";
+const DEFAULT_RETURN: ReturnPath = "/meal-plans";
 
 /** Router state on the "Manage" link: where it was opened from. */
 export type ManageSavedPlansState = { returnTo: ReturnPath };
