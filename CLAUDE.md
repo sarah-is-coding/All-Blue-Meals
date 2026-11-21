@@ -1,4 +1,4 @@
-# PlanMyMeals — Claude Agent Guidelines
+# All Blue Meals — Claude Agent Guidelines
 
 This file covers the stack, testing, code style, and database workflow.
 Product goals and domain rules (RLS ownership patterns, mobile UX, ads,

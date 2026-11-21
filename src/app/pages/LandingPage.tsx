@@ -11,7 +11,7 @@ export default function LandingPage() {
       <header className="topbar reveal">
         <div className="brand">
           <img className="brand__logo" src="/favicon.svg" alt="" width={26} height={26} />
-          PlanMyMeals
+          All Blue Meals
         </div>
         <div className="topbar__actions">
           <Link className="btn btn--ghost" to="/auth">

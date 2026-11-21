@@ -1,4 +1,4 @@
-# PlanMyMeals
+# All Blue Meals
 Simple personal meal planner with a mobile-friendly web experience that lets you import or manually add recipes, build and save meal plans, and generate grocery lists. Optimized for Supabase's free tier with minimal storage usage, allowing the app to scale to tens of thousands of lightweight, text-based recipes before any upgrades are needed. Keeping the backend lightweight also makes it feasible to cover hosting costs with non-intrusive ads rather than subscriptions.
 
 ## Core Features

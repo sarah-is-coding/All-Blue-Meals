@@ -71,7 +71,7 @@ export const fetchSource = async (url: string): Promise<SourceContent> => {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "PlanMyMeals recipe importer",
+        "User-Agent": "All Blue Meals recipe importer",
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });

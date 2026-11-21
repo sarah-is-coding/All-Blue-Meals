@@ -50,7 +50,7 @@ export default function AppWorkspaceLayout() {
           <header className="workspace-topbar">
             <Link className="workspace-brand" to="/">
               <img className="brand__logo" src="/favicon.svg" alt="" width={26} height={26} />
-              PlanMyMeals
+              All Blue Meals
             </Link>
 
             <nav className="workspace-nav workspace-nav--desktop" aria-label="Primary">

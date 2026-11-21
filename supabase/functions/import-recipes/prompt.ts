@@ -69,7 +69,7 @@ ${source.text || source.warning || "No readable text."}`
     .join("\n\n");
 
   return `
-You are extracting personal recipes for PlanMyMeals.
+You are extracting personal recipes for All Blue Meals.
 
 Return concise JSON matching the provided schema. Extract every distinct recipe from the notes and fetched sources. A heading followed by a URL belongs to the same recipe when they are adjacent. Notes after a URL should modify that recipe when clearly related.
 
@@ -85,7 +85,7 @@ ${sourceText}
 };
 
 export const buildGeneratePrompt = (requestText: string, categories: Category[]): string => `
-You are generating personal recipe drafts for PlanMyMeals.
+You are generating personal recipe drafts for All Blue Meals.
 
 Return concise JSON matching the provided schema. Generate every distinct recipe requested by the user. If the user asks for multiple recipes, return multiple objects in recipes.
 

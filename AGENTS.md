@@ -1,4 +1,4 @@
-# agents.md — PlanMyMeals
+# agents.md — All Blue Meals
 
 This repo is a lightweight, text-first personal meal planner built for Supabase free tier. These agents exist to keep changes small, safe, and consistent, with a strong focus on **mobile UX**, **RLS correctness**, and **minimal storage**.
 
