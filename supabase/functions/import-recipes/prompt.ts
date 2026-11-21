@@ -40,8 +40,9 @@ Tag rules:
   - main protein or diet: chicken, beef, pork, seafood, vegetarian, vegan
   - cuisine: italian, mexican, american, thai, indian, mediterranean
   - cooking method or notable feature: no-bake, one-pot, slow cooker, air fryer, grill, sheet pan, quick, make-ahead, gluten-free
+- If any ingredient needs to marinate or brine before cooking (in the instructions or the notes, for any length of time), always include the tag "marinate", in addition to the other tags. The home page shows it first so the cook knows to start ahead.
 - Prefer general, reusable tags over the source page's search keywords: "easy dinner recipes", "creamy tortellini soup" or "chicken recipes" are better as "dinner", "soup" or "chicken". Don't repeat the title or list the ingredients as tags.
-- Examples: tiramisu → ["dessert", "italian", "no-bake"]; chicken francese → ["dinner", "chicken", "italian"]; dutch oven beef stew → ["dinner", "beef", "stew", "one-pot", "comfort food"].`;
+- Examples: tiramisu → ["dessert", "italian", "no-bake"]; chicken francese → ["dinner", "chicken", "italian"]; dutch oven beef stew → ["dinner", "beef", "stew", "one-pot", "comfort food"]; lamb kebabs marinated overnight → ["dinner", "lamb", "greek", "grill", "marinate"].`;
 
 const recipeOutputRules = (categories: Category[]) => `
 Rules:

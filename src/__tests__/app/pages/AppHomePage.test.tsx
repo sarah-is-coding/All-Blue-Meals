@@ -20,12 +20,13 @@ vi.mock("../../../features/recipes/api", () => ({
 }));
 
 import { listPlannedMealsBetween } from "../../../features/meal-plans/api";
-import { addRecipeNote, getRecipeById, rateRecipe } from "../../../features/recipes/api";
+import { addRecipeNote, getRecipeById, listRecipeNotes, rateRecipe } from "../../../features/recipes/api";
 
 // The page works from the real current date, so the fixtures do too.
 const today = new Date();
 const TODAY = toIsoDate(today);
 const YESTERDAY = toIsoDate(addDays(today, -1));
+const TOMORROW = toIsoDate(addDays(today, 1));
 
 const meal = (id: string, plannedFor: string, mealType: MealType, title: string): PlannedMeal => ({
   id,
@@ -76,6 +77,9 @@ const RECIPES: Record<string, RecipeDetail> = {
     cookMinutes: null,
   }),
   "r-soup": recipe("r-soup", "Tortellini soup", [ingredient("italian sausage", "meat_seafood")]),
+  "r-kebabs": recipe("r-kebabs", "Lamb kebabs", [ingredient("lamb shoulder", "meat_seafood")], {
+    tags: ["grill", "summer", "Marinate overnight", "greek", "party"],
+  }),
 };
 
 const renderHome = () =>
@@ -98,7 +102,8 @@ describe("AppHomePage", () => {
     ]);
     renderHome();
 
-    const meals = await screen.findAllByRole("listitem");
+    const todayList = await screen.findByRole("list", { name: "Today's meals" });
+    const meals = within(todayList).getAllByRole("listitem");
     expect(meals).toHaveLength(2);
 
     // Breakfast first, with no meat.
@@ -114,11 +119,54 @@ describe("AppHomePage", () => {
     expect(within(meals[1]!).getByRole("link", { name: "Notes" })).toHaveAttribute("href", "/app/recipes/r-tacos#notes");
   });
 
-  it("asks only for the last 30 days through today", async () => {
+  // The range now runs through tomorrow (it used to end today) so the page can
+  // preview tomorrow's meals in the same single request.
+  it("asks only for the last 30 days through tomorrow", async () => {
     vi.mocked(listPlannedMealsBetween).mockResolvedValue([]);
     renderHome();
     await screen.findByText("Nothing planned for today.");
-    expect(listPlannedMealsBetween).toHaveBeenCalledWith(toIsoDate(addDays(today, -30)), TODAY);
+    expect(listPlannedMealsBetween).toHaveBeenCalledTimes(1);
+    expect(listPlannedMealsBetween).toHaveBeenCalledWith(toIsoDate(addDays(today, -30)), TOMORROW);
+  });
+
+  it("previews tomorrow's meals with their meat, tags (marinate first) and latest note", async () => {
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([meal("kebabs", TOMORROW, "dinner", "Lamb kebabs")]);
+    vi.mocked(listRecipeNotes).mockImplementation(async (recipeId) =>
+      recipeId === "r-kebabs"
+        ? [
+            { id: "n2", body: "Use metal skewers.", createdAt: "2026-11-10T12:00:00Z", updatedAt: "2026-11-10T12:00:00Z" },
+            { id: "n1", body: "Too salty.", createdAt: "2026-10-01T12:00:00Z", updatedAt: "2026-10-01T12:00:00Z" },
+          ]
+        : []
+    );
+    renderHome();
+
+    expect(await screen.findByText("Nothing planned for today.")).toBeInTheDocument();
+    const tomorrowList = screen.getByRole("list", { name: "Tomorrow's meals" });
+    const card = within(tomorrowList).getByRole("listitem");
+    expect(within(card).getByText("Dinner")).toBeInTheDocument();
+    expect(await within(card).findByText("lamb shoulder")).toBeInTheDocument();
+
+    // Marinate tag first, then the recipe's order, up to three, the rest counted.
+    const tags = within(card).getAllByText(/./, { selector: ".recipe-tag" }).map((tag) => tag.textContent);
+    expect(tags).toEqual(["Marinate overnight", "grill", "summer"]);
+    expect(within(card).getByText("+2 more")).toBeInTheDocument();
+
+    // Only the newest note.
+    expect(await within(card).findByText("Use metal skewers.")).toBeInTheDocument();
+    expect(within(card).getByText(/^Latest note · Nov 10, 2026$/)).toBeInTheDocument();
+    expect(within(card).queryByText("Too salty.")).not.toBeInTheDocument();
+  });
+
+  it("says when nothing is planned tomorrow, and shows no note or tags when a recipe has none", async () => {
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([meal("soup", TODAY, "dinner", "Tortellini soup")]);
+    renderHome();
+
+    expect(await screen.findByText("Nothing planned for tomorrow yet.")).toBeInTheDocument();
+    const card = within(screen.getByRole("list", { name: "Today's meals" })).getByRole("listitem");
+    expect(await within(card).findByText("italian sausage")).toBeInTheDocument();
+    expect(within(card).queryByText(/Latest note/)).not.toBeInTheDocument();
+    expect(card.querySelector(".recipe-tag")).toBeNull();
   });
 
   it("offers to plan a meal when nothing is planned", async () => {

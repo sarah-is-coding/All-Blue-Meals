@@ -1,4 +1,4 @@
-import { lastMealBefore, lastMealWhen, todaysMeals } from "../../../app/home/homeMeals";
+import { lastMealBefore, lastMealWhen, mealsOn } from "../../../app/home/homeMeals";
 import type { MealType, PlannedMeal } from "../../../features/meal-plans/types";
 
 const TODAY = "2026-11-19";
@@ -14,19 +14,25 @@ const meal = (id: string, plannedFor: string, mealType: MealType, recipeId: stri
   effectiveServings: 4,
 });
 
-describe("todaysMeals", () => {
-  it("keeps today's meals, breakfast first", () => {
+describe("mealsOn", () => {
+  it("keeps that day's meals, breakfast first", () => {
     const meals = [
       meal("d", TODAY, "dinner"),
       meal("y", "2026-11-18", "dinner"),
       meal("b", TODAY, "breakfast"),
       meal("l", TODAY, "lunch"),
     ];
-    expect(todaysMeals(meals, TODAY).map((m) => m.id)).toEqual(["b", "l", "d"]);
+    expect(mealsOn(meals, TODAY).map((m) => m.id)).toEqual(["b", "l", "d"]);
   });
 
-  it("returns nothing when nothing is planned today", () => {
-    expect(todaysMeals([meal("y", "2026-11-18", "dinner")], TODAY)).toEqual([]);
+  it("works for any day, such as tomorrow", () => {
+    const meals = [meal("t", TODAY, "dinner"), meal("n", "2026-11-20", "lunch")];
+    expect(mealsOn(meals, "2026-11-20").map((m) => m.id)).toEqual(["n"]);
+  });
+
+  it("returns nothing when nothing is planned that day", () => {
+    expect(mealsOn([meal("y", "2026-11-18", "dinner")], TODAY)).toEqual([]);
+    expect(mealsOn([], TODAY)).toEqual([]);
   });
 });
 

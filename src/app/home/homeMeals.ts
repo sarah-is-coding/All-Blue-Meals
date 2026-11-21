@@ -1,5 +1,5 @@
-// Which planned meals the home page shows: today's, and the last one before
-// today (to rate and leave a note on). Pure, so it's easy to test.
+// Which planned meals the home page shows: today's and tomorrow's, and the
+// last one before today (to rate and leave a note on). Pure, so it's easy to test.
 
 import { MEAL_TYPE_OPTIONS } from "../../features/meal-plans/constants";
 import type { MealType, PlannedMeal } from "../../features/meal-plans/types";
@@ -9,9 +9,9 @@ const MEAL_ORDER: Record<MealType, number> = { breakfast: 0, lunch: 1, dinner: 2
 
 const byTimeOfDay = (a: PlannedMeal, b: PlannedMeal) => MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType];
 
-/** Today's meals, breakfast first. */
-export function todaysMeals(meals: ReadonlyArray<PlannedMeal>, todayIso: string): PlannedMeal[] {
-  return meals.filter((meal) => meal.plannedFor === todayIso).sort(byTimeOfDay);
+/** The meals planned for one day (e.g. today, tomorrow), breakfast first. */
+export function mealsOn(meals: ReadonlyArray<PlannedMeal>, dayIso: string): PlannedMeal[] {
+  return meals.filter((meal) => meal.plannedFor === dayIso).sort(byTimeOfDay);
 }
 
 /**

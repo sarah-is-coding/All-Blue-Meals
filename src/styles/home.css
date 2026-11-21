@@ -1,4 +1,4 @@
-/* Home page: today's meals and the last meal to rate (src/app/pages/AppHomePage.tsx). */
+/* Home page: today's and tomorrow's meals and the last meal to rate (src/app/pages/AppHomePage.tsx). */
 
 .home-card {
   display: grid;
@@ -108,6 +108,44 @@
 
 .home-meal__meats--muted {
   color: var(--muted);
+}
+
+.home-meal__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.home-meal__tags-more {
+  font-size: 0.77rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.home-meal__note {
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--alpha-brand-20);
+  border-radius: 0.4rem;
+  background: var(--alpha-brand-12);
+}
+
+.home-meal__note-label {
+  margin: 0 0 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* Two lines of the note, so the preview stays short; "Notes" shows it all. */
+.home-meal__note-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0;
+  white-space: pre-line;
+  color: var(--color-ink-strong);
 }
 
 .home-meal__links {
