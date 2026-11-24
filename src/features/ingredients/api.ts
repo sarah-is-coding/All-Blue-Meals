@@ -50,7 +50,12 @@ const rankMatch = (match: IngredientMatch, key: string, term: string): number =>
  * reached through an approved alias (returned with `matchedAlias` set).
  * Exact key matches come first.
  */
-export async function searchIngredients(term: string, limit = 8): Promise<IngredientMatch[]> {
+export async function searchIngredients(
+  term: string,
+  limit = 8,
+  /** Cancels the search when the typed text has moved on. */
+  options: { signal?: AbortSignal } = {}
+): Promise<IngredientMatch[]> {
   const trimmed = term.trim().toLowerCase();
   if (!trimmed) {
     return [];
@@ -60,23 +65,28 @@ export async function searchIngredients(term: string, limit = 8): Promise<Ingred
   const nameFilter = `name.ilike.${quoteFilterValue(`%${escapeLikePattern(trimmed)}%`)}`;
   const keyFilter = key ? `,name_key.ilike.${quoteFilterValue(`%${key}%`)}` : "";
 
+  let directQuery = supabase
+    .from("ingredients")
+    .select(INGREDIENT_COLUMNS)
+    .or(`${nameFilter}${keyFilter}`)
+    .order("name", { ascending: true })
+    .limit(limit);
+  if (options.signal) directQuery = directQuery.abortSignal(options.signal);
+
+  const aliasQuery = () => {
+    let query = supabase
+      .from("ingredient_aliases")
+      .select(ALIAS_COLUMNS)
+      .eq("status", "approved")
+      .ilike("alias_key", `%${key}%`)
+      .limit(limit);
+    if (options.signal) query = query.abortSignal(options.signal);
+    return query.returns<AliasRow[]>();
+  };
+
   const [direct, aliases] = await Promise.all([
-    supabase
-      .from("ingredients")
-      .select(INGREDIENT_COLUMNS)
-      .or(`${nameFilter}${keyFilter}`)
-      .order("name", { ascending: true })
-      .limit(limit)
-      .returns<IngredientRow[]>(),
-    key
-      ? supabase
-          .from("ingredient_aliases")
-          .select(ALIAS_COLUMNS)
-          .eq("status", "approved")
-          .ilike("alias_key", `%${key}%`)
-          .limit(limit)
-          .returns<AliasRow[]>()
-      : Promise.resolve({ data: [] as AliasRow[], error: null }),
+    directQuery.returns<IngredientRow[]>(),
+    key ? aliasQuery() : Promise.resolve({ data: [] as AliasRow[], error: null }),
   ]);
   throwIfError(direct.error);
   throwIfError(aliases.error);

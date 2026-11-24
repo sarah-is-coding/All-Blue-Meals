@@ -1,11 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import { createIngredient, searchIngredients } from "../../ingredients/api";
-import { useIngredientCategories } from "../../ingredients/queries";
-import type { Ingredient, IngredientCategory, IngredientMatch } from "../../ingredients/types";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  useCreateIngredient,
+  useIngredientCategories,
+  useIngredientSearch,
+} from "../../ingredients/queries";
+import type { Ingredient, IngredientCategory } from "../../ingredients/types";
 import { ingredientKey } from "../../ingredients/utils/ingredientKey";
+import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
 import IngredientCategoryPicker from "./IngredientCategoryPicker";
 
 type Phase = "search" | "categorize";
+
+/** How long typing pauses before the catalog is searched. */
+const SEARCH_DEBOUNCE_MS = 280;
 
 type Props = {
   value: string;
@@ -27,99 +34,78 @@ export default function IngredientNameCombobox({
     categories.find((category) => category.code === code)?.name ?? code;
   const [query, setQuery] = useState(value);
   const [phase, setPhase] = useState<Phase>("search");
-  const [suggestions, setSuggestions] = useState<IngredientMatch[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { create, creating } = useCreateIngredient();
 
-  // Keep the displayed text in sync when the parent resets the field
-  useEffect(() => {
+  // When the parent resets the field, show its value. Adjusted while
+  // rendering rather than in an effect, so the old text never flashes.
+  const [shownValue, setShownValue] = useState(value);
+  if (value !== shownValue) {
+    setShownValue(value);
     setQuery(value);
-  }, [value]);
+  }
 
-  // Debounced search — only runs in search phase
-  useEffect(() => {
-    if (phase !== "search") return;
-    const trimmed = query.trim();
-    if (!trimmed || !isOpen) {
-      setSuggestions([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const results = await searchIngredients(trimmed);
-        setSuggestions(results);
-      } catch {
-        setSuggestions([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 280);
-    return () => clearTimeout(timer);
-  }, [query, isOpen, phase]);
-
-  // Close and reset when clicking outside.
-  //
-  // Important: we check document.contains(target) first. When the user
-  // clicks the "Add new" option, React re-renders synchronously in real
-  // browsers (React 18 flushes during native events), which unmounts the
-  // <li> from the DOM before this handler fires at the document level.
-  // At that point event.target is a detached node, so
-  // containerRef.current.contains() returns false even though the click
-  // was inside the combobox.  Ignoring detached targets fixes this.
-  useEffect(() => {
-    const handleMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!document.contains(target)) return;
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(target)
-      ) {
-        closeAndReset();
-      }
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  // Search a moment after typing stops, only while the list is open in the
+  // search phase. Results belong to the term they were fetched for, so a
+  // slow earlier search can't replace a later one.
+  const typed = query.trim();
+  const debouncedTyped = useDebouncedValue(typed, SEARCH_DEBOUNCE_MS);
+  const searching = isOpen && phase === "search" && typed !== "";
+  const { suggestions, loading } = useIngredientSearch(searching ? debouncedTyped : "");
 
   const closeAndReset = () => {
     setIsOpen(false);
     setPhase("search");
     setQuery(value);
-    setSuggestions([]);
     setActiveIndex(-1);
   };
+
+  // Close and reset when clicking outside.
+  //
+  // Important: we check document.contains(target) first. When the user
+  // clicks the "Add new" option, React re-renders synchronously in real
+  // browsers, which unmounts the <li> from the DOM before this handler fires
+  // at the document level. At that point event.target is a detached node,
+  // so containerRef.current.contains() returns false even though the click
+  // was inside the combobox. Ignoring detached targets fixes this.
+  //
+  // An effect event, so the listener is added once but always resets to the
+  // latest `value`.
+  const onDocumentMouseDown = useEffectEvent((event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node) || !document.contains(target)) return;
+    if (containerRef.current && !containerRef.current.contains(target)) {
+      closeAndReset();
+    }
+  });
+  useEffect(() => {
+    const handleMouseDown = (event: MouseEvent) => onDocumentMouseDown(event);
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
   const commitExisting = (ingredient: Ingredient) => {
     onSelect(ingredient.id, ingredient.name);
     setQuery(ingredient.name);
     setIsOpen(false);
     setPhase("search");
-    setSuggestions([]);
     setActiveIndex(-1);
   };
 
   const commitNew = async (category: IngredientCategory) => {
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    setCreating(true);
+    if (!typed || creating) return;
     try {
-      const created = await createIngredient(trimmed, category);
+      const created = await create({ name: typed, category });
       onSelect(created.id, created.name);
       setQuery(created.name);
       setIsOpen(false);
       setPhase("search");
-      setSuggestions([]);
       setActiveIndex(-1);
     } catch {
       // leave open so the user can try again
-    } finally {
-      setCreating(false);
     }
   };
 

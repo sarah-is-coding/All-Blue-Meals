@@ -8,6 +8,9 @@ vi.mock("../../../../features/ingredients/api", () => ({
 }));
 vi.mock("../../../../features/ingredients/queries", () => ({
   useIngredientCategories: () => [],
+  // The ingredient field searches and creates through these; not under test here.
+  useIngredientSearch: () => ({ suggestions: [], loading: false }),
+  useCreateIngredient: () => ({ create: vi.fn(), creating: false }),
 }));
 
 const VALUES: RecipeFormValues = {

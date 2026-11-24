@@ -17,7 +17,7 @@ import {
 // ─────────────────────────────────────────────────────────────
 vi.mock("../../../lib/supabaseClient", () => {
   const builder: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const method of ["from", "select", "insert", "upsert", "eq", "ilike", "or", "in", "order", "limit"]) {
+  for (const method of ["from", "select", "insert", "upsert", "eq", "ilike", "or", "in", "order", "limit", "abortSignal"]) {
     builder[method] = vi.fn().mockReturnValue(builder);
   }
   builder.returns = vi.fn().mockResolvedValue({ data: [], error: null });
@@ -47,7 +47,7 @@ const ok = (data: unknown) => ({ data, error: null });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const method of ["from", "select", "insert", "upsert", "eq", "ilike", "or", "in", "order", "limit"]) {
+  for (const method of ["from", "select", "insert", "upsert", "eq", "ilike", "or", "in", "order", "limit", "abortSignal"]) {
     db[method].mockReturnValue(db);
   }
   db.returns.mockResolvedValue(ok([]));
@@ -86,6 +86,20 @@ describe("searchIngredients", () => {
     expect(db.from).toHaveBeenCalledWith("ingredient_aliases");
     expect(db.eq).toHaveBeenCalledWith("status", "approved");
     expect(db.ilike).toHaveBeenCalledWith("alias_key", "%jalapeno%");
+  });
+
+  // Both requests (names and aliases) are cancelled when the typed text moves on.
+  it("passes an abort signal to both the name and alias requests", async () => {
+    const controller = new AbortController();
+    await searchIngredients("onion", 8, { signal: controller.signal });
+
+    expect(db.abortSignal).toHaveBeenCalledTimes(2);
+    expect(db.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it("sends the requests without a signal when none is given", async () => {
+    await searchIngredients("onion");
+    expect(db.abortSignal).not.toHaveBeenCalled();
   });
 
   it("escapes wildcards and quotes the value so commas can't break the filter", async () => {

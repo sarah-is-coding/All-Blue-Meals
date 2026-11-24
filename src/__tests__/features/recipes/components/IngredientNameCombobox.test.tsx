@@ -1,15 +1,20 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import IngredientNameCombobox from "../../../../features/recipes/components/IngredientNameCombobox";
 import { FALLBACK_CATEGORIES } from "../../../../features/ingredients/categories/codes";
+import { renderWithProviders as render } from "../../../utils/renderWithProviders";
 
-// Categories come from ingredient_categories through a query; these tests use
-// the built-in list (same codes and labels) instead of a query provider.
-vi.mock("../../../../features/ingredients/queries", async () => {
+// Searching and creating go through the real ingredient query hooks (with a
+// fresh cache per test), so these tests cover them too. Categories use the
+// built-in list (same codes and labels) instead of loading them.
+vi.mock("../../../../features/ingredients/queries", async (importOriginal) => {
   const codes = await vi.importActual<typeof import("../../../../features/ingredients/categories/codes")>(
     "../../../../features/ingredients/categories/codes"
   );
-  return { useIngredientCategories: () => codes.FALLBACK_CATEGORIES };
+  return {
+    ...(await importOriginal<typeof import("../../../../features/ingredients/queries")>()),
+    useIngredientCategories: () => codes.FALLBACK_CATEGORIES,
+  };
 });
 
 // Mock the entire ingredients API so tests never hit the network
@@ -127,6 +132,29 @@ describe("IngredientNameCombobox", () => {
         () => expect(screen.getByText("chicken breast")).toBeInTheDocument(),
         AFTER_DEBOUNCE
       );
+    });
+
+    // Each typed term has its own results: a slow response for an earlier
+    // term must never replace the results for what's typed now.
+    it("keeps the latest results when an earlier search answers late", async () => {
+      let answerChick: (matches: Awaited<ReturnType<typeof searchIngredients>>) => void = () => {};
+      mockSearch.mockImplementation((term) =>
+        term === "chick"
+          ? new Promise((resolve) => (answerChick = resolve))
+          : Promise.resolve([CHICKEN])
+      );
+      const { user, input } = setup();
+
+      await user.type(input, "chick");
+      await waitFor(() => expect(mockSearch).toHaveBeenCalledWith("chick", 8, expect.anything()), AFTER_DEBOUNCE);
+      await user.type(input, "en");
+      await waitFor(() => expect(screen.getByText("chicken breast")).toBeInTheDocument(), AFTER_DEBOUNCE);
+
+      // Let the late answer settle and anything it would re-render happen.
+      await act(async () => answerChick([OLIVE_OIL]));
+
+      expect(screen.queryByText("olive oil")).not.toBeInTheDocument();
+      expect(screen.getByText("chicken breast")).toBeInTheDocument();
     });
 
     it("shows the ingredient category greyed out next to each suggestion", async () => {
