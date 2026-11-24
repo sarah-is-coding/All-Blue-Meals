@@ -21,6 +21,14 @@ those files, the project rule wins.
 | [css.md](css.md) | Plain CSS with custom properties, mobile-first |
 | [testing.md](testing.md) | Vitest 4 + React Testing Library |
 
+## Evaluations
+
+Dated reports measuring the codebase against these principles live in
+[evaluations/](evaluations/), one file per run, named by date.
+
+- [2026-11-24](evaluations/2026-11-24.md): first evaluation, with
+  prioritized findings.
+
 ## How to use them
 
 - Read the file for every tool a change touches before starting it.
