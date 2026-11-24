@@ -4,6 +4,7 @@ import { FunctionsHttpError } from "@supabase/functions-js";
 import { supabase } from "../../../lib/supabaseClient";
 import type { ImportedRecipe, RecipeImportResult } from "../types";
 import { importedIngredientWarnings } from "../utils/importedIngredients";
+import { readImportResponse } from "../utils/importResponse";
 
 /** Add warnings for ingredient names a person should check (brands, lists, placeholders). */
 const withIngredientWarnings = (recipe: ImportedRecipe): ImportedRecipe => ({
@@ -11,9 +12,14 @@ const withIngredientWarnings = (recipe: ImportedRecipe): ImportedRecipe => ({
   warnings: [...(recipe.warnings ?? []), ...importedIngredientWarnings(recipe.ingredients ?? [])],
 });
 
-type ImportRecipesResponse = RecipeImportResult & {
-  error?: string;
+/** The function's JSON is checked (readImportResponse), not trusted as typed. */
+const toImportResult = (data: unknown): RecipeImportResult => {
+  const { recipes, warnings } = readImportResponse(data);
+  return { recipes: recipes.map(withIngredientWarnings), warnings };
 };
+
+const errorFrom = (data: unknown): string | null =>
+  typeof data === "object" && data !== null && "error" in data && typeof data.error === "string" ? data.error : null;
 
 /**
  * When an edge function returns a non-2xx status, Supabase wraps it in a
@@ -44,7 +50,7 @@ export async function extractRecipesFromText(text: string): Promise<RecipeImport
     throw new Error("Paste recipe notes, links, or both before importing.");
   }
 
-  const { data, error } = await supabase.functions.invoke<ImportRecipesResponse>(
+  const { data, error } = await supabase.functions.invoke<unknown>(
     "import-recipes",
     {
       body: { mode: "import", text: trimmedText },
@@ -59,14 +65,12 @@ export async function extractRecipesFromText(text: string): Promise<RecipeImport
     throw new Error("The recipe importer did not return a response.");
   }
 
-  if (data.error) {
-    throw new Error(data.error);
+  const functionError = errorFrom(data);
+  if (functionError) {
+    throw new Error(functionError);
   }
 
-  return {
-    recipes: (data.recipes ?? []).map(withIngredientWarnings),
-    warnings: data.warnings ?? [],
-  };
+  return toImportResult(data);
 }
 
 export async function generateRecipesFromPrompt(
@@ -77,7 +81,7 @@ export async function generateRecipesFromPrompt(
     throw new Error("Describe the recipe or recipes you want to generate.");
   }
 
-  const { data, error } = await supabase.functions.invoke<ImportRecipesResponse>(
+  const { data, error } = await supabase.functions.invoke<unknown>(
     "import-recipes",
     {
       body: { mode: "generate", text: trimmedPrompt },
@@ -92,12 +96,10 @@ export async function generateRecipesFromPrompt(
     throw new Error("The recipe generator did not return a response.");
   }
 
-  if (data.error) {
-    throw new Error(data.error);
+  const functionError = errorFrom(data);
+  if (functionError) {
+    throw new Error(functionError);
   }
 
-  return {
-    recipes: (data.recipes ?? []).map(withIngredientWarnings),
-    warnings: data.warnings ?? [],
-  };
+  return toImportResult(data);
 }

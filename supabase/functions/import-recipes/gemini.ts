@@ -4,6 +4,22 @@
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_MAX_ATTEMPTS = 5;
 
+/** The text of Gemini's first answer, or "" when there isn't one. */
+export const extractGeminiText = (json: unknown): string => {
+  const candidates = isRecord(json) ? json.candidates : undefined;
+  const first = Array.isArray(candidates) ? candidates[0] : undefined;
+  const content = isRecord(first) ? first.content : undefined;
+  const parts = isRecord(content) ? content.parts : undefined;
+  if (!Array.isArray(parts)) return "";
+  return parts
+    .map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : ""))
+    .join("")
+    .trim();
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 export const parseGeminiJson = (text: string): unknown => {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
@@ -27,10 +43,16 @@ const getRetryDelay = (attempt: number, retryAfterHeader: string | null): number
 const shouldRetryGeminiRequest = (status: number): boolean =>
   status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 
+/** How long retries may take in total, so the function answers well within
+ *  its own time limit (the person gets the rate-limit message instead). */
+export const GEMINI_RETRY_BUDGET_MS = 60_000;
+
 export const callGeminiWithBackoff = async (
   prompt: string,
   apiKey: string,
-  responseSchema: unknown
+  responseSchema: unknown,
+  /** Stop retrying once waiting again would pass this time (ms since epoch). */
+  deadline: number = Date.now() + GEMINI_RETRY_BUDGET_MS
 ): Promise<Response> => {
   let lastResponse: Response | null = null;
 
@@ -64,9 +86,12 @@ export const callGeminiWithBackoff = async (
       return response;
     }
 
+    const delay = getRetryDelay(attempt, response.headers.get("retry-after"));
+    if (Date.now() + delay > deadline) return response;
+
     lastResponse = response;
     await response.body?.cancel();
-    await sleep(getRetryDelay(attempt, response.headers.get("retry-after")));
+    await sleep(delay);
   }
 
   if (!lastResponse) {

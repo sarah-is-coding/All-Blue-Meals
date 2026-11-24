@@ -4,7 +4,9 @@
 // docs/ingredient-normalization.md). Read as the signed-in user; the table is
 // readable by any signed-in user.
 
-export type Category = { id: string; name: string; description: string };
+import { type Category, parseCategories } from "./validate.ts";
+
+export type { Category };
 
 export const loadCategories = async (authorization: string): Promise<Category[]> => {
   const url = Deno.env.get("SUPABASE_URL");
@@ -16,7 +18,7 @@ export const loadCategories = async (authorization: string): Promise<Category[]>
     { headers: { apikey: anonKey, Authorization: authorization } }
   );
   if (!response.ok) throw new Error(`Loading categories failed (${response.status}).`);
-  const categories = (await response.json()) as Category[];
+  const categories = parseCategories(await response.json());
   if (categories.length === 0) throw new Error("No ingredient categories found.");
   return categories;
 };
