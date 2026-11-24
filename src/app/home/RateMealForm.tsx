@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import type { PlannedMeal } from "../../features/meal-plans/types";
 import NoteTextarea from "../../features/recipes/components/NoteTextarea";
 import StarRating from "../../features/recipes/components/StarRating";
 import { useRecipe, useRecipeActions, useRecipeNoteActions } from "../../features/recipes/queries";
-import { recipePath } from "../../features/recipes/utils/recipePaths";
-import { lastMealWhen } from "./homeMeals";
 
 // "Note added" fades out by itself after this long.
 const NOTE_ADDED_MS = 4000;
@@ -14,10 +11,11 @@ const errorText = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
 
 /**
- * The last meal planned before today, to rate it and jot a note while it's
- * fresh ("needed more salt"), with links to the recipe and its notes.
+ * Rating a meal you've had and jotting a note while it's fresh ("needed more
+ * salt"). Shown inside the Last meal's HomeMealCard, which has the recipe's
+ * details and links.
  */
-export default function LastMealCard({ meal, todayIso }: { meal: PlannedMeal; todayIso: string }) {
+export default function RateMealForm({ meal }: { meal: PlannedMeal }) {
   const recipeId = meal.recipeId ?? "";
   const { recipe } = useRecipe(meal.recipeId);
   const recipeActions = useRecipeActions();
@@ -63,13 +61,8 @@ export default function LastMealCard({ meal, todayIso }: { meal: PlannedMeal; to
   };
 
   return (
-    <div className="home-last-meal">
-      <p className="home-meal__type">{lastMealWhen(meal, todayIso)}</p>
-      <h3 className="home-meal__title">
-        <Link to={recipePath(recipeId)} state={{ from: "home" }}>{meal.recipeTitle}</Link>
-      </h3>
-
-      <div className="home-last-meal__rating">
+    <div className="home-rate-meal">
+      <div className="home-rate-meal__rating">
         <span>How was it?</span>
         <StarRating
           value={recipe?.rating ?? null}
@@ -79,7 +72,7 @@ export default function LastMealCard({ meal, todayIso }: { meal: PlannedMeal; to
         />
       </div>
 
-      <form className="home-last-meal__note" onSubmit={handleAddNote}>
+      <form className="home-rate-meal__note" onSubmit={handleAddNote}>
         <NoteTextarea
           label={`Note on ${meal.recipeTitle}`}
           placeholder="Anything to remember for next time?"
@@ -91,21 +84,17 @@ export default function LastMealCard({ meal, todayIso }: { meal: PlannedMeal; to
           busy={addingNote}
           submitVerb="add"
         />
-        <div className="home-meal__links">
-          <button type="submit" className="btn btn--primary btn--small" disabled={addingNote || !draft.trim()}>
-            {addingNote ? "Adding…" : "Add note"}
-          </button>
-          <Link className="btn btn--ghost btn--small" to={recipePath(recipeId, "notes")} state={{ from: "home" }}>
-            See all notes
-          </Link>
-          <Link className="btn btn--ghost btn--small" to={recipePath(recipeId)} state={{ from: "home" }}>
-            Open recipe
-          </Link>
-        </div>
+        <button
+          type="submit"
+          className="btn btn--ghost home-rate-meal__add"
+          disabled={addingNote || !draft.trim()}
+        >
+          {addingNote ? "Adding…" : "Add note"}
+        </button>
       </form>
 
       {noteAdded ? (
-        <p className="message home-last-meal__added" role="status">
+        <p className="message home-rate-meal__added" role="status">
           Note added.
         </p>
       ) : null}

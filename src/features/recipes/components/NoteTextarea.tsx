@@ -52,7 +52,7 @@ export default function NoteTextarea({
         placeholder={placeholder}
         value={value}
         maxLength={MAX_NOTE_LENGTH}
-        rows={2}
+        rows={3}
         readOnly={busy}
         aria-busy={busy}
         onChange={(event) => onChange(event.target.value)}

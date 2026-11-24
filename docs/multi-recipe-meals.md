@@ -114,8 +114,8 @@ several recipes without faking a form for each.
   recipe.
 - `useHomeReady` already waits on every recipe and note shown; it just
   receives meals grouped by slot.
-- The Last meal card rates and notes each recipe in yesterday's meal, or just
-  the main (see Open questions).
+- Last day's meals already shows each of that day's meals with its own rating
+  and note; grouped by slot, each meal's recipes would be rated the same way.
 
 ### Phase 1 tests
 - `groupMealsBySlot` and tag-based ordering: happy path, empty, a slot whose
@@ -202,8 +202,8 @@ meal_combo_recipes id, meal_combo_id, recipe_id, servings_override, position
    after using Phase 1 for a while.
 2. **Dragging on the planner:** move the whole meal (proposed), or let a
    single recipe be dragged out of the compact card?
-3. **Last meal card:** rate and note every recipe in yesterday's meal, or
-   only the main?
+3. ~~**Last meal card:** rate and note every recipe in yesterday's meal, or
+   only the main?~~ Decided: every one (Last day's meals rates each meal).
 4. **Are marinades and sauces always tied to one main?** If you mix and match
    them across dishes, Phase 2 matters less and per-meal planning (Phase 1)
    covers it.

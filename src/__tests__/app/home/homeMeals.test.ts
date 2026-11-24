@@ -1,4 +1,4 @@
-import { lastMealBefore, lastMealWhen, mealsOn } from "../../../app/home/homeMeals";
+import { dayLabel, mealsOn, mealTypeLabel, nearestMealDay } from "../../../app/home/homeMeals";
 import type { MealType, PlannedMeal } from "../../../features/meal-plans/types";
 
 const TODAY = "2026-11-19";
@@ -36,35 +36,66 @@ describe("mealsOn", () => {
   });
 });
 
-describe("lastMealBefore", () => {
-  it("picks the latest day before today, and that day's last meal", () => {
-    const meals = [
-      meal("old", "2026-11-15", "dinner"),
-      meal("lunch", "2026-11-18", "lunch"),
-      meal("dinner", "2026-11-18", "dinner"),
-      meal("breakfast", "2026-11-18", "breakfast"),
-      meal("today", TODAY, "breakfast"),
-    ];
-    expect(lastMealBefore(meals, TODAY)?.id).toBe("dinner");
+// One lookup for both directions. It replaces nextMealDay and lastMealBefore,
+// which picked only the last day's final meal: the home page now shows every
+// meal on the last day, like the next day's.
+describe("nearestMealDay", () => {
+  const meals = [
+    meal("old", "2026-11-15", "dinner"),
+    meal("last-lunch", "2026-11-17", "lunch"),
+    meal("last-dinner", "2026-11-17", "dinner"),
+    meal("today", TODAY, "dinner"),
+    meal("next", "2026-11-22", "lunch"),
+    meal("later", "2026-11-25", "dinner"),
+  ];
+
+  it("finds the next day with a meal after today, however far off", () => {
+    expect(nearestMealDay(meals, TODAY, "next")).toBe("2026-11-22");
   });
 
-  it("skips meals whose recipe was deleted", () => {
-    const meals = [meal("kept", "2026-11-17", "dinner"), meal("deleted", "2026-11-18", "dinner", null)];
-    expect(lastMealBefore(meals, TODAY)?.id).toBe("kept");
+  it("finds the last day with a meal before today, however long ago", () => {
+    expect(nearestMealDay(meals, TODAY, "last")).toBe("2026-11-17");
   });
 
-  it("returns null when there's no meal before today", () => {
-    expect(lastMealBefore([meal("today", TODAY, "dinner")], TODAY)).toBeNull();
-    expect(lastMealBefore([], TODAY)).toBeNull();
+  it("never picks today", () => {
+    const onlyToday = [meal("today", TODAY, "dinner")];
+    expect(nearestMealDay(onlyToday, TODAY, "next")).toBeNull();
+    expect(nearestMealDay(onlyToday, TODAY, "last")).toBeNull();
+  });
+
+  it("counts meals whose recipe was deleted (they still show, without a rating)", () => {
+    expect(nearestMealDay([meal("gone", "2026-11-18", "dinner", null)], TODAY, "last")).toBe("2026-11-18");
+    expect(nearestMealDay([meal("gone", "2026-11-20", "dinner", null)], TODAY, "next")).toBe("2026-11-20");
+  });
+
+  it("is null with no meals", () => {
+    expect(nearestMealDay([], TODAY, "next")).toBeNull();
+    expect(nearestMealDay([], TODAY, "last")).toBeNull();
   });
 });
 
-describe("lastMealWhen", () => {
-  it("says yesterday for yesterday's meal", () => {
-    expect(lastMealWhen(meal("y", "2026-11-18", "dinner"), TODAY)).toBe("Yesterday's dinner");
+// Replaces lastMealWhen, which said "Yesterday's dinner" with no date: every
+// card now shows the day's date, labelled yesterday or tomorrow when it is.
+describe("dayLabel", () => {
+  it("labels today, yesterday and tomorrow, with their dates", () => {
+    expect(dayLabel(TODAY, TODAY)).toBe("Today · Thu, Nov 19");
+    expect(dayLabel("2026-11-18", TODAY)).toBe("Yesterday · Wed, Nov 18");
+    expect(dayLabel("2026-11-20", TODAY)).toBe("Tomorrow · Fri, Nov 20");
   });
 
-  it("names the day for earlier meals", () => {
-    expect(lastMealWhen(meal("t", "2026-11-17", "lunch"), TODAY)).toBe("Tue, Nov 17 · Lunch");
+  it("is just the date for other days, either side", () => {
+    expect(dayLabel("2026-11-17", TODAY)).toBe("Tue, Nov 17");
+    expect(dayLabel("2026-11-23", TODAY)).toBe("Mon, Nov 23");
+  });
+
+  it("works across a month end", () => {
+    expect(dayLabel("2026-12-01", "2026-11-30")).toBe("Tomorrow · Tue, Dec 1");
+  });
+});
+
+describe("mealTypeLabel", () => {
+  it("names each meal type", () => {
+    const types: MealType[] = ["breakfast", "lunch", "dinner"];
+    expect(types.map(mealTypeLabel)).toEqual(["Breakfast", "Lunch", "Dinner"]);
   });
 });

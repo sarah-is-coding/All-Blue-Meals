@@ -1,4 +1,5 @@
-/* Home page: today's and tomorrow's meals and the last meal to rate (src/app/pages/AppHomePage.tsx). */
+/* Home page (src/app/pages/AppHomePage.tsx): three sections built the same way
+   (HomeSection), each with the same meal cards (HomeMealCard). */
 
 .home-card {
   display: grid;
@@ -6,25 +7,19 @@
 }
 
 .home-card__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: grid;
+  gap: 0.2rem;
 }
 
-.home-card__header h1,
-.home-card h2 {
+/* Every section's heading looks the same, whether it's the page's h1 or an h2. */
+.home-card__title {
   margin: 0;
   font-family: var(--font-display);
-}
-
-.home-card h2 {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
 }
 
 .home-card__eyebrow {
-  margin: 0 0 0.2rem;
+  margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
@@ -155,12 +150,15 @@
   margin-top: 0.3rem;
 }
 
-.home-last-meal {
+/* Rating the last meal and adding a note (RateMealForm), inside its card. */
+.home-rate-meal {
   display: grid;
   gap: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--alpha-brand-20);
 }
 
-.home-last-meal__rating {
+.home-rate-meal__rating {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -168,12 +166,17 @@
   font-weight: 600;
 }
 
-.home-last-meal__note {
+/* Spaced like the recipe page's note form (.recipe-notes__form). */
+.home-rate-meal__note {
   display: grid;
   gap: 0.5rem;
 }
 
-.home-last-meal__added {
+.home-rate-meal__add {
+  justify-self: start;
+}
+
+.home-rate-meal__added {
   margin: 0;
   animation: home-fade-in 200ms ease-out;
 }
@@ -188,7 +191,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-last-meal__added {
+  .home-rate-meal__added {
     animation: none;
   }
 }

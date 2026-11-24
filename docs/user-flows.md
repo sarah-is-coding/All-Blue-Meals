@@ -10,14 +10,14 @@
 3. Password reset is initiated from `/auth` and completed via recovery link.
 
 ## Authenticated Workspace
-1. Signed in, `/` is the home page (today's and tomorrow's meals, last meal to rate).
+1. Signed in, `/` is the home page (today's meals, the next day with meals, and the last day's meals to rate).
 2. User can sign out and return to public/auth routes.
 
 Workspace routes (at the site root; signed-out visitors are sent to `/auth`):
 
 | Route | Purpose |
 |---|---|
-| `/` | Home: today's and tomorrow's meals, and the last meal to rate |
+| `/` | Home: today's meals, the next day with meals, and the last day's meals to rate |
 | `recipes` | Browse, search, and filter recipes (including by rating) |
 | `recipes/new` | Add a recipe by hand |
 | `recipes/import` | AI import from pasted notes and/or URLs |

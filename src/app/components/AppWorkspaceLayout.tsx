@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
 import AdSlot from "../../components/ads/AdSlot";
 import LoadingModal from "../../components/feedback/LoadingModal";
 import { authService } from "../../features/auth/api";
@@ -15,6 +15,7 @@ const appNavItems = [
 
 export default function AppWorkspaceLayout() {
   const location = useLocation();
+  const navigationType = useNavigationType();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +24,16 @@ export default function AppWorkspaceLayout() {
       clearRecipeListViewState();
     }
   }, [location.pathname]);
+
+  // A new page starts at the top. Without this the browser keeps the old
+  // page's scroll, so a link from low on a page (e.g. the home page's Last
+  // meal) opened the next page part way down. A link to a spot on the page
+  // (#notes) scrolls there itself, and Back / Forward keep the browser's own
+  // restored position.
+  useEffect(() => {
+    if (location.hash || navigationType === "POP") return;
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.hash, navigationType]);
 
   const handleSignOut = async () => {
     setLoading(true);

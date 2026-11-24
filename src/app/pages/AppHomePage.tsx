@@ -1,103 +1,101 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { usePlannedMealsBetween } from "../../features/meal-plans/queries";
 import { addDays, createDateFromIso, toIsoDate } from "../../lib/utils/dates";
-import LastMealCard from "../home/LastMealCard";
-import MealPreviewCard from "../home/MealPreviewCard";
-import { lastMealBefore, mealsOn } from "../home/homeMeals";
+import HomeMealCard from "../home/HomeMealCard";
+import HomeSection from "../home/HomeSection";
+import RateMealForm from "../home/RateMealForm";
+import { dayLabel, mealsOn, nearestMealDay } from "../home/homeMeals";
 import { useHomeReady } from "../home/useHomeReady";
 
-// How far back to look for the last meal to rate.
+// How far back to look for the last day's meals to rate, and ahead for the next day's.
 const LOOKBACK_DAYS = 30;
-
-const todayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" });
+const LOOKAHEAD_DAYS = 30;
 
 /**
- * Home: today's and tomorrow's planned meals (with the meat and seafood they
- * use, their tags, and their latest note), and the last meal before today to
- * rate and leave a note on. One request for the plan: the planned meals from
- * the last 30 days through tomorrow.
+ * Home: today's planned meals and the next day's that has any (with the meat
+ * and seafood they use, their tags, and their latest note), and the last day's
+ * before today, to rate and leave notes on. One request for the plan: the
+ * planned meals from 30 days back to 30 days ahead.
  *
  * `onReady` is called once everything on the page has loaded (see
  * useHomeReady), so the sign-in loading modal can wait for it.
  */
 export default function AppHomePage({ onReady }: { onReady?: () => void }) {
   const todayIso = toIsoDate(new Date());
-  const tomorrowIso = toIsoDate(addDays(createDateFromIso(todayIso), 1));
   const startIso = toIsoDate(addDays(createDateFromIso(todayIso), -LOOKBACK_DAYS));
-  const { items, loading, error } = usePlannedMealsBetween(startIso, tomorrowIso);
+  const endIso = toIsoDate(addDays(createDateFromIso(todayIso), LOOKAHEAD_DAYS));
+  const { items, loading, error } = usePlannedMealsBetween(startIso, endIso);
   const today = mealsOn(items, todayIso);
-  const tomorrow = mealsOn(items, tomorrowIso);
-  const lastMeal = lastMealBefore(items, todayIso);
-  const ready = useHomeReady({ planLoading: loading, today, tomorrow, lastMeal });
+  const nextDay = nearestMealDay(items, todayIso, "next");
+  const next = nextDay ? mealsOn(items, nextDay) : [];
+  const lastDay = nearestMealDay(items, todayIso, "last");
+  const last = lastDay ? mealsOn(items, lastDay) : [];
+  const ready = useHomeReady({ planLoading: loading, meals: [...today, ...next, ...last] });
 
   useEffect(() => {
     if (ready) onReady?.();
   }, [ready, onReady]);
 
+  if (error) {
+    return (
+      <section className="workspace-route home">
+        <p className="error">{error}</p>
+      </section>
+    );
+  }
+
+  // While the plan loads, each section says so instead of "nothing planned".
+  const emptyOr = (message: ReactNode) => (loading ? <p>Loading meals…</p> : message);
+
   return (
     <section className="workspace-route home">
-      <article className="workspace-card home-card">
-        <div className="home-card__header">
-          <div>
-            <p className="home-card__eyebrow">{todayFormatter.format(createDateFromIso(todayIso))}</p>
-            <h1>Today's meals</h1>
-          </div>
-          <Link className="btn btn--ghost" to="/meal-plans">
-            Open planner
-          </Link>
-        </div>
-
-        {error ? (
-          <p className="error">{error}</p>
-        ) : loading ? (
-          <p className="home-card__empty">Loading today's meals…</p>
-        ) : today.length === 0 ? (
-          <div className="home-card__empty">
+      <HomeSection
+        title="Today's meals"
+        headingLevel={1}
+        dateLabel={dayLabel(todayIso, todayIso)}
+        hasMeals={today.length > 0}
+        empty={emptyOr(
+          <>
             <p>Nothing planned for today.</p>
             <Link className="btn btn--primary" to="/meal-plans">
               Plan a meal
             </Link>
-          </div>
-        ) : (
-          <ul className="home-meals" aria-label="Today's meals">
-            {today.map((meal) => (
-              <MealPreviewCard key={meal.id} meal={meal} />
-            ))}
-          </ul>
+          </>
         )}
-      </article>
+      >
+        {today.map((meal) => (
+          <HomeMealCard key={meal.id} meal={meal} />
+        ))}
+      </HomeSection>
 
-      {!loading && !error ? (
-        <>
-          <article className="workspace-card home-card">
-            <div>
-              <p className="home-card__eyebrow">{todayFormatter.format(createDateFromIso(tomorrowIso))}</p>
-              <h2>Tomorrow</h2>
-            </div>
-            {tomorrow.length === 0 ? (
-              <p className="home-card__empty">Nothing planned for tomorrow yet.</p>
-            ) : (
-              <ul className="home-meals" aria-label="Tomorrow's meals">
-                {tomorrow.map((meal) => (
-                  <MealPreviewCard key={meal.id} meal={meal} />
-                ))}
-              </ul>
-            )}
-          </article>
+      <HomeSection
+        title="Next day's meals"
+        dateLabel={nextDay ? dayLabel(nextDay, todayIso) : null}
+        hasMeals={next.length > 0}
+        empty={emptyOr(<p>Nothing planned in the next {LOOKAHEAD_DAYS} days.</p>)}
+      >
+        {next.map((meal) => (
+          <HomeMealCard key={meal.id} meal={meal} />
+        ))}
+      </HomeSection>
 
-          <article className="workspace-card home-card">
-            <h2>Last meal</h2>
-            {lastMeal ? (
-              <LastMealCard meal={lastMeal} todayIso={todayIso} />
-            ) : (
-              <p className="home-card__empty">
-                No meals planned in the last {LOOKBACK_DAYS} days. Once you've cooked one, you can rate it here.
-              </p>
-            )}
-          </article>
-        </>
-      ) : null}
+      <HomeSection
+        title="Last day's meals"
+        dateLabel={lastDay ? dayLabel(lastDay, todayIso) : null}
+        hasMeals={last.length > 0}
+        empty={emptyOr(
+          <p>No meals planned in the last {LOOKBACK_DAYS} days. Once you've cooked one, you can rate it here.</p>
+        )}
+      >
+        {/* Already eaten: no cooking details, but each can be rated and noted
+            (a meal whose recipe was deleted has nothing to rate). */}
+        {last.map((meal) => (
+          <HomeMealCard key={meal.id} meal={meal} showCookingDetails={false}>
+            {meal.recipeId ? <RateMealForm meal={meal} /> : null}
+          </HomeMealCard>
+        ))}
+      </HomeSection>
     </section>
   );
 }

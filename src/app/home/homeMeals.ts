@@ -1,5 +1,6 @@
-// Which planned meals the home page shows: today's and tomorrow's, and the
-// last one before today (to rate and leave a note on). Pure, so it's easy to test.
+// Which planned meals the home page shows: today's, and the nearest day with
+// meals after today and before today (that one's to rate and leave notes on),
+// with labels for when they are. Pure, so it's easy to test.
 
 import { MEAL_TYPE_OPTIONS } from "../../features/meal-plans/constants";
 import type { MealType, PlannedMeal } from "../../features/meal-plans/types";
@@ -9,34 +10,42 @@ const MEAL_ORDER: Record<MealType, number> = { breakfast: 0, lunch: 1, dinner: 2
 
 const byTimeOfDay = (a: PlannedMeal, b: PlannedMeal) => MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType];
 
-/** The meals planned for one day (e.g. today, tomorrow), breakfast first. */
+/** The meals planned for one day (e.g. today), breakfast first. */
 export function mealsOn(meals: ReadonlyArray<PlannedMeal>, dayIso: string): PlannedMeal[] {
   return meals.filter((meal) => meal.plannedFor === dayIso).sort(byTimeOfDay);
 }
 
 /**
- * The most recent meal before today that still has its recipe (a deleted
- * recipe can't be rated): the latest day, and that day's last meal (dinner
- * after lunch after breakfast). Null when there's none.
+ * The nearest day with a meal planned after today ("next": tomorrow or later)
+ * or before it ("last": yesterday or earlier), or null when there's none.
  */
-export function lastMealBefore(meals: ReadonlyArray<PlannedMeal>, todayIso: string): PlannedMeal | null {
-  let last: PlannedMeal | null = null;
-  for (const meal of meals) {
-    if (!meal.recipeId || meal.plannedFor >= todayIso) continue;
-    const later =
-      !last || meal.plannedFor > last.plannedFor || (meal.plannedFor === last.plannedFor && byTimeOfDay(meal, last) > 0);
-    if (later) last = meal;
+export function nearestMealDay(
+  meals: ReadonlyArray<PlannedMeal>,
+  todayIso: string,
+  direction: "next" | "last"
+): string | null {
+  let nearest: string | null = null;
+  for (const { plannedFor: day } of meals) {
+    const onSide = direction === "next" ? day > todayIso : day < todayIso;
+    const nearer = nearest === null || (direction === "next" ? day < nearest : day > nearest);
+    if (onSide && nearer) nearest = day;
   }
-  return last;
+  return nearest;
 }
+
+/** "Breakfast", "Lunch", "Dinner". */
+export const mealTypeLabel = (mealType: MealType): string =>
+  MEAL_TYPE_OPTIONS.find((option) => option.value === mealType)?.label ?? mealType;
 
 const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-/** "Yesterday's dinner", or "Tue, Nov 17 · Dinner" for an earlier day. */
-export const lastMealWhen = (meal: PlannedMeal, todayIso: string): string => {
-  const mealType = MEAL_TYPE_OPTIONS.find((option) => option.value === meal.mealType)?.label ?? meal.mealType;
-  const yesterday = toIsoDate(addDays(createDateFromIso(todayIso), -1));
-  return meal.plannedFor === yesterday
-    ? `Yesterday's ${mealType.toLowerCase()}`
-    : `${dayFormatter.format(createDateFromIso(meal.plannedFor))} · ${mealType}`;
-};
+/** When a day is, the same way on every home card: "Today · Mon, Nov 23",
+ *  "Yesterday · Sun, Nov 22", "Tomorrow · Tue, Nov 24", or "Thu, Nov 26". */
+export function dayLabel(dateIso: string, todayIso: string): string {
+  const today = createDateFromIso(todayIso);
+  const date = dayFormatter.format(createDateFromIso(dateIso));
+  if (dateIso === todayIso) return `Today · ${date}`;
+  if (dateIso === toIsoDate(addDays(today, -1))) return `Yesterday · ${date}`;
+  if (dateIso === toIsoDate(addDays(today, 1))) return `Tomorrow · ${date}`;
+  return date;
+}

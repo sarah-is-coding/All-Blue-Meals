@@ -80,7 +80,7 @@ export default function RecipeNotes({ recipeId }: RecipeNotesProps) {
           submitVerb="add"
         />
         <div className="recipe-notes__actions">
-          <button type="submit" className="btn btn--primary btn--small" disabled={adding || !draft.trim()}>
+          <button type="submit" className="btn btn--primary" disabled={adding || !draft.trim()}>
             {adding ? "Adding…" : "Add note"}
           </button>
         </div>
