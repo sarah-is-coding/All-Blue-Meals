@@ -66,7 +66,7 @@ export default function LastMealCard({ meal, todayIso }: { meal: PlannedMeal; to
     <div className="home-last-meal">
       <p className="home-meal__type">{lastMealWhen(meal, todayIso)}</p>
       <h3 className="home-meal__title">
-        <Link to={recipePath(recipeId)}>{meal.recipeTitle}</Link>
+        <Link to={recipePath(recipeId)} state={{ from: "home" }}>{meal.recipeTitle}</Link>
       </h3>
 
       <div className="home-last-meal__rating">
@@ -95,10 +95,10 @@ export default function LastMealCard({ meal, todayIso }: { meal: PlannedMeal; to
           <button type="submit" className="btn btn--primary btn--small" disabled={addingNote || !draft.trim()}>
             {addingNote ? "Adding…" : "Add note"}
           </button>
-          <Link className="btn btn--ghost btn--small" to={recipePath(recipeId, "notes")}>
+          <Link className="btn btn--ghost btn--small" to={recipePath(recipeId, "notes")} state={{ from: "home" }}>
             See all notes
           </Link>
-          <Link className="btn btn--ghost btn--small" to={recipePath(recipeId)}>
+          <Link className="btn btn--ghost btn--small" to={recipePath(recipeId)} state={{ from: "home" }}>
             Open recipe
           </Link>
         </div>

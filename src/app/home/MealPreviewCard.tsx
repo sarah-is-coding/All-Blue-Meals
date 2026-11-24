@@ -41,7 +41,7 @@ export default function MealPreviewCard({ meal }: { meal: PlannedMeal }) {
     <li className="home-meal">
       <p className="home-meal__type">{mealTypeLabel(meal)}</p>
       <h3 className="home-meal__title">
-        {meal.recipeId ? <Link to={recipePath(meal.recipeId)}>{meal.recipeTitle}</Link> : meal.recipeTitle}
+        {meal.recipeId ? <Link to={recipePath(meal.recipeId)} state={{ from: "home" }}>{meal.recipeTitle}</Link> : meal.recipeTitle}
       </h3>
 
       {servings || time ? (
@@ -81,10 +81,10 @@ export default function MealPreviewCard({ meal }: { meal: PlannedMeal }) {
 
       {meal.recipeId ? (
         <div className="home-meal__links">
-          <Link className="btn btn--primary" to={recipePath(meal.recipeId)}>
+          <Link className="btn btn--primary" to={recipePath(meal.recipeId)} state={{ from: "home" }}>
             Open recipe
           </Link>
-          <Link className="btn btn--ghost" to={recipePath(meal.recipeId, "notes")}>
+          <Link className="btn btn--ghost" to={recipePath(meal.recipeId, "notes")} state={{ from: "home" }}>
             Notes
           </Link>
         </div>

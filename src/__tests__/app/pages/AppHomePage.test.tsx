@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import AppHomePage from "../../../app/pages/AppHomePage";
+import RecipeBackLinks, { type RecipeBackLinksState } from "../../../features/recipes/components/RecipeBackLinks";
 import type { MealType, PlannedMeal } from "../../../features/meal-plans/types";
 import type { RecipeDetail, RecipeIngredient } from "../../../features/recipes/types";
 import { addDays, toIsoDate } from "../../../lib/utils/dates";
@@ -222,6 +223,39 @@ describe("AppHomePage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(onReady).toHaveBeenCalled());
+  });
+
+  it("opens recipes so their page links back home, not to Recipes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listPlannedMealsBetween).mockResolvedValue([
+      meal("tacos", TODAY, "dinner", "Chicken tacos"),
+      meal("soup", YESTERDAY, "dinner", "Tortellini soup"),
+    ]);
+    // The recipe page's back links, given the state the home page's link passed.
+    function RecipeBackLinksProbe() {
+      return <RecipeBackLinks state={useLocation().state as RecipeBackLinksState | null} />;
+    }
+    const renderHomeWithRecipe = () =>
+      renderWithProviders(
+        <MemoryRouter>
+          <Routes>
+            <Route path="/" element={<AppHomePage />} />
+            <Route path="/recipes/:recipeId" element={<RecipeBackLinksProbe />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+    // Today's meal card, by its title.
+    const first = renderHomeWithRecipe();
+    await user.click(await screen.findByRole("link", { name: "Chicken tacos" }));
+    expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/");
+    expect(screen.queryByRole("link", { name: "Back to Recipes" })).not.toBeInTheDocument();
+    first.unmount();
+
+    // The last meal card's "See all notes".
+    renderHomeWithRecipe();
+    await user.click(await screen.findByRole("link", { name: "See all notes" }));
+    expect(screen.getByRole("link", { name: "Back to Home" })).toBeInTheDocument();
   });
 
   it("shows an error when the plan can't load", async () => {

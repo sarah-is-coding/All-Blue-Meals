@@ -63,6 +63,12 @@ describe("RecipeBackLinks", () => {
     expect(screen.queryByRole("link", { name: "Back to Recipes" })).not.toBeInTheDocument();
   });
 
+  it("links only back home for a recipe opened from the home page", () => {
+    renderLinks({ from: "home" });
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/");
+  });
+
   it("offers both when picking a recipe for a planner slot", () => {
     renderLinks({ from: "meal-planner", mealSlot: { date: "2026-11-17", mealType: "dinner" } });
     expect(screen.getAllByRole("link")).toHaveLength(2);
