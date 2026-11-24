@@ -32,6 +32,43 @@ AGENTS.md win if the two ever disagree.
 | CSS | [principles/css.md](principles/css.md) |
 | Vitest + React Testing Library | [principles/testing.md](principles/testing.md) |
 
+### Check every change against the principles before committing
+
+After implementing a change and before committing it (alongside lint, build,
+and tests):
+
+1. List the technologies the diff touches (`git diff --stat` and the file
+   types: `.tsx`, `queries.ts`, `.css`, a migration, an edge function, a
+   test).
+2. Re-read the matching principle files, plus the CLAUDE.md and AGENTS.md
+   rules for those areas, and review **the diff** against them, line by
+   line. Don't rely on memory of the rules.
+3. Fix every violation the change introduced before committing. Don't
+   leave it for later or list it as a follow-up.
+4. Violations that were already in code the change touched: fix them if the
+   fix is small and in scope. Otherwise mention them in the summary and
+   don't widen the change.
+5. In the summary to the user, say which principle files were checked and
+   what was fixed as a result.
+
+**If following a principle seems wrong for this change**, don't break it
+quietly and don't just comply against your judgment. Stop before committing
+and bring the user an argument:
+
+- the principle (file and section) and why it doesn't fit this case;
+- evidence from research: official docs or maintainer guidance first,
+  community sources only as support, with links;
+- the trade-offs of each option, including what breaking the principle
+  would cost;
+- the exact wording you propose for the principle file (an exception, a
+  narrower rule, or a replacement).
+
+The user decides. If they agree, update the principle file (and CLAUDE.md or
+AGENTS.md if a project rule changes too) in the same change as the code that
+relies on it. If they don't, follow the principle. "It was faster" or "the
+existing code does it" is not an argument; existing code may be one of the
+violations an evaluation found.
+
 ---
 
 ## Testing — Non-Negotiable Rules

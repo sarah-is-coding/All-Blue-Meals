@@ -246,6 +246,7 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 - [ ] Minimal fields fetched for list views  
 - [ ] Manual test plan included  
 - [ ] CI passes (lint, type-check/build, tests)  
+- [ ] Diff checked against the relevant `principles/` files, with violations fixed or a research-backed exception agreed with the user (see "Check every change against the principles" in [CLAUDE.md](CLAUDE.md))  
 - [ ] Ad placement reviewed for non-intrusiveness and accidental-click safety (if ads are touched)
 
 ---
