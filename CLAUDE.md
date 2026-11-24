@@ -269,7 +269,8 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   importing or generating recipes) are `useMutation` hooks there. On-demand
   reads (building a grocery list) are `useQuery` hooks keyed by what they're
   built from and enabled once the user asks. Components never import `api.ts`
-  or hand-roll `loading`/`error` state for these calls
+  or hand-roll `loading`/`error` state for these calls. ESLint enforces the
+  import rule for `components/`, `pages/`, and `src/app`
 - Components never import `@tanstack/react-query` or build cache keys;
   ESLint only allows the library in `src/lib/query`, `queries.ts` files,
   `src/app/App.tsx`, and `src/app/useSessionCache.ts`
@@ -289,10 +290,13 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   the visible week) so it never shares bandwidth with speculative requests
 - Tests render with `renderWithProviders` / `renderHookWithProviders` from
   `src/__tests__/utils/renderWithProviders.tsx` (fresh cache + test user)
-- Query modules include `meal-plans/queries.ts` (weeks, date ranges,
-  saved plans, previews) and
-  `recipes/queries.ts` (list pages, recipe detail). Recipe changes also
-  refresh planner weeks, since the planner shows recipe titles/servings
+- Query modules: `meal-plans/queries.ts` (weeks, date ranges, saved plans,
+  previews); `recipes/queries.ts` (list pages, recipe detail, notes, AI
+  import/generate); `ingredients/queries.ts` (search, create, categories,
+  "is it new?" matches); `preferences/queries.ts`; `auth/queries.ts`
+  (sign in/up/out, password reset); `grocery/queries.ts` (building a list).
+  Recipe changes also refresh planner weeks, since the planner shows recipe
+  titles/servings
 
 ### User preferences
 

@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+// Components here use mutations, so they render inside a query provider.
+import { renderWithProviders as render } from "../../../utils/renderWithProviders";
 import { MemoryRouter } from "react-router-dom";
 import AuthPage from "../../../../features/auth/pages/AuthPage";
 

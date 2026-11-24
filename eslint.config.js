@@ -43,6 +43,15 @@ const restrictImports = (patterns, { allowQueryLibrary = false } = {}) => ({
   ],
 })
 
+// Components, pages, and the app shell load data through a feature's
+// queries.ts, which calls its api.ts; they never import api.ts themselves
+// (see "Data loading" in CLAUDE.md).
+const API_MODULE = {
+  regex: '(^|/)api(/[^/]+)?$',
+  message:
+    'Use the hooks in the feature\x27s queries.ts instead of api.ts (see "Data loading" in CLAUDE.md).',
+}
+
 const importsFrom = (dirs, message) => ({
   regex: `^(\\.\\./)+(${dirs.join('|')})(/|$)`,
   message,
@@ -71,6 +80,10 @@ const featureBoundaries = features.map((feature) => {
     {
       files: [`src/features/${feature}/**/*.{ts,tsx}`],
       rules: restrictImports(patterns),
+    },
+    {
+      files: [`src/features/${feature}/{components,pages}/**/*.{ts,tsx}`],
+      rules: restrictImports([...patterns, API_MODULE]),
     },
     {
       files: [`src/features/${feature}/queries.ts`],
@@ -102,6 +115,11 @@ export default defineConfig([
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/__tests__/**', ...QUERY_ALLOWED_FILES],
     rules: restrictImports([]),
+  },
+  {
+    files: ['src/app/**/*.{ts,tsx}'],
+    ignores: QUERY_ALLOWED_FILES,
+    rules: restrictImports([API_MODULE]),
   },
   {
     files: ['src/lib/**/*.{ts,tsx}', 'src/components/**/*.{ts,tsx}'],

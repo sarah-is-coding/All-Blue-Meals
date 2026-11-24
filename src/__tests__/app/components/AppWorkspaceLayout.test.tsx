@@ -1,5 +1,7 @@
 import { lazy, type JSX } from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+// Components here use mutations, so they render inside a query provider.
+import { renderWithProviders as render } from "../../utils/renderWithProviders";
 import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import AppWorkspaceLayout from "../../../app/components/AppWorkspaceLayout";
 

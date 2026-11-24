@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SAVE_PREFERENCES_ERROR } from "../api";
+import { SAVE_PREFERENCES_ERROR } from "../constants";
 import PlanningCadenceField from "../components/PlanningCadenceField";
 import WeekStartField from "../components/WeekStartField";
 import { usePreferencesActions, useUserPreferencesQuery } from "../queries";

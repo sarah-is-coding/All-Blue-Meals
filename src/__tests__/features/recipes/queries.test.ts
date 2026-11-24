@@ -2,6 +2,8 @@ import { act, waitFor } from "@testing-library/react";
 import { mealPlanKeys } from "../../../features/meal-plans/queries";
 import {
   recipeKeys,
+  useGenerateRecipes,
+  useImportRecipes,
   useRecipe,
   useRecipeActions,
   useRecipeList,
@@ -30,6 +32,8 @@ vi.mock("../../../features/recipes/api", () => ({
   addRecipeNote: vi.fn(),
   updateRecipeNote: vi.fn(),
   deleteRecipeNote: vi.fn(),
+  extractRecipesFromText: vi.fn(),
+  generateRecipesFromPrompt: vi.fn(),
 }));
 
 import {
@@ -37,6 +41,8 @@ import {
   createRecipe,
   deleteRecipe,
   deleteRecipeNote,
+  extractRecipesFromText,
+  generateRecipesFromPrompt,
   listRecipeNotes,
   listRecipeTags,
   updateRecipeNote,
@@ -303,5 +309,33 @@ describe("useRecipeTagFolders", () => {
     expect(recipeKeys.tags(TEST_USER_ID).slice(0, recipeKeys.lists(TEST_USER_ID).length)).toEqual(
       recipeKeys.lists(TEST_USER_ID)
     );
+  });
+});
+
+// Importing and generating only produce drafts; nothing is saved or cached.
+describe("AI recipe drafts", () => {
+  const result = { recipes: [], warnings: ["Could not read https://x."] } as never;
+
+  it("useImportRecipes extracts drafts from pasted text", async () => {
+    vi.mocked(extractRecipesFromText).mockResolvedValue(result);
+    const { result: hook } = renderHookWithProviders(() => useImportRecipes());
+
+    let drafts: unknown;
+    await act(async () => {
+      drafts = await hook.current.mutateAsync("Tacos: https://x");
+    });
+
+    expect(extractRecipesFromText).toHaveBeenCalledWith("Tacos: https://x");
+    expect(drafts).toBe(result);
+  });
+
+  it("useGenerateRecipes generates drafts from a request", async () => {
+    vi.mocked(generateRecipesFromPrompt).mockRejectedValue(new Error("Gemini is rate limited right now."));
+    const { result: hook } = renderHookWithProviders(() => useGenerateRecipes());
+
+    await act(async () => {
+      await expect(hook.current.mutateAsync("3 quick dinners")).rejects.toThrow("rate limited");
+    });
+    expect(generateRecipesFromPrompt).toHaveBeenCalledWith("3 quick dinners");
   });
 });

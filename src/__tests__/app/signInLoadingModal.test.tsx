@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+// Components here use mutations, so they render inside a query provider.
+import { renderWithProviders as render } from "../utils/renderWithProviders";
 import { Outlet } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import AppRouter from "../../app/AppRouter";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { authService } from "../api";
+import { useRequestPasswordReset, useSignIn, useSignUp, useUpdatePassword } from "../queries";
 import { authLinkRedirectUrl } from "../utils/authRedirect";
 import LoadingModal from "../../../components/feedback/LoadingModal";
 
@@ -31,9 +31,28 @@ export default function AuthPage({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<AuthMode>(recovery ? "resetUpdate" : "signIn");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(recovery ? null : linkError);
+  // What's wrong with the form itself (or the email link that brought the
+  // user here). Errors from Supabase come from the mutations below.
+  const [formError, setFormError] = useState<string | null>(recovery ? null : linkError);
   const [message, setMessage] = useState<string | null>(recovery ? RECOVERY_MESSAGE : null);
+
+  const signIn = useSignIn();
+  const signUp = useSignUp();
+  const requestReset = useRequestPasswordReset();
+  const updatePassword = useUpdatePassword();
+  const pending = [signIn, signUp, requestReset, updatePassword].some((action) => action.isPending);
+
+  // The form on screen shows its own action's error.
+  const activeAction =
+    mode === "signUp" ? signUp : mode === "resetRequest" ? requestReset : mode === "resetUpdate" ? updatePassword : signIn;
+  const error = formError ?? activeAction.error?.message ?? null;
+
+  /** Clears what's shown before an action, or when switching forms. */
+  const clearFeedback = () => {
+    setFormError(null);
+    setMessage(null);
+    for (const action of [signIn, signUp, requestReset, updatePassword]) action.reset();
+  };
 
   // The message now lives in this page's own state; let the parent drop it.
   useEffect(() => {
@@ -47,7 +66,7 @@ export default function AuthPage({
     setWasRecovery(recovery);
     if (recovery) {
       setMode("resetUpdate");
-      setError(null);
+      setFormError(null);
       setMessage(RECOVERY_MESSAGE);
     }
   }
@@ -60,78 +79,62 @@ export default function AuthPage({
 
   const handleAuth = async (event: React.FormEvent) => {
     event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
+    clearFeedback();
 
     if (!email || !password) {
-      setError("Email and password are required.");
-      setLoading(false);
+      setFormError("Email and password are required.");
       return;
     }
 
     onSignInProgress?.(loadingMessageByMode[mode]);
-    const action =
-      mode === "signUp"
-        ? authService.signUpWithEmail(email, password, authLinkRedirectUrl())
-        : authService.signInWithEmail(email, password);
-
-    const { data, error: authError } = await action;
-    if (authError) {
-      setError(authError.message);
-    } else if (mode === "signUp" && !data.session) {
-      setMessage("Check your inbox for a link to confirm your email.");
+    try {
+      const data =
+        mode === "signUp"
+          ? await signUp.mutateAsync({ email, password, emailRedirectTo: authLinkRedirectUrl() })
+          : await signIn.mutateAsync({ email, password });
+      if (mode === "signUp" && !data.session) {
+        setMessage("Check your inbox for a link to confirm your email.");
+      }
+      // Signed in: the parent keeps its modal up until the home page loads.
+      if (!data.session) onSignInProgress?.(null);
+    } catch {
+      // The mutation holds the error, which the form shows.
+      onSignInProgress?.(null);
     }
-    // Signed in: the parent keeps its modal up until the home page loads.
-    if (authError || !data.session) onSignInProgress?.(null);
-
-    setLoading(false);
   };
 
   const handleRequestPasswordReset = async (event: React.FormEvent) => {
     event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
+    clearFeedback();
 
     if (!email) {
-      setError("Email is required.");
-      setLoading(false);
+      setFormError("Email is required.");
       return;
     }
 
-    const { error: resetError } = await authService.requestPasswordReset(email, authLinkRedirectUrl());
-
-    if (resetError) {
-      setError(resetError.message);
-    } else {
+    try {
+      await requestReset.mutateAsync({ email, redirectTo: authLinkRedirectUrl() });
       setMessage("If there’s an account with that email, you’ll get a link to reset your password.");
+    } catch {
+      // Shown from the mutation's error.
     }
-
-    setLoading(false);
   };
 
   const handleUpdatePassword = async (event: React.FormEvent) => {
     event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
+    clearFeedback();
 
     if (!password) {
-      setError("New password is required.");
-      setLoading(false);
+      setFormError("New password is required.");
       return;
     }
 
-    const { error: updateError } = await authService.updatePassword(password);
-
-    if (updateError) {
-      setError(updateError.message);
-      setLoading(false);
-      return;
+    try {
+      await updatePassword.mutateAsync(password);
+    } catch {
+      return; // Shown from the mutation's error.
     }
 
-    await authService.signOut();
     window.history.replaceState(
       null,
       "",
@@ -140,14 +143,13 @@ export default function AuthPage({
     setPassword("");
     setMode("signIn");
     setMessage("Password updated. Sign in with your new password.");
-    setLoading(false);
   };
 
   return (
     <main className="auth-page">
       {/* Sign-in and sign-up use the parent's modal when it provides one. */}
       <LoadingModal
-        open={loading && !(onSignInProgress && (mode === "signIn" || mode === "signUp"))}
+        open={pending && !(onSignInProgress && (mode === "signIn" || mode === "signUp"))}
         title="Please wait..."
         message={loadingMessageByMode[mode]}
       />
@@ -182,8 +184,8 @@ export default function AuthPage({
               {message ? <p className="message">{message}</p> : null}
 
               <div className="actions">
-                <button type="submit" className="btn btn--primary" disabled={loading}>
-                  {loading ? "Updating..." : "Update password"}
+                <button type="submit" className="btn btn--primary" disabled={pending}>
+                  {pending ? "Updating..." : "Update password"}
                 </button>
                 <button
                   type="button"
@@ -191,10 +193,9 @@ export default function AuthPage({
                   onClick={() => {
                     setMode("signIn");
                     setPassword("");
-                    setError(null);
-                    setMessage(null);
+                    clearFeedback();
                   }}
-                  disabled={loading}
+                  disabled={pending}
                 >
                   Back to sign in
                 </button>
@@ -218,18 +219,17 @@ export default function AuthPage({
               {message ? <p className="message">{message}</p> : null}
 
               <div className="actions">
-                <button type="submit" className="btn btn--primary" disabled={loading}>
-                  {loading ? "Sending..." : "Send reset link"}
+                <button type="submit" className="btn btn--primary" disabled={pending}>
+                  {pending ? "Sending..." : "Send reset link"}
                 </button>
                 <button
                   type="button"
                   className="btn btn--ghost"
                   onClick={() => {
                     setMode("signIn");
-                    setError(null);
-                    setMessage(null);
+                    clearFeedback();
                   }}
-                  disabled={loading}
+                  disabled={pending}
                 >
                   Back to sign in
                 </button>
@@ -266,7 +266,7 @@ export default function AuthPage({
               {message ? <p className="message">{message}</p> : null}
 
               <div className="auth-form__account-actions">
-                <button type="submit" className="btn btn--primary btn--small" disabled={loading}>
+                <button type="submit" className="btn btn--primary btn--small" disabled={pending}>
                   {mode === "signUp" ? "Sign up" : "Sign in"}
                 </button>
                 <button
@@ -274,10 +274,9 @@ export default function AuthPage({
                   className="btn btn--ghost btn--small"
                   onClick={() => {
                     setMode(mode === "signUp" ? "signIn" : "signUp");
-                    setError(null);
-                    setMessage(null);
+                    clearFeedback();
                   }}
-                  disabled={loading}
+                  disabled={pending}
                 >
                   {mode === "signUp" ? "Sign in" : "Sign up"}
                 </button>
@@ -287,10 +286,9 @@ export default function AuthPage({
                   onClick={() => {
                     setMode("resetRequest");
                     setPassword("");
-                    setError(null);
-                    setMessage(null);
+                    clearFeedback();
                   }}
-                  disabled={loading}
+                  disabled={pending}
                 >
                   Forgot password?
                 </button>

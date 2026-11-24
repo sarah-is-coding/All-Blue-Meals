@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { keepPreviousData, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUserId } from "../../lib/auth/sessionContext";
 import { useInvalidateMealPlanWeeks } from "../meal-plans/queries";
 import {
@@ -7,6 +7,8 @@ import {
   createRecipe,
   deleteRecipe,
   deleteRecipeNote,
+  extractRecipesFromText,
+  generateRecipesFromPrompt,
   getRecipeById,
   listRecipeNotes,
   listRecipeTags,
@@ -121,6 +123,17 @@ export function useRecipe(recipeId: string | null) {
 /** Changes to recipes. Each saves first, then refreshes the cached data it
  *  affects: the recipe itself, recipe lists, and planner weeks (which show
  *  recipe titles and servings). */
+/** Turns pasted notes and links into recipe drafts (the import edge
+ *  function). Nothing is saved, so no cached data changes. */
+export function useImportRecipes() {
+  return useMutation({ mutationFn: (text: string) => extractRecipesFromText(text) });
+}
+
+/** Generates recipe drafts from a request. Nothing is saved. */
+export function useGenerateRecipes() {
+  return useMutation({ mutationFn: (prompt: string) => generateRecipesFromPrompt(prompt) });
+}
+
 export function useRecipeActions() {
   const client = useQueryClient();
   const userId = useCurrentUserId();

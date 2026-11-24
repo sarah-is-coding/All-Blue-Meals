@@ -1,20 +1,18 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { buildGroceryItemsForRange, buildGroceryItemsForSavedPlan } from "../api";
 import PlanBrowser, { type PlanBrowserTab } from "../../meal-plans/components/PlanBrowser";
 import SavedPlanList from "../../meal-plans/components/SavedPlanList";
 import { opensSavedPlansTab } from "../../meal-plans/utils/savedPlansNavigation";
 import GroceryCalendarTab from "../components/GroceryCalendarTab";
 import GroceryListCard from "../components/GroceryListCard";
-import type { GroceryItemDraft, GrocerySource } from "../types";
+import { useGroceryList } from "../queries";
+import type { GrocerySource } from "../types";
 import { usePlanningPeriod } from "../../../lib/preferences/usePlanningPeriod";
 import { formatDateRange, toIsoDate } from "../../../lib/utils/dates";
 import type { SavedMealPlan } from "../../meal-plans/types";
 
-type BuiltList = {
-  items: GroceryItemDraft[];
-  sourceLabel: string;
-};
+const sourceLabel = (source: GrocerySource): string =>
+  source.kind === "range" ? formatDateRange(source.startIso, source.endIso) : source.planLabel;
 
 export default function GroceryPage() {
   // ── Source: the open Browse plans tab decides what the list is built from ─
@@ -45,16 +43,11 @@ export default function GroceryPage() {
   // ── The built list ────────────────────────────────────────────────────────
   // Building clears the old list first, so each new list's card starts
   // fresh (no ticks carried over).
-  const [built, setBuilt] = useState<BuiltList | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
+  const grocery = useGroceryList();
 
   // A list belongs to the source it was built from, so changing the source
   // (dates, plan, or tab) clears it.
-  function clearList() {
-    setBuilt(null);
-    setGenerateError(null);
-  }
+  const clearList = grocery.clear;
 
   const selectRange = (startIso: string, endIso: string) => {
     setRange({ startIso, endIso });
@@ -74,32 +67,8 @@ export default function GroceryPage() {
     clearList();
   };
 
-  const handleGenerate = async () => {
-    if (source === null) return;
-    setGenerating(true);
-    clearList();
-
-    try {
-      let list: BuiltList;
-      if (source.kind === "range") {
-        list = {
-          items: await buildGroceryItemsForRange(source.startIso, source.endIso),
-          sourceLabel: formatDateRange(source.startIso, source.endIso),
-        };
-      } else {
-        list = {
-          items: await buildGroceryItemsForSavedPlan(source.planId),
-          sourceLabel: source.planLabel,
-        };
-      }
-      setBuilt(list);
-    } catch (e) {
-      setGenerateError(
-        e instanceof Error ? e.message : "Failed to generate grocery list."
-      );
-    } finally {
-      setGenerating(false);
-    }
+  const handleGenerate = () => {
+    if (source !== null) grocery.build(source);
   };
 
   // Build sits at the end of each tab: under the dates, or under the saved
@@ -110,12 +79,12 @@ export default function GroceryPage() {
         type="button"
         className="btn btn--primary"
         onClick={handleGenerate}
-        disabled={generating || source === null}
+        disabled={grocery.building || source === null}
       >
-        {generating ? "Building…" : "Build Grocery List"}
+        {grocery.building ? "Building…" : "Build Grocery List"}
       </button>
-      {generateError && (
-        <p className="error grocery-route__error">{generateError}</p>
+      {grocery.error && (
+        <p className="error grocery-route__error">{grocery.error}</p>
       )}
     </div>
   );
@@ -153,9 +122,14 @@ export default function GroceryPage() {
           />
         </div>
 
-        {built && (
+        {grocery.items && grocery.source && (
           <div className="grocery-list-area">
-            <GroceryListCard items={built.items} sourceLabel={built.sourceLabel} />
+            {/* Keyed by build, so each new list starts with nothing ticked. */}
+            <GroceryListCard
+              key={grocery.builtAt}
+              items={grocery.items}
+              sourceLabel={sourceLabel(grocery.source)}
+            />
           </div>
         )}
       </div>

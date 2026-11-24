@@ -1,9 +1,9 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
 import RoutePageLoading from "./RoutePageLoading";
 import AdSlot from "../../components/ads/AdSlot";
 import LoadingModal from "../../components/feedback/LoadingModal";
-import { authService } from "../../features/auth/api";
+import { useSignOut } from "../../features/auth/queries";
 import { clearRecipeListViewState } from "../../features/recipes/utils/recipeListViewState";
 
 // The same short names in the desktop header and the mobile bottom bar.
@@ -17,8 +17,7 @@ const appNavItems = [
 export default function AppWorkspaceLayout() {
   const location = useLocation();
   const navigationType = useNavigationType();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const signOut = useSignOut();
 
   useEffect(() => {
     if (!location.pathname.startsWith("/recipes")) {
@@ -36,20 +35,10 @@ export default function AppWorkspaceLayout() {
     window.scrollTo(0, 0);
   }, [location.pathname, location.hash, navigationType]);
 
-  const handleSignOut = async () => {
-    setLoading(true);
-    setError(null);
-    const { error: signOutError } = await authService.signOut();
-    if (signOutError) {
-      setError(signOutError.message);
-    }
-    setLoading(false);
-  };
-
   return (
     <main className="workspace">
       <LoadingModal
-        open={loading}
+        open={signOut.isPending}
         title="Signing you out..."
         message="Wrapping up your session. You will be redirected shortly."
       />
@@ -101,8 +90,8 @@ export default function AppWorkspaceLayout() {
                   />
                 </svg>
               </NavLink>
-              <button className="btn btn--primary" onClick={handleSignOut} disabled={loading}>
-                {loading ? "Signing out..." : "Sign out"}
+              <button className="btn btn--primary" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
+                {signOut.isPending ? "Signing out..." : "Sign out"}
               </button>
             </div>
           </header>
@@ -111,7 +100,7 @@ export default function AppWorkspaceLayout() {
             <AdSlot size="banner" label="Sponsored" />
           </section>
 
-          {error ? <p className="error workspace__error">{error}</p> : null}
+          {signOut.error ? <p className="error workspace__error">{signOut.error.message}</p> : null}
 
           {/* Pages load their code on first visit (see AppRouter). The header
               and nav stay put; only the page area waits. */}

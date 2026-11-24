@@ -11,18 +11,13 @@ import {
   type WeekStartDay,
 } from "../../lib/preferences/types";
 import { supabase } from "../../lib/supabaseClient";
+import { LOAD_PREFERENCES_ERROR, SAVE_PREFERENCES_ERROR } from "./constants";
 
 type PreferencesRow = Pick<Tables<"profiles">, "week_starts_on" | "plan_cadence_unit" | "plan_cadence_count">;
 
 const PREFERENCE_COLUMNS = "week_starts_on,plan_cadence_unit,plan_cadence_count";
 
 const CADENCE_UNITS: ReadonlyArray<CadenceUnit> = ["day", "week", "month"];
-
-// What people see when loading or saving fails. The database's own message
-// (e.g. "column profiles.week_starts_on does not exist") means nothing to them,
-// so it's kept only as the error's `cause`.
-export const LOAD_PREFERENCES_ERROR = "Couldn't load your preferences.";
-export const SAVE_PREFERENCES_ERROR = "Couldn't save your preferences. Check your connection and try again.";
 
 // The columns are CHECK-constrained (0/1, day/week/month, 1–90), which the
 // generated types can't express; anything unexpected falls back to the default.

@@ -1,13 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useRecipeActions } from "../queries";
+import { useGenerateRecipes, useRecipeActions } from "../queries";
 import RecipeAiImportPanel from "../components/RecipeAiImportPanel";
-import { generateRecipesFromPrompt } from "../api";
 import type { ImportedRecipe } from "../types";
 import { mapImportedRecipeToInput } from "../utils/recipeImport";
 
 export default function RecipeGeneratePage() {
   const navigate = useNavigate();
   const { create: createRecipe } = useRecipeActions();
+  const generateRecipes = useGenerateRecipes();
 
   const handleUseGeneratedDraft = (recipe: ImportedRecipe) => {
     navigate("/recipes/new", { state: { importedRecipe: recipe } });
@@ -47,7 +47,7 @@ export default function RecipeGeneratePage() {
         placeholder="Generate 3 quick high-protein dinners using chicken, rice, and vegetables. Keep each under 35 minutes."
         runLabel="Generate recipes"
         runLoadingLabel="Generating..."
-        runRequest={generateRecipesFromPrompt}
+        runRequest={generateRecipes.mutateAsync}
         onUseDraft={handleUseGeneratedDraft}
         onCreateRecipes={handleCreateGeneratedRecipes}
       />

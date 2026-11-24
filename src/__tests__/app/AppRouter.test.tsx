@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+// Components here use mutations, so they render inside a query provider.
+import { renderWithProviders as render } from "../utils/renderWithProviders";
 import type { Session } from "@supabase/supabase-js";
 import AppRouter from "../../app/AppRouter";
 import { PreferencesContext } from "../../lib/preferences/preferencesContext";

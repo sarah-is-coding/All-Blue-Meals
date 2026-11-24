@@ -1,13 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useRecipeActions } from "../queries";
+import { useImportRecipes, useRecipeActions } from "../queries";
 import RecipeAiImportPanel from "../components/RecipeAiImportPanel";
-import { extractRecipesFromText } from "../api";
 import type { ImportedRecipe } from "../types";
 import { mapImportedRecipeToInput } from "../utils/recipeImport";
 
 export default function RecipeImportPage() {
   const navigate = useNavigate();
   const { create: createRecipe } = useRecipeActions();
+  const importRecipes = useImportRecipes();
 
   const handleUseImportedDraft = (recipe: ImportedRecipe) => {
     navigate("/recipes/new", { state: { importedRecipe: recipe } });
@@ -38,7 +38,7 @@ export default function RecipeImportPage() {
       </article>
 
       <RecipeAiImportPanel
-        runRequest={extractRecipesFromText}
+        runRequest={importRecipes.mutateAsync}
         onUseDraft={handleUseImportedDraft}
         onCreateRecipes={handleCreateImportedRecipes}
       />

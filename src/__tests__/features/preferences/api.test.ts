@@ -1,9 +1,5 @@
-import {
-  getUserPreferences,
-  LOAD_PREFERENCES_ERROR,
-  SAVE_PREFERENCES_ERROR,
-  saveUserPreferences,
-} from "../../../features/preferences/api";
+import { getUserPreferences, saveUserPreferences } from "../../../features/preferences/api";
+import { LOAD_PREFERENCES_ERROR, SAVE_PREFERENCES_ERROR } from "../../../features/preferences/constants";
 import { DEFAULT_PREFERENCES } from "../../../lib/preferences/types";
 
 vi.mock("../../../lib/supabaseClient", () => {
