@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
+import RoutePageLoading from "./RoutePageLoading";
 import AdSlot from "../../components/ads/AdSlot";
 import LoadingModal from "../../components/feedback/LoadingModal";
 import { authService } from "../../features/auth/api";
@@ -112,7 +113,11 @@ export default function AppWorkspaceLayout() {
 
           {error ? <p className="error workspace__error">{error}</p> : null}
 
-          <Outlet />
+          {/* Pages load their code on first visit (see AppRouter). The header
+              and nav stay put; only the page area waits. */}
+          <Suspense fallback={<RoutePageLoading />}>
+            <Outlet />
+          </Suspense>
 
           <nav className="workspace-bottom-nav" aria-label="Primary">
             {appNavItems.map((item) => (

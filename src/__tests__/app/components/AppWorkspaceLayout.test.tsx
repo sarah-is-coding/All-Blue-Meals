@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { lazy, type JSX } from "react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import AppWorkspaceLayout from "../../../app/components/AppWorkspaceLayout";
 
@@ -88,5 +89,29 @@ describe("AppWorkspaceLayout", () => {
       fireEvent.click(screen.getByRole("button", { name: "Go back" }));
       expect(scrollTo).not.toHaveBeenCalled();
     });
+  });
+
+  // Pages load their code on first visit. Opened straight from a link, the
+  // header and nav show at once and only the page area waits.
+  it("keeps the header and nav up while a page's code loads", async () => {
+    let loadPage: (module: { default: () => JSX.Element }) => void = () => {};
+    const LazyPage = lazy(() => new Promise<{ default: () => JSX.Element }>((resolve) => (loadPage = resolve)));
+    render(
+      <MemoryRouter initialEntries={["/grocery"]}>
+        <Routes>
+          <Route path="/" element={<AppWorkspaceLayout />}>
+            <Route path="grocery" element={<LazyPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getAllByRole("navigation", { name: "Primary" })).toHaveLength(2);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+
+    await act(async () => loadPage({ default: () => <h1>Grocery list</h1> }));
+
+    expect(screen.getByRole("heading", { name: "Grocery list" })).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

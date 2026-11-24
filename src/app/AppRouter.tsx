@@ -1,21 +1,28 @@
 import type { Session } from "@supabase/supabase-js";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AuthPage from "../features/auth/pages/AuthPage";
-import GroceryPage from "../features/grocery/pages/GroceryPage";
-import MealPlansPage from "../features/meal-plans/pages/MealPlansPage";
-import SavedMealPlansPage from "../features/meal-plans/pages/SavedMealPlansPage";
-import RecipeCreatePage from "../features/recipes/pages/RecipeCreatePage";
-import RecipeDetailPage from "../features/recipes/pages/RecipeDetailPage";
-import RecipeGeneratePage from "../features/recipes/pages/RecipeGeneratePage";
-import RecipeImportPage from "../features/recipes/pages/RecipeImportPage";
-import PreferencesPage from "../features/preferences/pages/PreferencesPage";
-import RecipesPage from "../features/recipes/pages/RecipesPage";
 import LoadingModal from "../components/feedback/LoadingModal";
 import { usePreferencesReady } from "../lib/preferences/preferencesContext";
 import AppWorkspaceLayout from "./components/AppWorkspaceLayout";
 import AppHomePage from "./pages/AppHomePage";
 import LandingPage from "./pages/LandingPage";
+
+// Pages a visitor or a just-signed-in user sees first (landing, sign-in, the
+// app shell, and home) are in the main bundle. The rest load when first
+// opened, so phones don't download the whole app up front (principles/vite.md
+// §3). Moving between pages is a transition, so the current page stays on
+// screen while the next one's code loads; AppWorkspaceLayout's Suspense
+// fallback only shows when a page is opened directly from a link.
+const RecipesPage = lazy(() => import("../features/recipes/pages/RecipesPage"));
+const RecipeCreatePage = lazy(() => import("../features/recipes/pages/RecipeCreatePage"));
+const RecipeImportPage = lazy(() => import("../features/recipes/pages/RecipeImportPage"));
+const RecipeGeneratePage = lazy(() => import("../features/recipes/pages/RecipeGeneratePage"));
+const RecipeDetailPage = lazy(() => import("../features/recipes/pages/RecipeDetailPage"));
+const MealPlansPage = lazy(() => import("../features/meal-plans/pages/MealPlansPage"));
+const SavedMealPlansPage = lazy(() => import("../features/meal-plans/pages/SavedMealPlansPage"));
+const GroceryPage = lazy(() => import("../features/grocery/pages/GroceryPage"));
+const PreferencesPage = lazy(() => import("../features/preferences/pages/PreferencesPage"));
 
 // If the home page never reports in (e.g. it isn't the page that opened),
 // stop blocking the app with the sign-in modal after this long.

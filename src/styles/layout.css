@@ -130,6 +130,33 @@
   gap: 1rem;
 }
 
+/* A page's code is loading. Hidden for the first ~280 ms (LoadingModal's
+   threshold) so quick loads don't flash it. */
+.route-page-loading {
+  animation: route-page-loading-appear 200ms ease 280ms both;
+}
+
+.route-page-loading__text {
+  margin: 0;
+  color: var(--color-muted-soft);
+}
+
+@keyframes route-page-loading-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Still wait before showing it, but don't fade. */
+  .route-page-loading {
+    animation-duration: 1ms;
+  }
+}
+
 .workspace-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
