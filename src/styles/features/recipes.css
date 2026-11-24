@@ -681,35 +681,175 @@
   gap: 0.64rem;
 }
 
+/* One compact ingredient (RecipeIngredientCard). On phones: the name and the
+   row's buttons on top, then quantity, unit and notes side by side. From
+   760px it's a single line under .recipe-ingredients__columns, which uses
+   the same columns. */
 .recipe-ingredient-card {
+  --ingredient-columns: 4.6rem 5.4rem minmax(0, 1fr) auto;
+  display: grid;
+  grid-template-columns: var(--ingredient-columns);
+  grid-template-areas:
+    "name name name actions"
+    "qty unit notes notes";
+  align-items: start;
+  gap: 0.45rem;
+  padding: 0.55rem;
   border: 1px solid var(--alpha-brand-20);
-  border-radius: 0.9rem;
-  padding: 0.72rem;
+  border-radius: 0.85rem;
   background: var(--alpha-bg-241-88);
-  display: grid;
-  gap: 0.66rem;
 }
 
-.recipe-ingredient-card__grid {
-  display: grid;
-  gap: 0.64rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.recipe-ingredient-card__name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
-.recipe-ingredient-card__remove {
-  justify-self: flex-start;
+.recipe-ingredient-card__name-field {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.recipe-ingredient-card__quantity {
+  grid-area: qty;
+}
+
+.recipe-ingredient-card__unit {
+  grid-area: unit;
+}
+
+.recipe-ingredient-card__notes {
+  grid-area: notes;
+}
+
+.recipe-ingredient-card .ingredient-combobox input,
+.recipe-ingredient-card__quantity,
+.recipe-ingredient-card__unit,
+.recipe-ingredient-card__notes {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--alpha-slate-62);
+  border-radius: 0.7rem;
+  background: var(--color-white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.94rem;
+}
+
+.recipe-ingredient-card__quantity:focus,
+.recipe-ingredient-card__unit:focus,
+.recipe-ingredient-card__notes:focus {
+  outline: none;
+  border-color: var(--alpha-brand-dark-78);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
 }
 
 .recipe-ingredient-card__actions {
+  grid-area: actions;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.3rem;
+}
+
+/* Small square buttons, still a comfortable tap size. */
+.recipe-ingredient-card__icon-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.6rem;
+  height: 2.6rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 0.7rem;
+  background: var(--color-white);
+  color: var(--brand-dark);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.recipe-ingredient-card__icon-button:hover,
+.recipe-ingredient-card__icon-button:focus-visible {
+  outline: none;
+  border-color: var(--alpha-brand-dark-78);
+  background: var(--alpha-brand-12);
+}
+
+.recipe-ingredient-card__remove {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.recipe-ingredient-card__remove:hover,
+.recipe-ingredient-card__remove:focus-visible {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-white);
 }
 
 /* A substitute ("or …") sits indented under its main ingredient. */
 .recipe-ingredient-card--substitute {
   margin-left: 1.1rem;
   border-style: dashed;
+}
+
+/* The ingredient list's column headings: only for the one-line rows. */
+.recipe-ingredients__columns {
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .recipe-ingredient-card,
+  .recipe-ingredients__columns {
+    --ingredient-columns: minmax(0, 2.2fr) 5.2rem 6.2rem minmax(0, 2fr) 5.8rem;
+  }
+
+  .recipe-ingredient-card {
+    grid-template-areas: "name qty unit notes actions";
+  }
+
+  /* Indenting would push a substitute's fields out of line; its "or" label
+     and dashed border mark it instead. */
+  .recipe-ingredient-card--substitute {
+    margin-left: 0;
+  }
+
+  .recipe-ingredients__columns {
+    display: grid;
+    grid-template-columns: var(--ingredient-columns);
+    gap: 0.45rem;
+    /* Line up with the rows' fields: their padding plus border. */
+    padding: 0 calc(0.55rem + 1px);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-muted-soft);
+  }
+}
+
+/* Prep, Cook and Servings: short numbers, side by side on every screen. */
+.recipe-form__numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+/* Instructions grow with their text (where supported) instead of scrolling
+   inside a small box. */
+.recipe-field .recipe-form__instructions {
+  min-height: 10rem;
+  line-height: 1.6;
+  resize: vertical;
+  field-sizing: content;
 }
 
 .recipe-ingredient-card__or {
@@ -1510,10 +1650,6 @@
   }
 
   .recipe-form__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .recipe-ingredient-card__grid {
     grid-template-columns: 1fr;
   }
 

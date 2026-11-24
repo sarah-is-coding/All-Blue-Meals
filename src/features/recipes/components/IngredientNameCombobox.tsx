@@ -11,12 +11,16 @@ type Props = {
   value: string;
   onSelect: (ingredientId: string, name: string) => void;
   readOnly?: boolean;
+  /** The field's accessible name (e.g. "Ingredient", "Substitute"), since
+   *  the compact ingredient rows have no visible label. */
+  label?: string;
 };
 
 export default function IngredientNameCombobox({
   value,
   onSelect,
   readOnly = false,
+  label = "Ingredient",
 }: Props) {
   const categories = useIngredientCategories();
   const categoryLabel = (code: IngredientCategory) =>
@@ -203,7 +207,7 @@ export default function IngredientNameCombobox({
   const showCategorizeDropdown = isOpen && phase === "categorize";
 
   if (readOnly) {
-    return <input type="text" value={value} readOnly />;
+    return <input type="text" value={value} readOnly aria-label={label} />;
   }
 
   return (
@@ -212,6 +216,7 @@ export default function IngredientNameCombobox({
         ref={inputRef}
         type="text"
         role="combobox"
+        aria-label={label}
         aria-autocomplete="list"
         aria-expanded={showSearchDropdown || showCategorizeDropdown}
         value={query}

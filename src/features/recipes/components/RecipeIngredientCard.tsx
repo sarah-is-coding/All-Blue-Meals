@@ -18,6 +18,13 @@ type RecipeIngredientCardProps = {
 
 export type IngredientMatchStatus = { kind: "new" } | { kind: "matched"; name: string } | null;
 
+/**
+ * One ingredient in the recipe form, kept compact so a long list doesn't mean
+ * endless scrolling. On phones: the name (with the row's buttons) on top, then
+ * quantity, unit and notes side by side. On wide screens it's a single line
+ * under the column headings RecipeFormFields shows. The fields have no visible
+ * labels (placeholders say what goes where), so each has an accessible name.
+ */
 export default function RecipeIngredientCard({
   ingredient,
   readOnly,
@@ -29,6 +36,10 @@ export default function RecipeIngredientCard({
   onAddSubstitute,
   matchStatus = null,
 }: RecipeIngredientCardProps) {
+  const name = ingredient.ingredientName.trim();
+  const kind = isSubstitute ? "Substitute" : "Ingredient";
+  const showActions = !readOnly && (Boolean(onAddSubstitute) || canRemove);
+
   return (
     <article
       className={[
@@ -38,15 +49,16 @@ export default function RecipeIngredientCard({
         .filter(Boolean)
         .join(" ")}
       aria-label={isSubstitute ? "Substitute ingredient" : undefined}
+      data-row-id={ingredient.id}
     >
-      {isSubstitute ? <span className="recipe-ingredient-card__or">or</span> : null}
-      <div className="recipe-ingredient-card__grid">
-        <div className="recipe-field recipe-field--full">
-          <span>{isSubstitute ? "Substitute" : "Ingredient"}</span>
+      <div className="recipe-ingredient-card__name">
+        {isSubstitute ? <span className="recipe-ingredient-card__or">or</span> : null}
+        <div className="recipe-ingredient-card__name-field">
           <IngredientNameCombobox
             value={ingredient.ingredientName}
-            onSelect={(ingredientId, name) => onIngredientSelect(ingredient.id, ingredientId, name)}
+            onSelect={(ingredientId, selectedName) => onIngredientSelect(ingredient.id, ingredientId, selectedName)}
             readOnly={readOnly}
+            label={kind}
           />
           {matchStatus?.kind === "new" ? (
             <span className="recipe-ingredient-card__match recipe-ingredient-card__match--new">
@@ -57,56 +69,59 @@ export default function RecipeIngredientCard({
             <span className="recipe-ingredient-card__match">{`Matches ${matchStatus.name}`}</span>
           ) : null}
         </div>
-
-        <label className="recipe-field">
-          <span>Quantity</span>
-          <input
-            type="text"
-            value={ingredient.quantity}
-            onChange={(event) => onIngredientChange(ingredient.id, "quantity", event.target.value)}
-            readOnly={readOnly}
-          />
-        </label>
-
-        <label className="recipe-field">
-          <span>Unit</span>
-          <input
-            type="text"
-            value={ingredient.unit}
-            onChange={(event) => onIngredientChange(ingredient.id, "unit", event.target.value)}
-            readOnly={readOnly}
-          />
-        </label>
-
-        <label className="recipe-field recipe-field--full">
-          <span>Notes</span>
-          <input
-            type="text"
-            value={ingredient.notes}
-            onChange={(event) => onIngredientChange(ingredient.id, "notes", event.target.value)}
-            readOnly={readOnly}
-          />
-        </label>
       </div>
 
-      {!readOnly ? (
+      <input
+        className="recipe-ingredient-card__quantity"
+        type="text"
+        inputMode="decimal"
+        placeholder="Qty"
+        aria-label={`Quantity${name ? ` of ${name}` : ""}`}
+        value={ingredient.quantity}
+        onChange={(event) => onIngredientChange(ingredient.id, "quantity", event.target.value)}
+        readOnly={readOnly}
+      />
+      <input
+        className="recipe-ingredient-card__unit"
+        type="text"
+        placeholder="Unit"
+        aria-label={`Unit${name ? ` of ${name}` : ""}`}
+        value={ingredient.unit}
+        onChange={(event) => onIngredientChange(ingredient.id, "unit", event.target.value)}
+        readOnly={readOnly}
+      />
+      <input
+        className="recipe-ingredient-card__notes"
+        type="text"
+        placeholder="Notes (diced, to taste…)"
+        aria-label={`Notes${name ? ` for ${name}` : ""}`}
+        value={ingredient.notes}
+        onChange={(event) => onIngredientChange(ingredient.id, "notes", event.target.value)}
+        readOnly={readOnly}
+      />
+
+      {showActions ? (
         <div className="recipe-ingredient-card__actions">
           {onAddSubstitute ? (
             <button
               type="button"
-              className="btn btn--ghost"
+              className="recipe-ingredient-card__icon-button"
               onClick={() => onAddSubstitute(ingredient.id)}
+              aria-label={`Add substitute for ${name || "this ingredient"}`}
+              title="Add a substitute"
             >
-              + Add substitute
+              + or
             </button>
           ) : null}
           {canRemove ? (
             <button
               type="button"
-              className="btn btn--ghost recipe-ingredient-card__remove"
+              className="recipe-ingredient-card__icon-button recipe-ingredient-card__remove"
               onClick={() => onRemove(ingredient.id)}
+              aria-label={`Remove ${name || (isSubstitute ? "substitute" : "ingredient")}`}
+              title="Remove"
             >
-              Remove
+              <span aria-hidden="true">×</span>
             </button>
           ) : null}
         </div>

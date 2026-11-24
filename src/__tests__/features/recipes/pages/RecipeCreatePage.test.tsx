@@ -90,8 +90,9 @@ describe("RecipeCreatePage", () => {
     await waitFor(() => screen.getByText("olive oil"), { timeout: 1500 });
     await user.click(screen.getByText("olive oil"));
 
-    // 2. Add a substitute under it.
-    await user.click(screen.getByRole("button", { name: "+ Add substitute" }));
+    // 2. Add a substitute under it. (The compact rows' buttons are named for
+    // their ingredient; this one used to be "+ Add substitute".)
+    await user.click(screen.getByRole("button", { name: "Add substitute for olive oil" }));
     expect(screen.getByRole("article", { name: "Substitute ingredient" })).toBeInTheDocument();
     expect(screen.getByText("or")).toBeInTheDocument();
 
@@ -112,16 +113,44 @@ describe("RecipeCreatePage", () => {
     });
   });
 
+  it("scrolls to and focuses each ingredient or substitute you add, so there's no hunting for it", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderPage();
+
+    // The button at the top adds to the end of the list; the new row gets the cursor.
+    await user.click(screen.getAllByRole("button", { name: "+ Add ingredient" })[0]);
+    const [, added] = screen.getAllByRole("combobox");
+    expect(added).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenLastCalledWith(expect.objectContaining({ block: "center" }));
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(added);
+
+    // A substitute lands under its main row, and gets the cursor too.
+    await user.click(screen.getAllByRole("button", { name: "Add substitute for this ingredient" })[0]);
+    expect(screen.getByRole("combobox", { name: "Substitute" })).toHaveFocus();
+
+    // Typing doesn't move the focus anywhere else.
+    scrollIntoView.mockClear();
+    await user.type(screen.getByLabelText("Title"), "Soup");
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
   it("removes a main ingredient's substitutes when the main ingredient is removed", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click(screen.getAllByRole("button", { name: "+ Add ingredient" })[0]);
-    await user.click(screen.getAllByRole("button", { name: "+ Add substitute" })[0]);
+    // Unnamed rows' buttons say what they are (they used to be "+ Add
+    // substitute" and "Remove" on every row).
+    await user.click(screen.getAllByRole("button", { name: "Add substitute for this ingredient" })[0]);
     expect(screen.getAllByRole("combobox")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Remove substitute" })).toBeInTheDocument();
 
     // The first Remove belongs to the first main row.
-    await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Remove ingredient" })[0]);
     expect(screen.getAllByRole("combobox")).toHaveLength(1);
     expect(screen.queryByRole("article", { name: "Substitute ingredient" })).not.toBeInTheDocument();
   });
