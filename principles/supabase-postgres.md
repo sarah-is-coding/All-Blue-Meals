@@ -10,10 +10,14 @@ queries well.
 
 - Enable RLS on every table in the same migration that creates it, and
   write a separate policy for each operation (SELECT/INSERT/UPDATE/DELETE)
-  with an explicit `to authenticated`. Never rely on the client to filter
-  rows for security.
-- INSERT and UPDATE policies need `with check`, not just `using`, or a user
-  can write a row that belongs to someone else.
+  with an explicit `to authenticated`. Don't use `for all`, even on
+  owner-only tables. Separate policies show which check guards which
+  operation, and let one operation change later without touching the
+  others. Use the right clauses for each: SELECT `using`, INSERT
+  `with check`, UPDATE both, DELETE `using`. Never rely on the client to
+  filter rows for security.
+- INSERT and UPDATE policies need `with check`, or a user can write a row
+  that belongs to someone else.
 - Child tables check ownership through the parent with `exists (select 1
   from recipes r where r.id = recipe_id and r.user_id = (select auth.uid()))`.
 - Verify every policy change both ways: the owner can access their rows,

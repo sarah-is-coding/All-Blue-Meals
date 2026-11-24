@@ -59,9 +59,17 @@ changes; keep the selector stable (module-level function or `useCallback`).
 - Prefer invalidation when the effect on cached data is hard to compute
   exactly. Prefer `setQueryData` when you already have the confirmed row and
   refetching would be wasteful (free-tier bandwidth).
-- Optimistic updates are allowed for fast, low-risk toggles (grocery
-  check/uncheck, per AGENTS.md). Snapshot the previous data in `onMutate`,
-  roll back in `onError`, and invalidate in `onSettled`.
+- Default to confirm-then-update (CLAUDE.md → Data loading). Write to the
+  cache only after the database confirms, or invalidate. To make a save
+  feel responsive, show a pending state on the control being saved.
+- Optimistic updates are over-used, so treat them as a narrow exception.
+  They only fit when instant feedback really matters (a frequent toggle),
+  the save almost never fails, and a rollback is easy to understand. Even
+  then they mean reproducing the server's logic on the client and handling
+  overlapping mutations. To use one: cancel the affected queries, snapshot
+  in `onMutate`, roll back in `onError`, and invalidate in `onSettled`. Add
+  the exception to CLAUDE.md in the same change, since it departs from the
+  project default.
 - Never mutate cached data in place. `setQueryData` takes a new object.
 
 ## 6. Loading and error states are part of the hook's contract

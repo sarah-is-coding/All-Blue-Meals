@@ -17,6 +17,14 @@ is an architectural decision for the whole app, not a per-feature one.
 - Anything a user would expect to survive a reload, a back button, or a
   shared link (selected week, search text, tab, filter) belongs in the path
   or search params (`useSearchParams`), not in `useState`.
+- "Resume where I left off" is a different job from sharing. A bare link
+  such as the nav tab to the planner carries no params, so storage has to
+  remember the last view. Combine the two: when the URL has params, it
+  wins; when it's bare, fill it in from storage (redirecting with
+  `replace`, so the URL then shows the view). Keep storage per-tab
+  (`sessionStorage`) and clear it on sign-out. The planner's remembered week
+  (CLAUDE.md) is this kind of state. Moving the visible week into `?week=`
+  would follow this pattern without losing the remembering.
 - Use path params for identity (`/recipes/:id`) and search params for view
   options (`?q=`, `?week=`).
 - Treat params as untrusted strings: parse and validate them (an id that

@@ -59,8 +59,11 @@ test id.
 - Reset mocks between tests (`vi.clearAllMocks()` in `beforeEach`, then
   re-apply chained builder return values). Never let one test's mock setup
   leak into another.
-- Mock time only for pure date logic (`vi.setSystemTime`). Don't combine
-  fake timers with `waitFor` (CLAUDE.md → Debounced components).
+- Fake timers are fine when the test moves time itself: `vi.setSystemTime`
+  for date logic, or `act(() => vi.advanceTimersByTime(ms))` for timing
+  components like `LoadingModal`. Never combine them with `waitFor`/`findBy`
+  (CLAUDE.md → Debounced components), and switch back to real timers after
+  each test.
 
 ## 6. Each test tells one story
 

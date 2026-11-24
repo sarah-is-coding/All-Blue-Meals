@@ -21,7 +21,7 @@ This file covers product goals and domain rules. The tech stack, testing rules, 
 
 ### Code style
 - Prefer **small, focused modules** over giant files.
-- Keep components **presentational** where possible; put data fetching in hooks/services.
+- Keep components **presentational** where possible; load data through the feature's `queries.ts` hooks, which call its `api.ts` (see "Data loading" in [CLAUDE.md](CLAUDE.md)).
 - Use explicit types for DB rows and DTOs (avoid `any`).
 - Avoid side effects at import time.
 
@@ -37,7 +37,7 @@ This file covers product goals and domain rules. The tech stack, testing rules, 
     - `auth/`
   - `lib/`
     - `supabaseClient.ts`
-    - `db/` (typed helpers, query builders)
+    - `db/` (generated `database.types.ts`; Supabase calls live in each feature's `api.ts`)
     - `utils/`
   - `styles/`
 - `supabase/`
@@ -55,7 +55,7 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 ### Rules
 - Each file/module should have **one primary responsibility**:
   - UI components → `components/` or feature-level UI  
-  - Data fetching → hooks or `lib/db/*`  
+  - Data fetching → `features/<domain>/queries.ts` hooks over `features/<domain>/api.ts`  
   - Business logic → feature services or utils  
 - Avoid “god files” (e.g., `utils.ts` with unrelated helpers).
 - Feature logic should live in `features/<domain>/`:
@@ -70,8 +70,8 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 - Flag files > ~300 lines unless strongly justified.
 - Suggest splitting mixed UI + data + logic into:
   - Component  
-  - Hook/service  
-  - DB/query helper  
+  - Query hook (`queries.ts`)  
+  - Supabase call (`api.ts`)  
 - Avoid tight coupling between features.
 
 ### Why this matters here
@@ -226,7 +226,7 @@ Automated testing rules (required tests per change type, mocking conventions, `n
 **Scope:** grocery list generation  
 - Simple, explainable merge rules  
 - Editable, mobile-fast lists  
-- Optimistic UI allowed  
+- Ticks are local to the open list (not saved), so check/uncheck is instant with no server round trip  
 
 **Merge rules**
 - One line per catalog ingredient (`ingredient_id`); units are normalized first (`normalizeUnit`: "cups" = "cup")  
