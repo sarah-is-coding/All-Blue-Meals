@@ -1,6 +1,7 @@
 import type { RecipeFormIngredient, RecipeFormValues } from "../utils/recipeForm";
 import { groupSubstitutes } from "../utils/ingredientGroups";
 import { scaleQuantityText } from "../../../lib/utils/quantities";
+import RecipeSteps from "./RecipeSteps";
 
 type RecipeReadArticleProps = {
   values: RecipeFormValues;
@@ -211,11 +212,7 @@ export default function RecipeReadArticle({
 
       <section className="recipe-read__section">
         <h2>Instructions</h2>
-        {values.instructions.trim() ? (
-          <p className="recipe-read__instructions">{values.instructions.trim()}</p>
-        ) : (
-          <p>No instructions added yet.</p>
-        )}
+        <RecipeSteps instructions={values.instructions} />
       </section>
     </article>
   );

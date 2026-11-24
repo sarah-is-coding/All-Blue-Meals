@@ -1040,10 +1040,110 @@
   font-size: 0.9rem;
 }
 
-.recipe-read__instructions {
-  white-space: pre-wrap;
-  line-height: 1.65;
+/* Instructions as numbered steps (RecipeSteps). Each step is a large tap
+   target: tapping marks it done while cooking. */
+.recipe-steps {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.recipe-read__section .recipe-steps__hint {
+  font-size: 0.85rem;
+  color: var(--color-muted-soft);
+}
+
+.recipe-steps__list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipe-steps__step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--alpha-brand-20);
+  border-radius: 0.85rem;
+  background: var(--color-white);
   color: var(--color-ink-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.recipe-steps__step:hover {
+  background: var(--alpha-brand-12);
+}
+
+.recipe-steps__step:focus-visible {
+  outline: none;
+  border-color: var(--alpha-brand-dark-78);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+.recipe-steps__number {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--color-brand);
+  color: var(--color-white);
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.recipe-steps__text {
+  /* Keep an extra line in a step on its own line. */
+  white-space: pre-line;
+  line-height: 1.65;
+  padding-top: 0.2rem;
+}
+
+.recipe-steps__cue {
+  color: var(--brand-dark);
+  font-weight: 800;
+}
+
+/* Done: faded, with a check in place of the number. Still readable, in case
+   you look back at it. */
+.recipe-steps__step--done {
+  background: var(--alpha-bg-241-68);
+  opacity: 0.62;
+}
+
+.recipe-steps__step--done .recipe-steps__number {
+  background: var(--alpha-brand-20);
+  color: var(--brand-dark);
+}
+
+.recipe-steps__step--done .recipe-steps__text {
+  text-decoration: line-through;
+  text-decoration-color: var(--alpha-slate-62);
+}
+
+.recipe-steps__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recipe-steps__progress {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-steps__step {
+    transition: none;
+  }
 }
 
 /* The note text box (NoteTextarea): grows with its text where supported. */
