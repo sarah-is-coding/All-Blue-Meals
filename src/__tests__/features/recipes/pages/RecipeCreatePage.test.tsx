@@ -51,16 +51,19 @@ describe("RecipeCreatePage", () => {
     mockCreateRecipe.mockResolvedValue("recipe-1");
   });
 
-  it("shows a sticky save button and submits the create form", async () => {
+  // One sticky Save button at the end of the form (there used to be a second
+  // copy fixed to the bottom of the screen, over the phone's bottom nav).
+  it("has one sticky save button that submits the create form", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.type(screen.getByLabelText(/^title$/i), "Chicken Caesar Taco Salad");
 
-    const saveButtons = screen.getAllByRole("button", { name: "Save Recipe" });
-    expect(saveButtons).toHaveLength(2);
+    const save = screen.getByRole("button", { name: "Save Recipe" });
+    expect(save.closest(".recipe-form__actions")).not.toBeNull();
+    expect(save.closest("form")).toHaveAttribute("id", "recipe-create-form");
 
-    await user.click(saveButtons[1]);
+    await user.click(save);
 
     await waitFor(() => {
       expect(mockCreateRecipe).toHaveBeenCalledWith(

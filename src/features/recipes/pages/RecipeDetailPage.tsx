@@ -201,7 +201,7 @@ export default function RecipeDetailPage() {
   };
 
   return (
-    <section className={`workspace-route recipe-route${editing ? " recipe-route--sticky-actions" : ""}`}>
+    <section className="workspace-route recipe-route">
       {loadingModal}
       <article className="workspace-card">
         <div className="recipe-page-header">
@@ -261,6 +261,7 @@ export default function RecipeDetailPage() {
             disabled={saving}
             onScale={handleScaleIngredientsForServings}
           />
+          {/* One Save button, sticky until you reach the end of the form. */}
           <div className="recipe-form__actions">
             <button type="submit" className="btn btn--primary" disabled={saving}>
               {saving ? "Saving..." : "Save Changes"}
@@ -278,13 +279,6 @@ export default function RecipeDetailPage() {
           {recipeId ? <RecipeNotes recipeId={recipeId} /> : null}
         </>
       )}
-      {editing ? (
-        <div className="recipe-sticky-actions" aria-label="Recipe edit actions">
-          <button type="submit" form="recipe-edit-form" className="btn btn--primary" disabled={saving}>
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      ) : null}
     </section>
   );
 }

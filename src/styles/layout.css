@@ -170,7 +170,13 @@
 @media (max-width: 960px) {
 
   .workspace {
-    padding-bottom: calc(clamp(1.2rem, 3vw, 2rem) + 5.75rem + env(safe-area-inset-bottom));
+    /* The fixed bottom nav's place, set here once: the nav is sized from
+       these, and anything that must stay above it (the page's end, a sticky
+       Save button) uses --bottom-nav-clearance, so they can't drift apart. */
+    --bottom-nav-offset: max(0.75rem, env(safe-area-inset-bottom));
+    --bottom-nav-height: 4.2rem;
+    --bottom-nav-clearance: calc(var(--bottom-nav-offset) + var(--bottom-nav-height));
+    padding-bottom: calc(clamp(1.2rem, 3vw, 2rem) + var(--bottom-nav-clearance) + 1rem);
   }
 
   .workspace-topbar {
@@ -195,8 +201,10 @@
     position: fixed;
     left: 0.5rem;
     right: 0.5rem;
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    bottom: var(--bottom-nav-offset);
     z-index: 30;
+    box-sizing: border-box;
+    height: var(--bottom-nav-height);
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.25rem;
@@ -207,11 +215,12 @@
     box-shadow: 0 14px 34px var(--alpha-ink-16);
   }
 
+  /* The links fill the nav's height (--bottom-nav-height). */
   .workspace-bottom-nav .workspace-nav__link {
     display: grid;
     place-items: center;
-    min-height: 3.25rem;
-    padding: 0.6rem 0.125rem;
+    min-height: 0;
+    padding: 0.4rem 0.125rem;
     border-radius: 0.7rem;
     text-align: center;
     font-size: 0.95rem;

@@ -253,17 +253,20 @@ describe("RecipeDetailPage", () => {
     expect(screen.getByRole("button", { name: "Add recipe" })).toBeEnabled();
   });
 
-  it("shows a sticky save button while editing and submits the edit form", async () => {
+  // One sticky Save button at the end of the form (there used to be a second
+  // copy fixed to the bottom of the screen, over the phone's bottom nav).
+  it("has one sticky save button while editing that submits the edit form", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByText("Chicken Caesar Taco Salad");
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
-    const saveButtons = screen.getAllByRole("button", { name: "Save Changes" });
-    expect(saveButtons).toHaveLength(2);
+    const save = screen.getByRole("button", { name: "Save Changes" });
+    expect(save.closest(".recipe-form__actions")).not.toBeNull();
+    expect(save.closest("form")).toHaveAttribute("id", "recipe-edit-form");
 
-    await user.click(saveButtons[1]);
+    await user.click(save);
 
     await waitFor(() => {
       expect(mockUpdateRecipe).toHaveBeenCalledWith(
@@ -360,7 +363,7 @@ describe("RecipeDetailPage", () => {
 
       await screen.findByText("Chicken Caesar Taco Salad");
       await user.click(screen.getByRole("button", { name: "Edit" }));
-      await user.click(screen.getAllByRole("button", { name: "Save Changes" })[1]);
+      await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
       await waitFor(() => expect(client.getQueryState(cachedWeek)?.isInvalidated).toBe(true));
     });

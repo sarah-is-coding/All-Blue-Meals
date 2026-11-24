@@ -85,7 +85,7 @@ export default function RecipeCreatePage() {
   };
 
   return (
-    <section className="workspace-route recipe-route recipe-route--sticky-actions">
+    <section className="workspace-route recipe-route">
       <article className="workspace-card">
         <div className="recipe-page-header">
           <h1>Add Recipe</h1>
@@ -109,6 +109,7 @@ export default function RecipeCreatePage() {
           matchStatusFor={isImportedDraft ? matchStatusFor : undefined}
         />
 
+        {/* One Save button, sticky until you reach the end of the form. */}
         <div className="recipe-form__actions">
           <button type="submit" className="btn btn--primary" disabled={saving}>
             {saving ? "Saving..." : "Save Recipe"}
@@ -118,16 +119,6 @@ export default function RecipeCreatePage() {
           </Link>
         </div>
       </form>
-      <div className="recipe-sticky-actions" aria-label="Recipe create actions">
-        <button
-          type="submit"
-          form="recipe-create-form"
-          className="btn btn--primary"
-          disabled={saving}
-        >
-          {saving ? "Saving..." : "Save Recipe"}
-        </button>
-      </div>
     </section>
   );
 }
