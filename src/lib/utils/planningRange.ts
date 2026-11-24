@@ -1,11 +1,12 @@
 // The dates a planning period covers, from the user's planning cadence
 // ("1 week", "2 weeks", "1 month", "10 days"). The meal planner's Calendar tab
-// and the grocery page start on this range, and their arrows step by it.
+// and the grocery page start on one, and their arrows step by it.
 //
-// Where a period starts depends on its unit:
-// - weeks start on the first day of the week (the user's Sunday or Monday)
-// - months start on the 1st
-// - days start on the day itself
+// - planningRange: the calendar-aligned period a day falls in (the grocery
+//   page: this week, or this month from the 1st)
+// - planningRangeFrom: one period starting on a given day (the planner's
+//   Calendar tab, which starts on the viewed week: copying goes into that
+//   week, so its default must never overlap it from an earlier start)
 
 import type { PlanningCadence, WeekStartDay } from "../preferences/types";
 import { addDays, createDateFromIso, getWeekStartIso, toIsoDate } from "./dates";
@@ -23,7 +24,30 @@ function addMonths(date: Date, months: number): Date {
 
 const isLastDayOfMonth = (date: Date): boolean => addDays(date, 1).getDate() === 1;
 
-/** The planning period that `anchorIso` falls in (e.g. today, or the week shown on the planner). */
+/** The last day of `months` months starting on `start`: the day before the
+ *  same date that many months later (Nov 22 → Dec 21), or, when that month is
+ *  too short to have the date, its last day (May 31 → Jun 30, Jan 31 → Feb 28). */
+function endOfMonths(start: Date, months: number): Date {
+  const targetLastDay = lastDayOfMonth(start.getFullYear(), start.getMonth() + months);
+  return start.getDate() > targetLastDay.getDate()
+    ? targetLastDay
+    : addDays(new Date(start.getFullYear(), start.getMonth() + months, start.getDate()), -1);
+}
+
+/** One planning period starting on `startIso`: 7 × n days, n days, or n months. */
+export function planningRangeFrom(cadence: PlanningCadence, startIso: string): DateRange {
+  const start = createDateFromIso(startIso);
+  const count = Math.max(1, Math.round(cadence.count));
+  const end =
+    cadence.unit === "month"
+      ? endOfMonths(start, count)
+      : addDays(start, (cadence.unit === "week" ? count * 7 : count) - 1);
+  return { startIso, endIso: toIsoDate(end) };
+}
+
+/** The calendar-aligned planning period that `anchorIso` falls in: weeks
+ *  start on the user's first day of the week, months on the 1st, days on the
+ *  day itself. */
 export function planningRange(
   cadence: PlanningCadence,
   anchorIso: string,
@@ -39,14 +63,17 @@ export function planningRange(
   }
 
   const startIso = cadence.unit === "week" ? getWeekStartIso(anchor, weekStartsOn) : anchorIso;
-  const days = cadence.unit === "week" ? count * 7 : count;
-  return { startIso, endIso: toIsoDate(addDays(createDateFromIso(startIso), days - 1)) };
+  return planningRangeFrom({ unit: cadence.unit, count }, startIso);
 }
 
 /**
  * The range moved by one planning period, back (-1) or forward (1). Days and
- * weeks move by their length; months move by calendar months, keeping a range
- * that ends on a month's last day ending on the last day of the new month.
+ * weeks move by their length. For months:
+ * - a range that is exactly one planning period (Nov 1–30, Nov 22–Dec 21,
+ *   Jan 31–Feb 28) steps to the next or previous one, touching it with no
+ *   gap or overlap
+ * - any other range moves both ends by calendar months, keeping an end on a
+ *   month's last day on the last day of the new month
  */
 export function shiftByCadence(range: DateRange, cadence: PlanningCadence, direction: 1 | -1): DateRange {
   const count = Math.max(1, Math.round(cadence.count));
@@ -54,6 +81,10 @@ export function shiftByCadence(range: DateRange, cadence: PlanningCadence, direc
   const end = createDateFromIso(range.endIso);
 
   if (cadence.unit === "month") {
+    if (toIsoDate(endOfMonths(start, count)) === range.endIso) {
+      if (direction === 1) return planningRangeFrom(cadence, toIsoDate(addDays(end, 1)));
+      return { startIso: toIsoDate(addMonths(start, -count)), endIso: toIsoDate(addDays(start, -1)) };
+    }
     const months = count * direction;
     const shiftedEnd = isLastDayOfMonth(end)
       ? lastDayOfMonth(end.getFullYear(), end.getMonth() + months)

@@ -235,15 +235,22 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
 
 The signed-in user's preferences (which day weeks start on, how often they
 plan) live on their `profiles` row. `src/app/PreferencesProvider.tsx` loads
-them and shares them through `PreferencesContext` in `src/lib/preferences`;
-read them with `useUserPreferences()` / `useWeekStartsOn()`, never by
-importing the `preferences` feature. App pages wait until they've loaded.
+them and shares them through `PreferencesContext` in `src/lib/preferences`.
+App pages wait until they've loaded. Never import the `preferences` feature
+to read them.
 
-- Never assume weeks start on Sunday: anything that finds a week's start
-  calls `getWeekStartIso(date, weekStartsOn)` (the argument is required),
-  and calendar grids use `dayOfWeekIndex` / `weekdayInitials`
-- Default date ranges and range arrows use the planning cadence through
-  `planningRange` / `shiftByCadence` in `src/lib/utils/planningRange.ts`
+- Components read preferences through hooks named for what they're for,
+  which return helpers with the preference already applied:
+  `useWeek()` (`week.startOf(date)`, `week.current()`, `week.weekdayInitials`)
+  and `usePlanningPeriod()` (`period.around(today)`, `period.from(start)`,
+  `period.shift(range, 1)`, `period.label`). Don't destructure
+  `useUserPreferences()` in components. A new kind of preference gets its own
+  hook like these, so existing components don't change
+- The date maths stays in pure functions that take the preference as an
+  argument (`getWeekStartIso(date, weekStartsOn)`, where it's required;
+  `planningRange`, `shiftByCadence` in `src/lib/utils/planningRange.ts`), for
+  tests and non-React code such as sign-in prefetching
+- Never assume weeks start on Sunday
 - Cached planner weeks are matched to meals by date (`isInWeek`), so weeks
   starting on either day can be cached at once
 

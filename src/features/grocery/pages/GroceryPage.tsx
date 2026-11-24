@@ -7,9 +7,8 @@ import { opensSavedPlansTab } from "../../meal-plans/utils/savedPlansNavigation"
 import GroceryCalendarTab from "../components/GroceryCalendarTab";
 import GroceryListCard from "../components/GroceryListCard";
 import type { GroceryItemDraft, GrocerySource } from "../types";
-import { useUserPreferences } from "../../../lib/preferences/preferencesContext";
+import { usePlanningPeriod } from "../../../lib/preferences/usePlanningPeriod";
 import { formatDateRange, toIsoDate } from "../../../lib/utils/dates";
-import { planningRange } from "../../../lib/utils/planningRange";
 import type { SavedMealPlan } from "../../meal-plans/types";
 
 type BuiltList = {
@@ -27,8 +26,8 @@ export default function GroceryPage() {
     opensSavedPlansTab(location.state) ? "saved" : "calendar"
   );
   // Starts on the planning period (the user's cadence) that today is in.
-  const { planningCadence, weekStartsOn } = useUserPreferences();
-  const [range, setRange] = useState(() => planningRange(planningCadence, toIsoDate(new Date()), weekStartsOn));
+  const period = usePlanningPeriod();
+  const [range, setRange] = useState(() => period.around(toIsoDate(new Date())));
   const [selectedPlan, setSelectedPlan] = useState<SavedMealPlan | null>(null);
   const source: GrocerySource | null =
     activeTab === "calendar"

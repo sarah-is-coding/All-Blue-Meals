@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { useUserPreferences } from "../../../lib/preferences/preferencesContext";
+import { usePlanningPeriod } from "../../../lib/preferences/usePlanningPeriod";
 import { isValidIsoDate } from "../../../lib/utils/dates";
-import { describeCadence, shiftByCadence } from "../../../lib/utils/planningRange";
 import { pickRangeDay } from "../../../lib/utils/pickRangeDay";
 import MealDatesCalendar from "./MealDatesCalendar";
 
@@ -54,11 +53,10 @@ export default function DateRangePicker({
     onChange(picked.startIso, picked.endIso);
   };
 
-  const { planningCadence } = useUserPreferences();
-  const period = describeCadence(planningCadence);
+  const period = usePlanningPeriod();
   const shiftRange = (direction: 1 | -1) => {
     if (!hasRange) return;
-    const shifted = shiftByCadence({ startIso, endIso }, planningCadence, direction);
+    const shifted = period.shift({ startIso, endIso }, direction);
     setAnchor(null);
     onChange(shifted.startIso, shifted.endIso);
   };
@@ -123,7 +121,7 @@ export default function DateRangePicker({
           className="btn btn--ghost date-range-picker__week-button"
           onClick={() => shiftRange(-1)}
           disabled={!hasRange}
-          aria-label={`Move dates back ${period}`}
+          aria-label={`Move dates back ${period.label}`}
         >
           ←
         </button>
@@ -142,7 +140,7 @@ export default function DateRangePicker({
           className="btn btn--ghost date-range-picker__week-button"
           onClick={() => shiftRange(1)}
           disabled={!hasRange}
-          aria-label={`Move dates forward ${period}`}
+          aria-label={`Move dates forward ${period.label}`}
         >
           →
         </button>

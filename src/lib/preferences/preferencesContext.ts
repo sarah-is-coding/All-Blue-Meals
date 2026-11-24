@@ -16,13 +16,14 @@ export const PreferencesContext = createContext<PreferencesContextValue>({
   ready: true,
 });
 
+/**
+ * All of the user's preferences. Components shouldn't need this: read them
+ * through a hook named for what they're for (useWeek, usePlanningPeriod), so
+ * a component never depends on the preferences' shape and new preferences
+ * don't touch it. Add a hook like those for each new kind of preference.
+ */
 export function useUserPreferences(): UserPreferences {
   return useContext(PreferencesContext).preferences;
-}
-
-/** The first day of the week the user picked (0 = Sunday, 1 = Monday). */
-export function useWeekStartsOn() {
-  return useContext(PreferencesContext).preferences.weekStartsOn;
 }
 
 export function usePreferencesReady(): boolean {

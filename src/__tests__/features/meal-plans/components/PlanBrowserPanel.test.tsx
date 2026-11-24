@@ -122,9 +122,13 @@ describe("PlanBrowserPanel — always open", () => {
     expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-31..2026-06-13");
   });
 
-  it("preselects the user's planning period: the viewed week's month", () => {
+  // A month from the viewed week, not the calendar month it's in (May 1–31
+  // used to be preselected, which showed "View week" and let the default dates
+  // be copied onto themselves).
+  it("preselects the user's planning period: a month from the viewed week", () => {
     renderPanel({ preferences: { planningCadence: { unit: "month", count: 1 } } });
-    expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-01..2026-05-31");
+    expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-31..2026-06-30");
+    expect(screen.queryByRole("button", { name: /view week/i })).not.toBeInTheDocument();
   });
 });
 

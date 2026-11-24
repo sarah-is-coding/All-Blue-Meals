@@ -43,17 +43,6 @@
   padding-bottom: 0.2rem;
 }
 
-.meal-calendar__grid--center-day {
-  /* Leave enough scroll space to center the first and last day too. */
-  --day-edge-space: max(0px, calc((100% - 190px) / 2 - 0.66rem));
-  grid-template-columns: var(--day-edge-space) repeat(7, minmax(190px, 1fr)) var(--day-edge-space);
-}
-
-.meal-calendar__grid--center-day::before,
-.meal-calendar__grid--center-day::after {
-  content: "";
-}
-
 .meal-day {
   border: 1px solid var(--alpha-brand-20);
   border-radius: 0.9rem;

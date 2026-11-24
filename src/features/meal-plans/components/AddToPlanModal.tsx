@@ -1,13 +1,7 @@
 import { useState } from "react";
-import { useWeekStartsOn } from "../../../lib/preferences/preferencesContext";
-import type { WeekStartDay } from "../../../lib/preferences/types";
+import { useWeek } from "../../../lib/preferences/useWeek";
 import { DEFAULT_MEAL_TYPE } from "../constants";
-import {
-  createDateFromIso,
-  formatWeekRangeLabel,
-  getWeekStartIso,
-  shiftWeekStartIso,
-} from "../../../lib/utils/dates";
+import { formatWeekRangeLabel, shiftWeekStartIso } from "../../../lib/utils/dates";
 import { getWeekDays } from "../utils/weekDays";
 import { useMealPlanWeek } from "../queries";
 import type { MealType } from "../types";
@@ -26,11 +20,6 @@ type AddToPlanModalProps = {
   ) => Promise<void>;
   confirming: boolean;
 };
-
-const getDefaultWeekStartIso = (weekStartsOn: WeekStartDay, initialDay?: string): string =>
-  initialDay
-    ? getWeekStartIso(createDateFromIso(initialDay), weekStartsOn)
-    : shiftWeekStartIso(getWeekStartIso(new Date(), weekStartsOn), 1);
 
 function parsePositiveServings(value: string): number | null {
   const trimmed = value.trim();
@@ -71,8 +60,11 @@ export default function AddToPlanModal({
   onConfirm,
   confirming,
 }: AddToPlanModalProps) {
-  const weekStartsOn = useWeekStartsOn();
-  const [weekStartIso, setWeekStartIso] = useState(() => getDefaultWeekStartIso(weekStartsOn, initialDay));
+  const week = useWeek();
+  // The week of the given day, or next week.
+  const [weekStartIso, setWeekStartIso] = useState(() =>
+    initialDay ? week.startOf(initialDay) : shiftWeekStartIso(week.current(), 1)
+  );
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; mealType: MealType } | null>(
     initialDay ? { date: initialDay, mealType: initialMealType ?? DEFAULT_MEAL_TYPE } : null
   );
@@ -129,7 +121,7 @@ export default function AddToPlanModal({
             weekDays={weekDays}
             items={items}
             onShiftWeek={(weekOffset) => shiftWeek(shiftWeekStartIso(weekStartIso, weekOffset))}
-            onJumpToCurrentWeek={() => shiftWeek(getWeekStartIso(new Date(), weekStartsOn))}
+            onJumpToCurrentWeek={() => shiftWeek(week.current())}
             selectedSlot={selectedSlot}
             onSelectSlot={(date, mealType) => setSelectedSlot({ date, mealType })}
           />

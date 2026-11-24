@@ -139,7 +139,11 @@ export default function MealPlannerCalendar({
         </div>
       </header>
 
-      <div className={`meal-calendar__grid${centerDayIso ? " meal-calendar__grid--center-day" : ""}`}>
+      {/* The day "View week" opened on is scrolled to the middle where it can
+          be; the first and last days stay at the row's edge. (Empty columns
+          used to pad both ends so those could be centered too, which left a
+          gap before the week's first day.) */}
+      <div className="meal-calendar__grid">
         {weekDays.map((day) => (
           <section
             key={day.dateIso}

@@ -7,6 +7,7 @@ import {
 import { prefetchMealPlanWeeks } from "../../../../features/meal-plans/queries";
 import { MemoryRouter } from "react-router-dom";
 import MealPlansPage from "../../../../features/meal-plans/pages/MealPlansPage";
+import type { UserPreferences } from "../../../../lib/preferences/types";
 import type { PlannedMeal } from "../../../../features/meal-plans/types";
 import {
   createDateFromIso,
@@ -60,14 +61,18 @@ const T = { timeout: 1500 };
 
 const renderPage = (
   initialEntries: Parameters<typeof MemoryRouter>[0]["initialEntries"],
-  client = createTestQueryClient()
+  client = createTestQueryClient(),
+  preferences: Partial<UserPreferences> = {}
 ) =>
   renderWithProviders(
     <MemoryRouter initialEntries={initialEntries}>
       <MealPlansPage />
     </MemoryRouter>,
-    { client }
+    { client, preferences }
   );
+
+const renderWithPreferences = (jumpToDate: string, preferences: Partial<UserPreferences>) =>
+  renderPage([{ pathname: "/meal-plans", state: { jumpToDate } }], createTestQueryClient(), preferences);
 
 describe("MealPlansPage", () => {
   beforeEach(() => {
@@ -131,6 +136,68 @@ describe("MealPlansPage", () => {
       expect(within(day).getByText(meal)).toBeInTheDocument();
     }
     expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith("2026-03-08");
+  });
+
+  // The Calendar tab's dates start on the viewed week and run one planning
+  // period, so they begin on the week being planned whatever the cadence. A
+  // monthly cadence once preselected the calendar month (Mar 1–31 while viewing
+  // Mar 15), which showed "View week" and offered to copy the month onto itself.
+  describe("with the user's preferences", () => {
+    it("preselects a month from the viewed week, with no View week or Apply to the same dates", () => {
+      renderWithPreferences("2026-03-18", { planningCadence: { unit: "month", count: 1 } });
+
+      expect(screen.getByLabelText("From")).toHaveValue("2026-03-15");
+      expect(screen.getByLabelText("To")).toHaveValue("2026-04-14");
+      expect(screen.queryByRole("button", { name: "View week" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Apply from Mar 15" })).toBeDisabled();
+    });
+
+    it("preselects 2 weeks from the viewed week", () => {
+      renderWithPreferences("2026-03-18", { planningCadence: { unit: "week", count: 2 } });
+      expect(screen.getByLabelText("From")).toHaveValue("2026-03-15");
+      expect(screen.getByLabelText("To")).toHaveValue("2026-03-28");
+      expect(screen.queryByRole("button", { name: "View week" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the same dates when the Calendar tab is reopened after View week", async () => {
+      renderWithPreferences("2026-03-18", { planningCadence: { unit: "month", count: 1 } });
+      // Thu Feb 26's week (Feb 22–28) starts in February, unlike the viewed March week.
+      fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-02-26" } });
+      fireEvent.click(screen.getByRole("button", { name: "View week" }));
+      expect(screen.getByText("Feb 22, 2026 - Feb 28, 2026")).toBeInTheDocument();
+
+      // Reopening the tab starts on the newly viewed week, and stays there
+      // (not on February 1, which would offer View week again, further back).
+      fireEvent.click(screen.getByRole("tab", { name: "Saved plans" }));
+      fireEvent.click(screen.getByRole("tab", { name: "Calendar" }));
+      expect(screen.getByLabelText("From")).toHaveValue("2026-02-22");
+      expect(screen.getByLabelText("To")).toHaveValue("2026-03-21");
+      expect(screen.queryByRole("button", { name: "View week" })).not.toBeInTheDocument();
+    });
+
+    it("View week opens the Monday week holding the picked date when weeks start on Monday", async () => {
+      renderWithPreferences("2026-03-18", { weekStartsOn: 1 });
+      expect(screen.getByText("Mar 16, 2026 - Mar 22, 2026")).toBeInTheDocument();
+      expect(screen.getByLabelText("From")).toHaveValue("2026-03-16");
+      expect(screen.queryByRole("button", { name: "View week" })).not.toBeInTheDocument();
+
+      // Sunday Mar 15 ends the week before when weeks start on Monday.
+      fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-15" } });
+      fireEvent.click(screen.getByRole("button", { name: "View week" }));
+
+      expect(screen.getByText("Mar 9, 2026 - Mar 15, 2026")).toBeInTheDocument();
+      expect(await screen.findByRole("region", { name: "Sunday, March 15" })).toHaveFocus();
+      expect(mockListPlannedMealsForWeek).toHaveBeenCalledWith("2026-03-09");
+      // The row is just the seven days, Monday first: no empty column before
+      // it where Sunday would be (the row used to be padded at both ends).
+      const row = document.querySelector(".meal-calendar__grid")!;
+      expect(row.className).toBe("meal-calendar__grid");
+      const days = Array.from(row.children);
+      expect(days).toHaveLength(7);
+      expect(within(days[0] as HTMLElement).getByRole("heading", { level: 2 })).toHaveTextContent("Mon");
+      // Now viewing that week: nothing more to jump to.
+      expect(screen.queryByRole("button", { name: "View week" })).not.toBeInTheDocument();
+    });
   });
 
   it("dismisses an open confirmation when the destination week changes", async () => {

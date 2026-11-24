@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import SaveNameForm from "../../../components/forms/SaveNameForm";
-import { useUserPreferences } from "../../../lib/preferences/preferencesContext";
-import { createDateFromIso, formatMonthDay, getWeekStartIso } from "../../../lib/utils/dates";
-import { planningRange } from "../../../lib/utils/planningRange";
+import { usePlanningPeriod } from "../../../lib/preferences/usePlanningPeriod";
+import { useWeek } from "../../../lib/preferences/useWeek";
+import { formatMonthDay } from "../../../lib/utils/dates";
 import { usePlannedMealsBetween, useSavedMealPlanActions } from "../queries";
 import type { CopyMode } from "../types";
 import { groupMealsByDay } from "../utils/groupMealsByDay";
@@ -25,11 +25,14 @@ export default function CopyDatesTab({
   onJumpToWeek,
   onCopyRange,
 }: Props) {
-  const { planningCadence, weekStartsOn } = useUserPreferences();
-  // Start with the planning period (the user's cadence: a week, 2 weeks, a
-  // month…) that the viewed week is in, then keep the source independent of
-  // the destination.
-  const [range, setRange] = useState(() => planningRange(planningCadence, currentWeekStartIso, weekStartsOn));
+  const period = usePlanningPeriod();
+  const week = useWeek();
+  // Start with one planning period (the user's cadence: a week, 2 weeks, a
+  // month…) from the viewed week, then keep the source independent of the
+  // destination. Starting on the viewed week (not, say, the 1st of its month)
+  // means the defaults never show "View week" or offer to copy dates onto
+  // themselves.
+  const [range, setRange] = useState(() => period.from(currentWeekStartIso));
 
   // Copy flow
   const [copying, setCopying] = useState(false);
@@ -61,7 +64,7 @@ export default function CopyDatesTab({
   const savedNotice = isEmpty ? null : savedLabel;
   const showSelectionDetails =
     showSaveInput || showConfirm || previewQuery.error || savedNotice;
-  const sourceWeek = getWeekStartIso(createDateFromIso(range.startIso), weekStartsOn);
+  const sourceWeek = week.startOf(range.startIso);
 
   const executeCopy = (mode: CopyMode) => {
     if (!showConfirm || !canCopy) return;

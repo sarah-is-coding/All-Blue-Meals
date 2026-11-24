@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { useWeekStartsOn } from "../../../lib/preferences/preferencesContext";
+import { useWeek } from "../../../lib/preferences/useWeek";
 import type { WeekStartDay } from "../../../lib/preferences/types";
-import { addDays, createDateFromIso, dayOfWeekIndex, toIsoDate, weekdayInitials } from "../../../lib/utils/dates";
+import { addDays, createDateFromIso, dayOfWeekIndex, toIsoDate } from "../../../lib/utils/dates";
 import { usePlannedMealsBetween } from "../queries";
 import { createWheelPager, swipeStep } from "../utils/monthSwipe";
 
@@ -96,7 +96,8 @@ const monthYearFmt = new Intl.DateTimeFormat("en-US", {
 
 export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelectDay }: Props) {
   const todayIso = toIsoDate(new Date());
-  const weekStartsOn = useWeekStartsOn();
+  const week = useWeek();
+  const { weekStartsOn } = week;
   const [viewDate, setViewDate] = useState(() =>
     rangeStartIso === null ? new Date() : createDateFromIso(rangeStartIso)
   );
@@ -186,7 +187,7 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
       </div>
 
       <div className="meal-dates-cal__weekdays" aria-hidden="true">
-        {weekdayInitials(weekStartsOn).map((lbl) => (
+        {week.weekdayInitials.map((lbl) => (
           <span key={lbl} className="meal-dates-cal__weekday">{lbl}</span>
         ))}
       </div>

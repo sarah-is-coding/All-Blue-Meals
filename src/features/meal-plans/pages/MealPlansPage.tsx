@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import LoadingModal from "../../../components/feedback/LoadingModal";
-import { useWeekStartsOn } from "../../../lib/preferences/preferencesContext";
+import { useWeek } from "../../../lib/preferences/useWeek";
 import MealPlannerCalendar from "../components/MealPlannerCalendar";
 import PlanBrowserPanel from "../components/PlanBrowserPanel";
-import {
-  createDateFromIso,
-  formatWeekRangeLabel,
-  getWeekStartIso,
-  shiftWeekStartIso,
-} from "../../../lib/utils/dates";
+import { formatWeekRangeLabel, shiftWeekStartIso } from "../../../lib/utils/dates";
 import { getWeekDays } from "../utils/weekDays";
 import { useMealPlanActions, useMealPlanWeek } from "../queries";
 import type { MealType } from "../types";
@@ -24,13 +19,13 @@ const isIsoDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 export default function MealPlansPage() {
   const location = useLocation();
   const jumpToDate = (location.state as { jumpToDate?: string } | null)?.jumpToDate;
-  const weekStartsOn = useWeekStartsOn();
+  const weeks = useWeek();
 
   const [initialState] = useState(() => {
     if (jumpToDate && isIsoDate(jumpToDate)) {
-      return { weekStartIso: getWeekStartIso(createDateFromIso(jumpToDate), weekStartsOn) };
+      return { weekStartIso: weeks.startOf(jumpToDate) };
     }
-    return { weekStartIso: getPlannerStartWeek(weekStartsOn) };
+    return { weekStartIso: getPlannerStartWeek(weeks.weekStartsOn) };
   });
   const [weekStartIso, setWeekStartIso] = useState(initialState.weekStartIso);
   const [centerDayIso, setCenterDayIso] = useState<string | null>(null);
@@ -54,7 +49,7 @@ export default function MealPlansPage() {
   }, []);
 
   const handleViewWeek = (dateIso: string) => {
-    changeWeek(getWeekStartIso(createDateFromIso(dateIso), weekStartsOn), dateIso);
+    changeWeek(weeks.startOf(dateIso), dateIso);
   };
 
   useEffect(() => {
@@ -158,7 +153,7 @@ export default function MealPlansPage() {
           movingItemId={movingItemId}
           updatingServingsItemId={updatingServingsItemId}
           onShiftWeek={(weekOffset) => changeWeek(shiftWeekStartIso(weekStartIso, weekOffset))}
-          onJumpToCurrentWeek={() => changeWeek(getWeekStartIso(new Date(), weekStartsOn))}
+          onJumpToCurrentWeek={() => changeWeek(weeks.current())}
           onMoveItem={handleMoveItem}
           onUpdateItemServings={handleUpdateItemServings}
           onRemoveItem={handleRemoveItem}
