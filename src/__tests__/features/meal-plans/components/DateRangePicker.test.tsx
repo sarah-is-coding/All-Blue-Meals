@@ -3,6 +3,7 @@ import { renderWithProviders } from "../../../utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useState } from "react";
 import DateRangePicker from "../../../../features/meal-plans/components/DateRangePicker";
+import type { UserPreferences } from "../../../../lib/preferences/types";
 
 // Mock the calendar with fixed day buttons; its month grid has its own tests.
 vi.mock("../../../../features/meal-plans/components/MealDatesCalendar", () => ({
@@ -37,8 +38,10 @@ function Harness({ initial }: { initial: { startIso: string; endIso: string } | 
   );
 }
 
-const renderPicker = (initial: { startIso: string; endIso: string } | null = null) =>
-  renderWithProviders(<Harness initial={initial} />);
+const renderPicker = (
+  initial: { startIso: string; endIso: string } | null = null,
+  preferences: Partial<UserPreferences> = {}
+) => renderWithProviders(<Harness initial={initial} />, { preferences });
 
 const pickDay = (iso: string) =>
   fireEvent.click(screen.getByRole("button", { name: `Day ${iso}` }));
@@ -75,6 +78,22 @@ describe("DateRangePicker", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Move dates back a week" }));
     expect(calendarRange()).toBe("2026-05-25..2026-05-27");
+  });
+
+  // The arrows move by the user's planning cadence (it used to always be a week).
+  it("moves by the user's cadence: 2 weeks", () => {
+    renderPicker({ startIso: "2026-11-15", endIso: "2026-11-28" }, { planningCadence: { unit: "week", count: 2 } });
+    fireEvent.click(screen.getByRole("button", { name: "Move dates forward 2 weeks" }));
+    expect(calendarRange()).toBe("2026-11-29..2026-12-12");
+  });
+
+  it("moves by the user's cadence: a month, keeping whole months whole", () => {
+    renderPicker({ startIso: "2026-11-01", endIso: "2026-11-30" }, { planningCadence: { unit: "month", count: 1 } });
+    fireEvent.click(screen.getByRole("button", { name: "Move dates forward a month" }));
+    expect(calendarRange()).toBe("2026-12-01..2026-12-31");
+    fireEvent.click(screen.getByRole("button", { name: "Move dates back a month" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move dates back a month" }));
+    expect(calendarRange()).toBe("2026-10-01..2026-10-31");
   });
 
   it("starts a fresh two-tap selection after moving the dates with an arrow", () => {

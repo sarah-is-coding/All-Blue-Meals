@@ -71,7 +71,7 @@ describe("AddToPlanButton", () => {
       effectiveServings: 4,
     });
 
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const targetDay = getWeekDays(expectedWeekStartIso)[2];
 
     const user = userEvent.setup();
@@ -119,7 +119,7 @@ describe("AddToPlanButton", () => {
       effectiveServings: 4,
     });
 
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const targetDay = getWeekDays(expectedWeekStartIso)[2];
 
     const user = userEvent.setup();
@@ -142,7 +142,7 @@ describe("AddToPlanButton", () => {
     const farFutureDate = new Date();
     farFutureDate.setDate(farFutureDate.getDate() + 30);
     const initialDay = toIsoDate(farFutureDate);
-    const expectedWeekStartIso = getWeekStartIso(farFutureDate);
+    const expectedWeekStartIso = getWeekStartIso(farFutureDate, 0);
     const expectedDay = getWeekDays(expectedWeekStartIso).find(
       (day) => day.dateIso === initialDay
     );
@@ -162,7 +162,7 @@ describe("AddToPlanButton", () => {
   it("shows an error message when assignment fails", async () => {
     mockAddPlannedMeal.mockRejectedValue(new Error("Failed to add recipe to plan."));
 
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const targetDay = getWeekDays(expectedWeekStartIso)[2];
 
     const user = userEvent.setup();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import LoadingModal from "../../../components/feedback/LoadingModal";
+import { useWeekStartsOn } from "../../../lib/preferences/preferencesContext";
 import MealPlannerCalendar from "../components/MealPlannerCalendar";
 import PlanBrowserPanel from "../components/PlanBrowserPanel";
 import {
@@ -23,12 +24,13 @@ const isIsoDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 export default function MealPlansPage() {
   const location = useLocation();
   const jumpToDate = (location.state as { jumpToDate?: string } | null)?.jumpToDate;
+  const weekStartsOn = useWeekStartsOn();
 
   const [initialState] = useState(() => {
     if (jumpToDate && isIsoDate(jumpToDate)) {
-      return { weekStartIso: getWeekStartIso(createDateFromIso(jumpToDate)) };
+      return { weekStartIso: getWeekStartIso(createDateFromIso(jumpToDate), weekStartsOn) };
     }
-    return { weekStartIso: getPlannerStartWeek() };
+    return { weekStartIso: getPlannerStartWeek(weekStartsOn) };
   });
   const [weekStartIso, setWeekStartIso] = useState(initialState.weekStartIso);
   const [centerDayIso, setCenterDayIso] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function MealPlansPage() {
   }, []);
 
   const handleViewWeek = (dateIso: string) => {
-    changeWeek(getWeekStartIso(createDateFromIso(dateIso)), dateIso);
+    changeWeek(getWeekStartIso(createDateFromIso(dateIso), weekStartsOn), dateIso);
   };
 
   useEffect(() => {
@@ -156,7 +158,7 @@ export default function MealPlansPage() {
           movingItemId={movingItemId}
           updatingServingsItemId={updatingServingsItemId}
           onShiftWeek={(weekOffset) => changeWeek(shiftWeekStartIso(weekStartIso, weekOffset))}
-          onJumpToCurrentWeek={() => changeWeek(getWeekStartIso(new Date()))}
+          onJumpToCurrentWeek={() => changeWeek(getWeekStartIso(new Date(), weekStartsOn))}
           onMoveItem={handleMoveItem}
           onUpdateItemServings={handleUpdateItemServings}
           onRemoveItem={handleRemoveItem}

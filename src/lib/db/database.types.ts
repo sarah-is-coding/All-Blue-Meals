@@ -153,17 +153,26 @@ export type Database = {
         Row: {
           created_at: string
           display_name: string | null
+          plan_cadence_count: number
+          plan_cadence_unit: string
           user_id: string
+          week_starts_on: number
         }
         Insert: {
           created_at?: string
           display_name?: string | null
+          plan_cadence_count?: number
+          plan_cadence_unit?: string
           user_id: string
+          week_starts_on?: number
         }
         Update: {
           created_at?: string
           display_name?: string | null
+          plan_cadence_count?: number
+          plan_cadence_unit?: string
           user_id?: string
+          week_starts_on?: number
         }
         Relationships: []
       }

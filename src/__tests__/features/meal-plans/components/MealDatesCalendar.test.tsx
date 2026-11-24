@@ -28,7 +28,7 @@ const inThisMonth = (day: number) =>
   toIsoDate(new Date(today.getFullYear(), today.getMonth(), day));
 
 function renderCalendar(
-  props: { rangeStartIso?: string | null; rangeEndIso?: string | null } = {}
+  props: { rangeStartIso?: string | null; rangeEndIso?: string | null; weekStartsOn?: 0 | 1 } = {}
 ) {
   const onSelectDay = vi.fn();
   renderWithProviders(
@@ -36,7 +36,8 @@ function renderCalendar(
       rangeStartIso={props.rangeStartIso ?? null}
       rangeEndIso={props.rangeEndIso ?? null}
       onSelectDay={onSelectDay}
-    />
+    />,
+    { preferences: { weekStartsOn: props.weekStartsOn ?? 0 } }
   );
   return { onSelectDay };
 }
@@ -46,7 +47,40 @@ beforeEach(() => {
   vi.mocked(listPlannedMealsBetween).mockResolvedValue([]);
 });
 
+const weekdayHeader = () =>
+  Array.from(document.querySelectorAll(".meal-dates-cal__weekday")).map((cell) => cell.textContent);
+const gridDays = () => screen.getAllByRole("gridcell").map((cell) => cell.getAttribute("aria-label") ?? "");
+const dayOfWeek = (iso: string) => new Date(`${iso}T12:00:00`).getDay();
+
 describe("MealDatesCalendar", () => {
+  it("lays out weeks Sunday to Saturday by default", () => {
+    renderCalendar();
+    expect(weekdayHeader()).toEqual(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]);
+    const days = gridDays();
+    expect(dayOfWeek(days[0]!)).toBe(0);
+    expect(dayOfWeek(days[days.length - 1]!)).toBe(6);
+  });
+
+  it("lays out weeks Monday to Sunday when the user's weeks start on Monday", () => {
+    renderCalendar({ weekStartsOn: 1 });
+    expect(weekdayHeader()).toEqual(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]);
+    const days = gridDays();
+    expect(days.length % 7).toBe(0);
+    expect(dayOfWeek(days[0]!)).toBe(1);
+    expect(dayOfWeek(days[days.length - 1]!)).toBe(0);
+    // The month's first day is in the first row.
+    expect(days.slice(0, 7)).toContain(inThisMonth(1));
+  });
+
+  it("rounds the selection band at the user's week edges", () => {
+    // A range covering a whole month: the band breaks at the end of each week row.
+    renderCalendar({ rangeStartIso: inThisMonth(1), rangeEndIso: inThisMonth(28), weekStartsOn: 1 });
+    for (const cell of document.querySelectorAll(".meal-dates-cal__day--band-right")) {
+      const iso = cell.getAttribute("aria-label")!;
+      expect(iso === inThisMonth(28) || dayOfWeek(iso) === 0).toBe(true);
+    }
+  });
+
   it("shows the current month and its day grid", () => {
     renderCalendar();
     const label = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(today);

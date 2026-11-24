@@ -4,6 +4,7 @@ import { useAuthSession } from "../features/auth/hooks/useAuthSession";
 import { CurrentUserIdContext } from "../lib/auth/sessionContext";
 import { queryClient } from "../lib/query/queryClient";
 import AppRouter from "./AppRouter";
+import PreferencesProvider from "./PreferencesProvider";
 import { useSessionCache } from "./useSessionCache";
 
 function App() {
@@ -14,13 +15,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrentUserIdContext.Provider value={userId}>
-        <AppRouter
-          session={session}
-          authReady={authReady}
-          passwordRecovery={passwordRecovery}
-          linkError={linkError}
-          onLinkErrorShown={dismissLinkError}
-        />
+        <PreferencesProvider>
+          <AppRouter
+            session={session}
+            authReady={authReady}
+            passwordRecovery={passwordRecovery}
+            linkError={linkError}
+            onLinkErrorShown={dismissLinkError}
+          />
+        </PreferencesProvider>
       </CurrentUserIdContext.Provider>
     </QueryClientProvider>
   );

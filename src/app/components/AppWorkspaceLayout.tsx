@@ -70,6 +70,25 @@ export default function AppWorkspaceLayout() {
             </nav>
 
             <div className="workspace__actions">
+              <NavLink
+                to="/preferences"
+                className={({ isActive }) =>
+                  `workspace__preferences-link${isActive ? " workspace__preferences-link--active" : ""}`
+                }
+                aria-label="Preferences"
+                title="Preferences"
+              >
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </NavLink>
               <button className="btn btn--primary" onClick={handleSignOut} disabled={loading}>
                 {loading ? "Signing out..." : "Sign out"}
               </button>

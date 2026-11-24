@@ -47,7 +47,7 @@ describe("AddToPlanModal", () => {
   });
 
   it("defaults to next week and disables Add recipe until a slot is picked", async () => {
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     renderModal();
 
     await waitFor(() => {
@@ -63,7 +63,7 @@ describe("AddToPlanModal", () => {
     const farFutureDate = new Date();
     farFutureDate.setDate(farFutureDate.getDate() + 30);
     const initialDay = toIsoDate(farFutureDate);
-    const expectedWeekStartIso = getWeekStartIso(farFutureDate);
+    const expectedWeekStartIso = getWeekStartIso(farFutureDate, 0);
     const expectedDay = getWeekDays(expectedWeekStartIso).find(
       (day) => day.dateIso === initialDay
     );
@@ -82,7 +82,7 @@ describe("AddToPlanModal", () => {
   });
 
   it("selects a slot, then confirms with the chosen day/meal and servings", async () => {
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const weekDays = getWeekDays(expectedWeekStartIso);
     const user = userEvent.setup();
     const { onConfirm } = renderModal();
@@ -97,7 +97,7 @@ describe("AddToPlanModal", () => {
   });
 
   it("steps to the next week, keeping the same weekday selected, and refetches items", async () => {
-    const initialWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const initialWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const initialWeekDays = getWeekDays(initialWeekStartIso);
     const user = userEvent.setup();
     renderModal();
@@ -122,7 +122,7 @@ describe("AddToPlanModal", () => {
   });
 
   it("shows existing items for the week in the embedded calendar", async () => {
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const weekDays = getWeekDays(expectedWeekStartIso);
     const existingItem: PlannedMeal = {
       id: "item-1",

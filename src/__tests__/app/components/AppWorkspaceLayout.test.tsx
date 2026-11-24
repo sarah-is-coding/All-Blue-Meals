@@ -20,4 +20,16 @@ describe("AppWorkspaceLayout", () => {
       expect(within(nav).getByRole("link", { name: "Recipes" })).toHaveClass("workspace-nav__link--active");
     }
   });
+
+  it("has a Preferences link (the user icon) next to Sign out", () => {
+    render(
+      <MemoryRouter initialEntries={["/preferences"]}>
+        <AppWorkspaceLayout />
+      </MemoryRouter>
+    );
+    const preferences = screen.getByRole("link", { name: "Preferences" });
+    expect(preferences).toHaveAttribute("href", "/preferences");
+    expect(preferences).toHaveClass("workspace__preferences-link--active");
+    expect(preferences.parentElement).toContainElement(screen.getByRole("button", { name: "Sign out" }));
+  });
 });

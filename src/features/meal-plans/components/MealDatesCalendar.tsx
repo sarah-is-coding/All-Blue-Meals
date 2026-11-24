@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { addDays, createDateFromIso, toIsoDate } from "../../../lib/utils/dates";
+import { useWeekStartsOn } from "../../../lib/preferences/preferencesContext";
+import type { WeekStartDay } from "../../../lib/preferences/types";
+import { addDays, createDateFromIso, dayOfWeekIndex, toIsoDate, weekdayInitials } from "../../../lib/utils/dates";
 import { usePlannedMealsBetween } from "../queries";
 import { createWheelPager, swipeStep } from "../utils/monthSwipe";
 
@@ -7,11 +9,6 @@ import { createWheelPager, swipeStep } from "../utils/monthSwipe";
 // planned meals are marked, read straight from the meals' dates (no plan
 // rows involved), and any day can start or end a range. Swiping sideways
 // (touch or trackpad) moves a month, like the ◀ ▶ buttons.
-
-/** Sunday-first day-of-week: 0 = Sun … 6 = Sat (what getDay already is). */
-function sunFirstDow(date: Date): number {
-  return date.getDay();
-}
 
 // ── Month grid builder ────────────────────────────────────────────────────
 
@@ -28,13 +25,18 @@ type DayCell = {
   bandRight: boolean;
 };
 
-/** The grid's first and last day: full weeks padded around the month. */
-function monthGridBounds(year: number, month: number): { startIso: string; endIso: string } {
+/** The grid's first and last day: full weeks (starting on the user's first
+ *  day of the week) padded around the month. */
+function monthGridBounds(
+  year: number,
+  month: number,
+  weekStartsOn: WeekStartDay
+): { startIso: string; endIso: string } {
   const firstOfMonth = new Date(year, month, 1);
   const lastOfMonth = new Date(year, month + 1, 0);
   return {
-    startIso: toIsoDate(addDays(firstOfMonth, -sunFirstDow(firstOfMonth))),
-    endIso: toIsoDate(addDays(lastOfMonth, 6 - sunFirstDow(lastOfMonth))),
+    startIso: toIsoDate(addDays(firstOfMonth, -dayOfWeekIndex(firstOfMonth, weekStartsOn))),
+    endIso: toIsoDate(addDays(lastOfMonth, 6 - dayOfWeekIndex(lastOfMonth, weekStartsOn))),
   };
 }
 
@@ -44,16 +46,17 @@ function buildMonthCells(
   mealDates: ReadonlySet<string>,
   rangeStartIso: string | null,
   rangeEndIso: string | null,
-  todayIso: string
+  todayIso: string,
+  weekStartsOn: WeekStartDay
 ): DayCell[] {
-  const { startIso, endIso } = monthGridBounds(year, month);
+  const { startIso, endIso } = monthGridBounds(year, month, weekStartsOn);
   const cells: DayCell[] = [];
   let d = createDateFromIso(startIso);
   const end = createDateFromIso(endIso);
 
   while (d <= end) {
     const iso = toIsoDate(d);
-    const dow = sunFirstDow(d); // 0 = Sun, 6 = Sat
+    const dow = dayOfWeekIndex(d, weekStartsOn); // 0 = first day of the week, 6 = last
     const inRange =
       rangeStartIso !== null &&
       rangeEndIso !== null &&
@@ -86,8 +89,6 @@ type Props = {
   onSelectDay: (dateIso: string) => void;
 };
 
-const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
 const monthYearFmt = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
@@ -95,6 +96,7 @@ const monthYearFmt = new Intl.DateTimeFormat("en-US", {
 
 export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelectDay }: Props) {
   const todayIso = toIsoDate(new Date());
+  const weekStartsOn = useWeekStartsOn();
   const [viewDate, setViewDate] = useState(() =>
     rangeStartIso === null ? new Date() : createDateFromIso(rangeStartIso)
   );
@@ -102,7 +104,7 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
   const viewMonth = viewDate.getMonth();
 
   // Which of the visible days have meals, straight from the meals' dates.
-  const grid = monthGridBounds(viewYear, viewMonth);
+  const grid = monthGridBounds(viewYear, viewMonth, weekStartsOn);
   const [previousRange, setPreviousRange] = useState({ startIso: rangeStartIso, endIso: rangeEndIso });
   if (previousRange.startIso !== rangeStartIso || previousRange.endIso !== rangeEndIso) {
     setPreviousRange({ startIso: rangeStartIso, endIso: rangeEndIso });
@@ -125,8 +127,8 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
   );
 
   const cells = useMemo(
-    () => buildMonthCells(viewYear, viewMonth, mealDates, rangeStartIso, rangeEndIso, todayIso),
-    [viewYear, viewMonth, mealDates, rangeStartIso, rangeEndIso, todayIso]
+    () => buildMonthCells(viewYear, viewMonth, mealDates, rangeStartIso, rangeEndIso, todayIso, weekStartsOn),
+    [viewYear, viewMonth, mealDates, rangeStartIso, rangeEndIso, todayIso, weekStartsOn]
   );
 
   /** Move the view by `step` months (-1 or 1). */
@@ -184,7 +186,7 @@ export default function MealDatesCalendar({ rangeStartIso, rangeEndIso, onSelect
       </div>
 
       <div className="meal-dates-cal__weekdays" aria-hidden="true">
-        {WEEKDAY_LABELS.map((lbl) => (
+        {weekdayInitials(weekStartsOn).map((lbl) => (
           <span key={lbl} className="meal-dates-cal__weekday">{lbl}</span>
         ))}
       </div>

@@ -1,5 +1,6 @@
 import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "../../../utils/renderWithProviders";
+import type { UserPreferences } from "../../../../lib/preferences/types";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import PlanBrowserPanel from "../../../../features/meal-plans/components/PlanBrowserPanel";
@@ -61,6 +62,7 @@ function renderPanel(
     currentWeekHasItems?: boolean;
     onCopyRange?: () => Promise<void>;
     onApplySavedPlan?: () => Promise<void>;
+    preferences?: Partial<UserPreferences>;
   } = {}
 ) {
   const onJumpToWeek = vi.fn();
@@ -76,7 +78,8 @@ function renderPanel(
         onCopyRange={onCopyRange}
         onApplySavedPlan={onApplySavedPlan}
       />
-    </MemoryRouter>
+    </MemoryRouter>,
+    { preferences: overrides.preferences }
   );
   return { onJumpToWeek, onCopyRange, onApplySavedPlan };
 }
@@ -112,6 +115,16 @@ describe("PlanBrowserPanel — always open", () => {
     ]);
     expect(screen.queryByRole("button", { name: /view week/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Pick dates to apply.")).not.toBeInTheDocument();
+  });
+
+  it("preselects the user's planning period: 2 weeks from the viewed week", () => {
+    renderPanel({ preferences: { planningCadence: { unit: "week", count: 2 } } });
+    expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-31..2026-06-13");
+  });
+
+  it("preselects the user's planning period: the viewed week's month", () => {
+    renderPanel({ preferences: { planningCadence: { unit: "month", count: 1 } } });
+    expect(screen.getByTestId("meal-dates-calendar")).toHaveAttribute("data-range", "2026-05-01..2026-05-31");
   });
 });
 

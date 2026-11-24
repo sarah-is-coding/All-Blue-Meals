@@ -37,7 +37,7 @@ import {
   updatePlannedMealServings,
 } from "../../../features/meal-plans/api";
 
-// Sundays, since weeks start on Sunday (redesign decision 8).
+// Sundays: weeks start on Sunday by default (users can pick Monday).
 const PREV = "2026-05-17";
 const WEEK = "2026-05-24";
 const NEXT = "2026-05-31";
@@ -220,6 +220,25 @@ describe("useMealPlanActions", () => {
     await act(() => actions.moveItem({ itemId: "a", plannedFor: "2026-06-02", mealType: "dinner" }));
 
     expect(cachedWeek(client, WEEK)).toEqual([]);
+    expect(cachedWeek(client, NEXT)).toEqual([moved]);
+  });
+
+  // Weeks are cached by their first day, and the user can switch between
+  // Sunday and Monday weeks, so both kinds can be cached at once. A change
+  // goes into every cached week whose dates include it.
+  it("places a change by date, in Monday-start and Sunday-start weeks alike", async () => {
+    const client = createTestQueryClient();
+    const MONDAY_WEEK = "2026-05-25"; // Mon May 25 – Sun May 31
+    await prefetchMealPlanWeeks(client, TEST_USER_ID, [WEEK, MONDAY_WEEK, NEXT]);
+    const { result } = renderHookWithProviders(() => useMealPlanActions(), { client });
+    // Sunday May 31 starts the Sunday week NEXT and ends the Monday week.
+    const moved = item("a", "2026-05-31");
+    vi.mocked(movePlannedMeal).mockResolvedValue(moved);
+
+    await act(() => result.current.moveItem({ itemId: "a", plannedFor: "2026-05-31", mealType: "dinner" }));
+
+    expect(cachedWeek(client, WEEK)).toEqual([]);
+    expect(cachedWeek(client, MONDAY_WEEK)).toEqual([moved]);
     expect(cachedWeek(client, NEXT)).toEqual([moved]);
   });
 

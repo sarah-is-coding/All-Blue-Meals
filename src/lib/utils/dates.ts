@@ -1,5 +1,8 @@
-// Date helpers that work on local-time "YYYY-MM-DD" strings. Weeks start
-// on Sunday (decision 8 of docs/meal-planning-redesign.md).
+// Date helpers that work on local-time "YYYY-MM-DD" strings. The first day
+// of the week is the user's preference (Sunday or Monday), so anything that
+// finds a week's start takes it as `weekStartsOn`.
+
+import type { WeekStartDay } from "../preferences/types";
 
 const monthDayYearFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -31,9 +34,14 @@ export function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function getWeekStartIso(referenceDate: Date = new Date()): string {
-  // getDay() is 0 for Sunday, so it is also the distance back to the week's start.
-  return toIsoDate(addDays(referenceDate, -referenceDate.getDay()));
+/** How far into its week a date is: 0 on the week's first day, 6 on its last. */
+export function dayOfWeekIndex(date: Date, weekStartsOn: WeekStartDay): number {
+  return (date.getDay() - weekStartsOn + 7) % 7;
+}
+
+/** The first day of the week that `referenceDate` is in. */
+export function getWeekStartIso(referenceDate: Date, weekStartsOn: WeekStartDay): string {
+  return toIsoDate(addDays(referenceDate, -dayOfWeekIndex(referenceDate, weekStartsOn)));
 }
 
 export function getWeekEndIso(weekStartIso: string): string {
@@ -48,6 +56,17 @@ export function formatWeekRangeLabel(weekStartIso: string): string {
   const weekStartDate = createDateFromIso(weekStartIso);
   const weekEndDate = addDays(weekStartDate, 6);
   return `${monthDayYearFormatter.format(weekStartDate)} - ${monthDayYearFormatter.format(weekEndDate)}`;
+}
+
+/** Whether `isoDate` falls in the 7 days starting `weekStartIso`. */
+export function isInWeek(isoDate: string, weekStartIso: string): boolean {
+  return isoDate >= weekStartIso && isoDate <= getWeekEndIso(weekStartIso);
+}
+
+/** Two-letter weekday names in week order: Su Mo … Sa, or Mo Tu … Su. */
+export function weekdayInitials(weekStartsOn: WeekStartDay): string[] {
+  const names = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  return [...names.slice(weekStartsOn), ...names.slice(0, weekStartsOn)];
 }
 
 export function formatDateRange(startIso: string, endIso: string): string {

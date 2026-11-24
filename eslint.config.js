@@ -13,6 +13,7 @@ const featureDependencies = {
   'meal-plans': [],
   recipes: ['ingredients', 'meal-plans'],
   grocery: ['ingredients', 'meal-plans'],
+  preferences: [],
 }
 
 const features = Object.keys(featureDependencies)

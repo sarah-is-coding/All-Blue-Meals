@@ -41,7 +41,7 @@ model match.
 | 5 | **Meals with an `other` or empty meal type are deleted.** The app never shows them, so they're invisible today. |
 | 6 | **Saved plans can only be renamed** (and deleted) for now. Editing their meals can come later. |
 | 7 | **Rename to match the model:** `meal_plan_items` → `planned_meals`, and the saved copy's rows are `saved_plan_meals` (not "items"). Code follows the same words (see Naming). |
-| 8 | **Weeks start on Sunday.** Wherever the app uses the idea of a week (the planner's week view, "This week" / "Next week" shortcuts, default ranges), it runs Sunday to Saturday. The data model doesn't depend on weeks, so this is a display change. See [Weeks start on Sunday](#weeks-start-on-sunday). |
+| 8 | **Weeks start on Sunday** (since made a user preference: Sunday is the default, Monday the alternative; see CLAUDE.md, "User preferences"). Wherever the app uses the idea of a week (the planner's week view, "This week" / "Next week" shortcuts, default ranges), it runs Sunday to Saturday. The data model doesn't depend on weeks, so this is a display change. See [Weeks start on Sunday](#weeks-start-on-sunday). |
 
 ## New data model
 

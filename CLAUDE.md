@@ -211,9 +211,10 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   ESLint only allows the library in `src/lib/query`, `queries.ts` files,
   `src/app/App.tsx`, and `src/app/useSessionCache.ts`
 - `src/app/useSessionCache.ts` prefetches in the background when a user
-  signs in: the week the planner will open on (`getPlannerStartWeek()`)
-  first, then the weeks either side. On sign-out it clears the whole cache
-  and the planner's remembered week
+  signs in: their preferences first (they say which day weeks start on),
+  then the week the planner will open on (`getPlannerStartWeek(weekStartsOn)`),
+  then the weeks either side. On sign-out it clears the whole cache and the
+  planner's remembered week
 - Actions write to the cache only after the database confirms the change,
   and cancel in-flight requests first so a stale response can't overwrite
   the update (see `settleInFlightRequests` in `meal-plans/queries.ts`)
@@ -229,6 +230,22 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   saved plans, previews) and
   `recipes/queries.ts` (list pages, recipe detail). Recipe changes also
   refresh planner weeks, since the planner shows recipe titles/servings
+
+### User preferences
+
+The signed-in user's preferences (which day weeks start on, how often they
+plan) live on their `profiles` row. `src/app/PreferencesProvider.tsx` loads
+them and shares them through `PreferencesContext` in `src/lib/preferences`;
+read them with `useUserPreferences()` / `useWeekStartsOn()`, never by
+importing the `preferences` feature. App pages wait until they've loaded.
+
+- Never assume weeks start on Sunday: anything that finds a week's start
+  calls `getWeekStartIso(date, weekStartsOn)` (the argument is required),
+  and calendar grids use `dayOfWeekIndex` / `weekdayInitials`
+- Default date ranges and range arrows use the planning cadence through
+  `planningRange` / `shiftByCadence` in `src/lib/utils/planningRange.ts`
+- Cached planner weeks are matched to meals by date (`isInWeek`), so weeks
+  starting on either day can be cached at once
 
 ### Which meals count (meal plans)
 
@@ -250,8 +267,8 @@ copying plans always agree:
 Features may only import from the features listed for them in
 `featureDependencies` in `eslint.config.js`. Today that is
 `recipes → ingredients, meal-plans` and
-`grocery → ingredients, meal-plans`; `auth`, `ingredients`, and
-`meal-plans` import no other feature. `src/lib` and `src/components`
+`grocery → ingredients, meal-plans`; `auth`, `ingredients`, `meal-plans`,
+and `preferences` import no other feature. `src/lib` and `src/components`
 must not import from features or `src/app`.
 
 If two features need the same generic helper (dates, quantities, …),

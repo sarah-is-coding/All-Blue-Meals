@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useWeekStartsOn } from "../../../lib/preferences/preferencesContext";
+import type { WeekStartDay } from "../../../lib/preferences/types";
 import { DEFAULT_MEAL_TYPE } from "../constants";
 import {
   createDateFromIso,
@@ -25,10 +27,10 @@ type AddToPlanModalProps = {
   confirming: boolean;
 };
 
-const getDefaultWeekStartIso = (initialDay?: string): string =>
+const getDefaultWeekStartIso = (weekStartsOn: WeekStartDay, initialDay?: string): string =>
   initialDay
-    ? getWeekStartIso(createDateFromIso(initialDay))
-    : shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    ? getWeekStartIso(createDateFromIso(initialDay), weekStartsOn)
+    : shiftWeekStartIso(getWeekStartIso(new Date(), weekStartsOn), 1);
 
 function parsePositiveServings(value: string): number | null {
   const trimmed = value.trim();
@@ -69,7 +71,8 @@ export default function AddToPlanModal({
   onConfirm,
   confirming,
 }: AddToPlanModalProps) {
-  const [weekStartIso, setWeekStartIso] = useState(() => getDefaultWeekStartIso(initialDay));
+  const weekStartsOn = useWeekStartsOn();
+  const [weekStartIso, setWeekStartIso] = useState(() => getDefaultWeekStartIso(weekStartsOn, initialDay));
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; mealType: MealType } | null>(
     initialDay ? { date: initialDay, mealType: initialMealType ?? DEFAULT_MEAL_TYPE } : null
   );
@@ -126,7 +129,7 @@ export default function AddToPlanModal({
             weekDays={weekDays}
             items={items}
             onShiftWeek={(weekOffset) => shiftWeek(shiftWeekStartIso(weekStartIso, weekOffset))}
-            onJumpToCurrentWeek={() => shiftWeek(getWeekStartIso(new Date()))}
+            onJumpToCurrentWeek={() => shiftWeek(getWeekStartIso(new Date(), weekStartsOn))}
             selectedSlot={selectedSlot}
             onSelectSlot={(date, mealType) => setSelectedSlot({ date, mealType })}
           />

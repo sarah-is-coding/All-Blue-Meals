@@ -2,6 +2,8 @@ import type { ReactElement, ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, renderHook, type RenderOptions } from "@testing-library/react";
 import { CurrentUserIdContext } from "../../lib/auth/sessionContext";
+import { PreferencesContext } from "../../lib/preferences/preferencesContext";
+import { DEFAULT_PREFERENCES, type UserPreferences } from "../../lib/preferences/types";
 import { STALE_TIME_MS } from "../../lib/query/queryClient";
 
 export const TEST_USER_ID = "test-user";
@@ -14,13 +16,21 @@ export function createTestQueryClient(): QueryClient {
   });
 }
 
-type ProviderOptions = { client?: QueryClient; userId?: string | null };
+type ProviderOptions = {
+  client?: QueryClient;
+  userId?: string | null;
+  /** The user's preferences (default: Sunday weeks, planning every week). */
+  preferences?: Partial<UserPreferences>;
+};
 
-function makeWrapper(client: QueryClient, userId: string | null) {
+function makeWrapper(client: QueryClient, userId: string | null, preferences: Partial<UserPreferences> = {}) {
+  const preferencesValue = { preferences: { ...DEFAULT_PREFERENCES, ...preferences }, ready: true };
   return function Providers({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={client}>
-        <CurrentUserIdContext.Provider value={userId}>{children}</CurrentUserIdContext.Provider>
+        <CurrentUserIdContext.Provider value={userId}>
+          <PreferencesContext.Provider value={preferencesValue}>{children}</PreferencesContext.Provider>
+        </CurrentUserIdContext.Provider>
       </QueryClientProvider>
     );
   };
@@ -29,10 +39,10 @@ function makeWrapper(client: QueryClient, userId: string | null) {
 /** render() with the app's providers: a query cache and a signed-in test user. */
 export function renderWithProviders(
   ui: ReactElement,
-  { client = createTestQueryClient(), userId = TEST_USER_ID, ...options }: ProviderOptions &
+  { client = createTestQueryClient(), userId = TEST_USER_ID, preferences, ...options }: ProviderOptions &
     Omit<RenderOptions, "wrapper"> = {}
 ) {
-  return { client, ...render(ui, { wrapper: makeWrapper(client, userId), ...options }) };
+  return { client, ...render(ui, { wrapper: makeWrapper(client, userId, preferences), ...options }) };
 }
 
 /** renderHook() with the same providers. */
@@ -41,11 +51,12 @@ export function renderHookWithProviders<Result, Props>(
   {
     client = createTestQueryClient(),
     userId = TEST_USER_ID,
+    preferences,
     initialProps,
   }: ProviderOptions & { initialProps?: Props } = {}
 ) {
   return {
     client,
-    ...renderHook(hook, { wrapper: makeWrapper(client, userId), initialProps }),
+    ...renderHook(hook, { wrapper: makeWrapper(client, userId, preferences), initialProps }),
   };
 }

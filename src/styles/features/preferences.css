@@ -1,0 +1,169 @@
+/* Preferences page (src/features/preferences/pages/PreferencesPage.tsx). */
+
+/* Full width of the app column, like the other pages (.workspace-route sets the max). */
+.preferences-card {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.preferences-card h1,
+.preferences-section h2 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.preferences-section {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.preferences-section h2 {
+  font-size: 1.2rem;
+}
+
+.preferences-field {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.preferences-field__legend {
+  padding: 0;
+  font-weight: 700;
+  color: var(--color-ink-strong);
+}
+
+.preferences-field__hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.preferences-field__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Each choice is a large pill, easy to hit with a thumb. */
+.preferences-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 999px;
+  background: var(--alpha-brand-12);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.preferences-option:has(input:checked) {
+  border-color: var(--alpha-brand-dark-78);
+  background: var(--alpha-brand-20);
+  color: var(--brand-dark);
+}
+
+.preferences-option input {
+  margin: 0;
+  accent-color: var(--color-brand);
+}
+
+.preferences-custom-cadence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+/* Same look as the app's other form fields (.recipe-field). */
+.preferences-custom-cadence input {
+  min-height: 2.75rem;
+  border: 1px solid var(--alpha-slate-62);
+  border-radius: 0.78rem;
+  padding: 0.6rem 0.82rem;
+  background: var(--color-white);
+  color: var(--ink);
+  font-size: 0.96rem;
+}
+
+.preferences-custom-cadence input:focus {
+  outline: none;
+  border-color: var(--alpha-brand-dark-78);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+.preferences-custom-cadence input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+/* The unit menu: the same button-and-panel as the Recipes page's Add Recipe
+   and View menus (.recipe-add-menu). */
+.preferences-unit-menu {
+  position: relative;
+}
+
+.preferences-unit-menu__panel {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 10rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 0.75rem;
+  background: var(--color-white);
+  box-shadow: var(--shadow-soft);
+  padding: 0.35rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.preferences-unit-menu__item {
+  width: 100%;
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.62rem 0.72rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.preferences-unit-menu__item:hover,
+.preferences-unit-menu__item:focus-visible {
+  background: var(--alpha-brand-12);
+  outline: none;
+}
+
+.preferences-unit-menu__item--current::after {
+  content: " ✓";
+  color: var(--color-brand);
+}
+
+.preferences-custom-cadence__count {
+  width: 5.5rem;
+}
+
+.preferences-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.preferences-card__saved {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  /* Full-width Save is easier to hit with a thumb. */
+  .preferences-card__actions .btn {
+    flex: 1 1 100%;
+  }
+}

@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useSessionCache } from "../../app/useSessionCache";
 import { mealPlanKeys } from "../../features/meal-plans/queries";
 import { recipeKeys } from "../../features/recipes/queries";
-import { getWeekStartIso, shiftWeekStartIso } from "../../lib/utils/dates";
+import { createDateFromIso, getWeekStartIso, shiftWeekStartIso } from "../../lib/utils/dates";
 import { saveMealPlannerViewState } from "../../features/meal-plans/utils/mealPlannerViewState";
 import { createTestQueryClient } from "../utils/renderWithProviders";
 
@@ -10,9 +10,16 @@ vi.mock("../../features/meal-plans/api", () => ({
   listPlannedMealsForWeek: vi.fn().mockResolvedValue([]),
 }));
 
-import { listPlannedMealsForWeek } from "../../features/meal-plans/api";
+// Preferences load before the planner's week (they say which day weeks start on).
+vi.mock("../../features/preferences/api", () => ({
+  getUserPreferences: vi.fn(),
+}));
 
-const THIS_WEEK = getWeekStartIso(new Date());
+import { listPlannedMealsForWeek } from "../../features/meal-plans/api";
+import { getUserPreferences } from "../../features/preferences/api";
+import { DEFAULT_PREFERENCES } from "../../lib/preferences/types";
+
+const THIS_WEEK = getWeekStartIso(new Date(), 0);
 
 const requestedWeeks = () =>
   vi.mocked(listPlannedMealsForWeek).mock.calls.map(([week]) => week);
@@ -21,6 +28,28 @@ describe("useSessionCache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    vi.mocked(getUserPreferences).mockResolvedValue(DEFAULT_PREFERENCES);
+  });
+
+  it("loads the user's preferences, then prefetches weeks starting on their day", async () => {
+    vi.mocked(getUserPreferences).mockResolvedValue({ ...DEFAULT_PREFERENCES, weekStartsOn: 1 });
+    const client = createTestQueryClient();
+    renderHook(() => useSessionCache("user-1", client));
+
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
+    expect(getUserPreferences).toHaveBeenCalledWith("user-1");
+    const thisMondayWeek = getWeekStartIso(new Date(), 1);
+    expect(requestedWeeks()[0]).toBe(thisMondayWeek);
+    expect(createDateFromIso(thisMondayWeek).getDay()).toBe(1);
+  });
+
+  it("still prefetches the planner's week (Sunday weeks) when preferences can't load", async () => {
+    vi.mocked(getUserPreferences).mockRejectedValue(new Error("offline"));
+    const client = createTestQueryClient();
+    renderHook(() => useSessionCache("user-1", client));
+
+    await waitFor(() => expect(listPlannedMealsForWeek).toHaveBeenCalledTimes(3));
+    expect(requestedWeeks()[0]).toBe(THIS_WEEK);
   });
 
   it("prefetches last, this, and next week's meal plan when a user signs in", async () => {

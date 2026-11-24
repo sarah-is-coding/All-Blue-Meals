@@ -4,7 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import GroceryPage from "../../../../features/grocery/pages/GroceryPage";
 import type { GroceryItemDraft } from "../../../../features/grocery/types";
 import type { SavedMealPlan } from "../../../../features/meal-plans/types";
-import { getWeekEndIso, getWeekStartIso, shiftWeekStartIso } from "../../../../lib/utils/dates";
+import type { UserPreferences } from "../../../../lib/preferences/types";
+import { getWeekEndIso, getWeekStartIso, shiftWeekStartIso, toIsoDate } from "../../../../lib/utils/dates";
 import { renderWithProviders } from "../../../utils/renderWithProviders";
 
 vi.mock("../../../../features/grocery/api", () => ({
@@ -52,7 +53,7 @@ import {
 import type { PlannedMeal } from "../../../../features/meal-plans/types";
 
 const T = { timeout: 1500 };
-const THIS_WEEK = getWeekStartIso(new Date());
+const THIS_WEEK = getWeekStartIso(new Date(), 0);
 const NEXT_WEEK = shiftWeekStartIso(THIS_WEEK, 1);
 
 const RANGE_ITEMS: GroceryItemDraft[] = [
@@ -73,12 +74,14 @@ const SAVED_PLAN_ITEMS: GroceryItemDraft[] = [
 ];
 
 function renderPage(
-  initialEntries?: Parameters<typeof MemoryRouter>[0]["initialEntries"]
+  initialEntries?: Parameters<typeof MemoryRouter>[0]["initialEntries"],
+  preferences?: Partial<UserPreferences>
 ) {
   renderWithProviders(
     <MemoryRouter initialEntries={initialEntries}>
       <GroceryPage />
-    </MemoryRouter>
+    </MemoryRouter>,
+    { preferences }
   );
 }
 
@@ -111,6 +114,20 @@ describe("GroceryPage — building from dates", () => {
     // Generated lists are used directly on this page.
     expect(screen.queryByRole("button", { name: /save list/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /manage saved lists/i })).not.toBeInTheDocument();
+  });
+
+  it("defaults to the user's planning period: this month", () => {
+    renderPage(undefined, { planningCadence: { unit: "month", count: 1 } });
+    const now = new Date();
+    expect(screen.getByLabelText("From")).toHaveValue(toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1)));
+    expect(screen.getByLabelText("To")).toHaveValue(toIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+  });
+
+  it("defaults to this week starting Monday when the user's weeks start on Monday", () => {
+    renderPage(undefined, { weekStartsOn: 1 });
+    const monday = getWeekStartIso(new Date(), 1);
+    expect(screen.getByLabelText("From")).toHaveValue(monday);
+    expect(screen.getByLabelText("To")).toHaveValue(getWeekEndIso(monday));
   });
 
   it("builds from any dates you pick, of any length", async () => {

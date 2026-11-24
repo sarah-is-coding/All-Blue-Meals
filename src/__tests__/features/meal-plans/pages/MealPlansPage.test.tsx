@@ -37,7 +37,7 @@ import {
 
 const mockListPlannedMealsForWeek = vi.mocked(listPlannedMealsForWeek);
 
-const THIS_WEEK = getWeekStartIso(new Date());
+const THIS_WEEK = getWeekStartIso(new Date(), 0);
 const NEXT_WEEK = shiftWeekStartIso(THIS_WEEK, 1);
 
 const item = (id: string, recipeTitle: string, plannedFor: string): PlannedMeal => ({
@@ -79,7 +79,7 @@ describe("MealPlansPage", () => {
 
   it("jumps to the incoming week and preselects it in Browse plans", async () => {
     const jumpToDate = "2026-03-18";
-    const expectedWeekStartIso = getWeekStartIso(createDateFromIso(jumpToDate));
+    const expectedWeekStartIso = getWeekStartIso(createDateFromIso(jumpToDate), 0);
     const expectedWeekEndIso = getWeekEndIso(expectedWeekStartIso);
 
     renderPage([{ pathname: "/meal-plans", state: { jumpToDate } }]);
@@ -163,7 +163,7 @@ describe("MealPlansPage", () => {
   });
 
   it("falls back to the current week when there is no jumpToDate", async () => {
-    const expectedWeekStartIso = getWeekStartIso(new Date());
+    const expectedWeekStartIso = getWeekStartIso(new Date(), 0);
 
     renderPage(["/meal-plans"]);
 

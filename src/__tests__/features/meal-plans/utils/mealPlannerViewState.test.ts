@@ -42,16 +42,26 @@ describe("getPlannerStartWeek", () => {
   beforeEach(() => window.sessionStorage.clear());
 
   it("is the current week when no week has been viewed in this tab", () => {
-    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-05-24");
+    expect(getPlannerStartWeek(0, WEDNESDAY)).toBe("2026-05-24");
   });
 
   it("is the last week viewed in this tab when there is one", () => {
     saveMealPlannerViewState({ weekStartIso: "2026-06-14" });
-    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-06-14");
+    expect(getPlannerStartWeek(0, WEDNESDAY)).toBe("2026-06-14");
   });
 
   it("rounds a saved midweek date to its week's Sunday", () => {
     saveMealPlannerViewState({ weekStartIso: "2026-06-17" });
-    expect(getPlannerStartWeek(WEDNESDAY)).toBe("2026-06-14");
+    expect(getPlannerStartWeek(0, WEDNESDAY)).toBe("2026-06-14");
+  });
+
+  it("starts on Monday when the user's weeks start on Monday", () => {
+    expect(getPlannerStartWeek(1, WEDNESDAY)).toBe("2026-05-25");
+  });
+
+  it("rounds a week remembered from before switching to Monday weeks", () => {
+    // Remembered as Sunday Jun 14; with Monday weeks that Sunday ends the week of Jun 8.
+    saveMealPlannerViewState({ weekStartIso: "2026-06-14" });
+    expect(getPlannerStartWeek(1, WEDNESDAY)).toBe("2026-06-08");
   });
 });

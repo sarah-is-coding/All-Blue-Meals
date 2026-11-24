@@ -57,6 +57,27 @@
   margin-left: auto;
 }
 
+/* The user icon next to Sign out: opens Preferences. A round button the
+   same height as Sign out, so it's an easy tap target. */
+.workspace__preferences-link {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--alpha-brand-22);
+  border-radius: 999px;
+  background: var(--alpha-brand-12);
+  color: var(--color-ink-soft);
+}
+
+.workspace__preferences-link:hover,
+.workspace__preferences-link:focus-visible,
+.workspace__preferences-link--active {
+  border-color: var(--alpha-brand-dark-78);
+  background: var(--alpha-brand-20);
+  color: var(--brand-dark);
+}
+
 .workspace__error {
   max-width: 1080px;
   margin: 0.7rem auto 0;

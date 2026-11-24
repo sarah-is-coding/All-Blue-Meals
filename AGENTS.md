@@ -88,6 +88,7 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 
 ### Table ownership patterns
 - Tables with `user_id`: `profiles`, `recipes`, `planned_meals`, `saved_plans`  
+  - `profiles` also holds the user's preferences (week start, planning cadence); the row is created the first time they save  
   - Policies must enforce: `user_id = auth.uid()`
 - Child tables without `user_id`: `recipe_ingredients`, `recipe_notes`, `saved_plan_meals`  
   - Policies must enforce ownership via parent:

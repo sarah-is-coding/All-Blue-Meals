@@ -1,11 +1,15 @@
 import { useState, type ReactNode } from "react";
-import { addDays, createDateFromIso, isValidIsoDate, toIsoDate } from "../../../lib/utils/dates";
+import { useUserPreferences } from "../../../lib/preferences/preferencesContext";
+import { isValidIsoDate } from "../../../lib/utils/dates";
+import { describeCadence, shiftByCadence } from "../../../lib/utils/planningRange";
 import { pickRangeDay } from "../../../lib/utils/pickRangeDay";
 import MealDatesCalendar from "./MealDatesCalendar";
 
 // From/To date fields tied to the meal-dates calendar: typing a date moves
 // the highlight, tapping days fills the fields. The range can never go
-// backwards — moving one end past the other pulls the other end along.
+// backwards — moving one end past the other pulls the other end along. The
+// arrows move the dates by the user's planning cadence (a week, 2 weeks, a
+// month…).
 
 type Props = {
   /** The chosen range; both null while nothing is picked yet. */
@@ -50,11 +54,13 @@ export default function DateRangePicker({
     onChange(picked.startIso, picked.endIso);
   };
 
-  const shiftRange = (days: number) => {
+  const { planningCadence } = useUserPreferences();
+  const period = describeCadence(planningCadence);
+  const shiftRange = (direction: 1 | -1) => {
     if (!hasRange) return;
-    const shift = (iso: string) => toIsoDate(addDays(createDateFromIso(iso), days));
+    const shifted = shiftByCadence({ startIso, endIso }, planningCadence, direction);
     setAnchor(null);
-    onChange(shift(startIso), shift(endIso));
+    onChange(shifted.startIso, shifted.endIso);
   };
 
   const commitStart = (value: string) => {
@@ -115,9 +121,9 @@ export default function DateRangePicker({
         <button
           type="button"
           className="btn btn--ghost date-range-picker__week-button"
-          onClick={() => shiftRange(-7)}
+          onClick={() => shiftRange(-1)}
           disabled={!hasRange}
-          aria-label="Move dates back a week"
+          aria-label={`Move dates back ${period}`}
         >
           ←
         </button>
@@ -134,9 +140,9 @@ export default function DateRangePicker({
         <button
           type="button"
           className="btn btn--ghost date-range-picker__week-button"
-          onClick={() => shiftRange(7)}
+          onClick={() => shiftRange(1)}
           disabled={!hasRange}
-          aria-label="Move dates forward a week"
+          aria-label={`Move dates forward ${period}`}
         >
           →
         </button>

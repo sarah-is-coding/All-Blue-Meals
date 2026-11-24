@@ -5,7 +5,10 @@ import {
   formatMonthDay,
   formatWeekRangeLabel,
   getWeekEndIso,
+  dayOfWeekIndex,
   getWeekStartIso,
+  isInWeek,
+  weekdayInitials,
   shiftWeekStartIso,
   toIsoDate,
   isValidIsoDate,
@@ -56,30 +59,75 @@ describe("addDays", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// Week helpers (weeks start on Monday)
+// Week helpers. The first day of the week is the user's preference:
+// 0 = Sunday (the default), 1 = Monday.
 // ─────────────────────────────────────────────────────────────
-// Weeks start on Sunday since redesign decision 8 (they used to start on
-// Monday, which these cases previously asserted).
-describe("getWeekStartIso", () => {
+describe("getWeekStartIso, weeks starting Sunday", () => {
   it("returns the same day for a Sunday", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 24))).toBe("2026-05-24");
+    expect(getWeekStartIso(new Date(2026, 4, 24), 0)).toBe("2026-05-24");
   });
 
   it("returns the previous Sunday for a midweek day", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 28))).toBe("2026-05-24");
+    expect(getWeekStartIso(new Date(2026, 4, 28), 0)).toBe("2026-05-24");
   });
 
   it("treats Monday as part of the week its Sunday started", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 25))).toBe("2026-05-24");
+    expect(getWeekStartIso(new Date(2026, 4, 25), 0)).toBe("2026-05-24");
   });
 
   it("treats Saturday as the end of the week, not the start", () => {
-    expect(getWeekStartIso(new Date(2026, 4, 30))).toBe("2026-05-24");
+    expect(getWeekStartIso(new Date(2026, 4, 30), 0)).toBe("2026-05-24");
   });
 
   it("crosses a year boundary", () => {
     // Fri Jan 1 2027 belongs to the week starting Sun Dec 27 2026
-    expect(getWeekStartIso(new Date(2027, 0, 1))).toBe("2026-12-27");
+    expect(getWeekStartIso(new Date(2027, 0, 1), 0)).toBe("2026-12-27");
+  });
+});
+
+describe("getWeekStartIso, weeks starting Monday", () => {
+  it("returns the same day for a Monday", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 25), 1)).toBe("2026-05-25");
+  });
+
+  it("returns the previous Monday for a midweek day", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 28), 1)).toBe("2026-05-25");
+  });
+
+  it("treats Sunday as the end of the week, not the start", () => {
+    expect(getWeekStartIso(new Date(2026, 4, 31), 1)).toBe("2026-05-25");
+  });
+
+  it("crosses a year boundary", () => {
+    // Fri Jan 1 2027 belongs to the week starting Mon Dec 28 2026
+    expect(getWeekStartIso(new Date(2027, 0, 1), 1)).toBe("2026-12-28");
+  });
+});
+
+describe("dayOfWeekIndex", () => {
+  it("counts from the week's first day", () => {
+    const sunday = new Date(2026, 4, 24);
+    const saturday = new Date(2026, 4, 30);
+    expect(dayOfWeekIndex(sunday, 0)).toBe(0);
+    expect(dayOfWeekIndex(saturday, 0)).toBe(6);
+    expect(dayOfWeekIndex(sunday, 1)).toBe(6);
+    expect(dayOfWeekIndex(new Date(2026, 4, 25), 1)).toBe(0);
+  });
+});
+
+describe("isInWeek", () => {
+  it("covers the 7 days from the week's start", () => {
+    expect(isInWeek("2026-05-24", "2026-05-24")).toBe(true);
+    expect(isInWeek("2026-05-30", "2026-05-24")).toBe(true);
+    expect(isInWeek("2026-05-31", "2026-05-24")).toBe(false);
+    expect(isInWeek("2026-05-23", "2026-05-24")).toBe(false);
+  });
+});
+
+describe("weekdayInitials", () => {
+  it("lists the weekdays from the week's first day", () => {
+    expect(weekdayInitials(0)).toEqual(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]);
+    expect(weekdayInitials(1)).toEqual(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]);
   });
 });
 

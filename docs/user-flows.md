@@ -26,5 +26,6 @@ Workspace routes (at the site root; signed-out visitors are sent to `/auth`):
 | `meal-plans` | Weekly meal planner; copy past weeks or apply saved plans |
 | `saved-meal-plans` | Rename or delete saved plan templates |
 | `grocery` | Generate and check off a grocery list from a date range or saved plan |
+| `preferences` | How often you plan (sets the default dates), and whether weeks start on Sunday or Monday. Opened from the user icon next to Sign out |
 
 Unknown routes redirect to `/`. Old `/app/...` links (the app used to live under `/app`) redirect to the same page without the prefix.

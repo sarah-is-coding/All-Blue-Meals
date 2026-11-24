@@ -2,6 +2,8 @@ import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
 import AppRouter from "../../app/AppRouter";
+import { PreferencesContext } from "../../lib/preferences/preferencesContext";
+import { DEFAULT_PREFERENCES } from "../../lib/preferences/types";
 
 // AppRouter imports every page; keep them off the network and env-free.
 vi.mock("../../lib/supabaseClient", () => ({ supabase: {} }));
@@ -15,6 +17,25 @@ const renderAt = (path: string, props: Partial<Parameters<typeof AppRouter>[0]> 
   window.history.replaceState(null, "", path);
   return render(<AppRouter session={null} authReady {...props} />);
 };
+
+describe("AppRouter — preferences", () => {
+  it("waits for the user's preferences before showing the app", () => {
+    window.history.replaceState(null, "", "/");
+    render(
+      <PreferencesContext.Provider value={{ preferences: DEFAULT_PREFERENCES, ready: false }}>
+        <AppRouter session={session} authReady />
+      </PreferencesContext.Provider>
+    );
+    expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
+    expect(screen.getByText("Loading your session...")).toBeInTheDocument();
+  });
+
+  it("has a Preferences page", () => {
+    renderAt("/preferences", { session });
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/preferences");
+  });
+});
 
 // App pages live at the site root (they used to be under /app).
 describe("AppRouter — app pages at the root", () => {

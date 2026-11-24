@@ -9,8 +9,10 @@ import RecipeCreatePage from "../features/recipes/pages/RecipeCreatePage";
 import RecipeDetailPage from "../features/recipes/pages/RecipeDetailPage";
 import RecipeGeneratePage from "../features/recipes/pages/RecipeGeneratePage";
 import RecipeImportPage from "../features/recipes/pages/RecipeImportPage";
+import PreferencesPage from "../features/preferences/pages/PreferencesPage";
 import RecipesPage from "../features/recipes/pages/RecipesPage";
 import LoadingModal from "../components/feedback/LoadingModal";
+import { usePreferencesReady } from "../lib/preferences/preferencesContext";
 import AppWorkspaceLayout from "./components/AppWorkspaceLayout";
 import AppHomePage from "./pages/AppHomePage";
 import LandingPage from "./pages/LandingPage";
@@ -45,6 +47,14 @@ function LegacyAppRedirect() {
   return <Navigate to={`${pathname.replace(/^\/app/, "") || "/"}${search}${hash}`} replace />;
 }
 
+function SessionLoading() {
+  return (
+    <main className="status-page">
+      <p>Loading your session...</p>
+    </main>
+  );
+}
+
 export default function AppRouter({
   session,
   authReady,
@@ -53,6 +63,9 @@ export default function AppRouter({
   onLinkErrorShown,
 }: AppRouterProps) {
   const signedIn = session !== null && !passwordRecovery;
+  // App pages wait for the user's preferences (e.g. which day weeks start on),
+  // so the planner never draws one week layout and then jumps to another.
+  const preferencesReady = usePreferencesReady();
 
   // The sign-in loading modal lives here, outside the routes, so it stays up
   // (without flickering) from "Sign in" until the home page has loaded, even
@@ -67,13 +80,7 @@ export default function AppRouter({
     return () => window.clearTimeout(timer);
   }, [waitingForHome, finishSignIn]);
 
-  if (!authReady) {
-    return (
-      <main className="status-page">
-        <p>Loading your session...</p>
-      </main>
-    );
-  }
+  if (!authReady) return <SessionLoading />;
 
   return (
     <BrowserRouter>
@@ -89,7 +96,15 @@ export default function AppRouter({
             renders no outlet, so no app page shows). */}
         <Route
           path="/"
-          element={signedIn ? <AppWorkspaceLayout /> : <SignedOutRoot passwordRecovery={passwordRecovery} />}
+          element={
+            !signedIn ? (
+              <SignedOutRoot passwordRecovery={passwordRecovery} />
+            ) : preferencesReady ? (
+              <AppWorkspaceLayout />
+            ) : (
+              <SessionLoading />
+            )
+          }
         >
           <Route index element={<AppHomePage onReady={finishSignIn} />} />
           <Route path="recipes" element={<RecipesPage />} />
@@ -100,6 +115,7 @@ export default function AppRouter({
           <Route path="meal-plans" element={<MealPlansPage />} />
           <Route path="saved-meal-plans" element={<SavedMealPlansPage />} />
           <Route path="grocery" element={<GroceryPage />} />
+          <Route path="preferences" element={<PreferencesPage />} />
         </Route>
         <Route
           path="/auth"

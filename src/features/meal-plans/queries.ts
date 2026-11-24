@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { queryOptions, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useCurrentUserId } from "../../lib/auth/sessionContext";
-import { createDateFromIso, getWeekStartIso, shiftWeekStartIso } from "../../lib/utils/dates";
+import { isInWeek, shiftWeekStartIso } from "../../lib/utils/dates";
 import {
   addPlannedMeal,
   applySavedPlan,
@@ -59,8 +59,6 @@ const weekQuery = (userId: string, weekStartIso: string) =>
     queryKey: mealPlanKeys.week(userId, weekStartIso),
     queryFn: () => listPlannedMealsForWeek(weekStartIso),
   });
-
-const weekOf = (isoDate: string): string => getWeekStartIso(createDateFromIso(isoDate));
 
 /** The week before and the week after, so stepping either way is instant. */
 export const adjacentWeeks = (weekStartIso: string): string[] => [
@@ -170,14 +168,7 @@ export function useMealPlanActions() {
       }
     };
 
-    const updateWeek = (weekStartIso: string, update: (items: PlannedMeal[]) => PlannedMeal[]) => {
-      if (!userId) return;
-      // Weeks that aren't cached are left alone; they'll load fresh when opened.
-      client.setQueryData<PlannedMeal[]>(mealPlanKeys.week(userId, weekStartIso), (prev) =>
-        prev ? update(prev) : prev
-      );
-    };
-
+    // Only cached weeks are updated; others load fresh when opened.
     const updateCachedWeeks = (update: (weekStartIso: string, items: PlannedMeal[]) => PlannedMeal[]) => {
       if (!userId) return;
       for (const [key, items] of client.getQueriesData<PlannedMeal[]>({
@@ -190,13 +181,14 @@ export function useMealPlanActions() {
       }
     };
 
-    /** Put `item` in the week it now belongs to (in place if already there) and
-     *  remove it from any other cached week. */
+    /** Put `item` in every cached week its date falls in (in place if already
+     *  there) and remove it from the others. Membership is by date, not by
+     *  working out "its week", so it stays right when the user switches weeks
+     *  between starting on Sunday and Monday (both kinds can be cached). */
     const placeItem = (item: PlannedMeal) => {
-      const targetWeek = weekOf(item.plannedFor);
       updateCachedWeeks((weekStartIso, items) => {
         const hasItem = items.some((existing) => existing.id === item.id);
-        if (weekStartIso !== targetWeek) {
+        if (!isInWeek(item.plannedFor, weekStartIso)) {
           return hasItem ? items.filter((existing) => existing.id !== item.id) : items;
         }
         return hasItem
@@ -222,9 +214,10 @@ export function useMealPlanActions() {
           items.filter((item) => item.plannedFor < copied.startIso || item.plannedFor > copied.endIso)
         );
       }
-      for (const item of copied.items) {
-        updateWeek(weekOf(item.plannedFor), (items) => [...items, item]);
-      }
+      updateCachedWeeks((weekStartIso, items) => [
+        ...items,
+        ...copied.items.filter((item) => isInWeek(item.plannedFor, weekStartIso)),
+      ]);
       refreshRanges();
     };
 

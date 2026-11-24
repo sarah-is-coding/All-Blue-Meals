@@ -200,7 +200,7 @@ describe("RecipeDetailPage", () => {
       effectiveServings: 4,
     });
 
-    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date()), 1);
+    const expectedWeekStartIso = shiftWeekStartIso(getWeekStartIso(new Date(), 0), 1);
     const targetDay = getWeekDays(expectedWeekStartIso)[2];
 
     const user = userEvent.setup();
@@ -236,7 +236,7 @@ describe("RecipeDetailPage", () => {
     const farFutureDate = new Date();
     farFutureDate.setDate(farFutureDate.getDate() + 30);
     const initialDay = toIsoDate(farFutureDate);
-    const expectedDay = getWeekDays(getWeekStartIso(farFutureDate)).find(
+    const expectedDay = getWeekDays(getWeekStartIso(farFutureDate, 0)).find(
       (day) => day.dateIso === initialDay
     );
 
