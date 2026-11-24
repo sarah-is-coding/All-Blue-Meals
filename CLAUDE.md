@@ -13,6 +13,25 @@ grocery merge rules) are in AGENTS.md, imported here:
 - **Styling**: Plain CSS with CSS variables (no Tailwind in components)
 - **Testing**: Vitest + React Testing Library + jsdom
 
+### Principles per technology
+
+Researched best practices for each part of the stack live in
+[principles/](principles/README.md). Before changing code, read the file for
+each technology the change touches. The project rules in this file and
+AGENTS.md win if the two ever disagree.
+
+| Technology | Principles |
+|---|---|
+| TypeScript | [principles/typescript.md](principles/typescript.md) |
+| React 19 | [principles/react.md](principles/react.md) |
+| React Router v7 | [principles/react-router.md](principles/react-router.md) |
+| TanStack Query v5 | [principles/tanstack-query.md](principles/tanstack-query.md) |
+| Supabase: Postgres, RLS, migrations, client, auth | [principles/supabase-postgres.md](principles/supabase-postgres.md) |
+| Supabase Edge Functions (Deno) | [principles/supabase-edge-functions.md](principles/supabase-edge-functions.md) |
+| Vite | [principles/vite.md](principles/vite.md) |
+| CSS | [principles/css.md](principles/css.md) |
+| Vitest + React Testing Library | [principles/testing.md](principles/testing.md) |
+
 ---
 
 ## Testing — Non-Negotiable Rules
