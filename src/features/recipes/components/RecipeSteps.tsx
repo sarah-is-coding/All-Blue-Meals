@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { parseSteps, splitCookingCues } from "../utils/recipeSteps";
+import { useTickedItems } from "./useTickedItems";
 
 type Props = {
   instructions: string;
@@ -12,37 +12,24 @@ type Props = {
  */
 export default function RecipeSteps({ instructions }: Props) {
   const steps = parseSteps(instructions);
-  const [done, setDone] = useState<ReadonlySet<number>>(() => new Set());
   // New instructions (e.g. after an edit) start with nothing ticked.
-  const [stepsFor, setStepsFor] = useState(instructions);
-  if (stepsFor !== instructions) {
-    setStepsFor(instructions);
-    setDone(new Set());
-  }
+  const done = useTickedItems<number>(instructions);
 
   if (steps.length === 0) return <p>No instructions added yet.</p>;
-
-  const toggle = (index: number) =>
-    setDone((current) => {
-      const next = new Set(current);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
 
   return (
     <div className="recipe-steps">
       <p className="recipe-steps__hint">Tap a step to mark it done.</p>
       <ol className="recipe-steps__list">
         {steps.map((step, index) => {
-          const isDone = done.has(index);
+          const isDone = done.isTicked(index);
           return (
             <li key={index} className="recipe-steps__item">
               <button
                 type="button"
                 className={`recipe-steps__step${isDone ? " recipe-steps__step--done" : ""}`}
                 aria-pressed={isDone}
-                onClick={() => toggle(index)}
+                onClick={() => done.toggle(index)}
               >
                 <span className="recipe-steps__number" aria-hidden="true">
                   {isDone ? "✓" : index + 1}
@@ -63,12 +50,12 @@ export default function RecipeSteps({ instructions }: Props) {
           );
         })}
       </ol>
-      {done.size > 0 ? (
+      {done.count > 0 ? (
         <div className="recipe-steps__footer">
           <span className="recipe-steps__progress" aria-live="polite">
-            {done.size} of {steps.length} done
+            {done.count} of {steps.length} done
           </span>
-          <button type="button" className="btn btn--ghost btn--small" onClick={() => setDone(new Set())}>
+          <button type="button" className="btn btn--ghost btn--small" onClick={done.reset}>
             Reset steps
           </button>
         </div>

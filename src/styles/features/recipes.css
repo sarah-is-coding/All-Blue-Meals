@@ -720,10 +720,6 @@
   color: var(--color-muted-soft);
 }
 
-.recipe-read__substitute {
-  color: var(--color-muted-soft);
-}
-
 .recipe-ingredients__add-bottom {
   justify-self: start;
   font-size: 0.88rem;
@@ -1019,25 +1015,120 @@
   word-break: break-word;
 }
 
-.recipe-read__ingredients {
-  margin: 0;
-  padding-left: 1.1rem;
+/* Ingredients (RecipeIngredientList): one row each in a single column, the
+   amount in bold. Rows are tap targets like the steps below them; tapping
+   ticks one off. */
+.recipe-ingredient-list {
   display: grid;
-  gap: 0.58rem;
+  gap: 0.6rem;
 }
 
-.recipe-read__ingredients li {
-  color: var(--ink);
+.recipe-read__section .recipe-ingredient-list__hint {
+  font-size: 0.85rem;
+  color: var(--color-muted-soft);
 }
 
-.recipe-read__ingredients li p {
+.recipe-ingredient-list__items {
+  display: grid;
+  gap: 0.45rem;
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.recipe-read__note {
-  margin-top: 0.14rem;
+.recipe-ingredient-list__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--alpha-brand-20);
+  border-radius: 0.8rem;
+  background: var(--color-white);
+  color: var(--color-ink-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.recipe-ingredient-list__item:hover {
+  background: var(--alpha-brand-12);
+}
+
+.recipe-ingredient-list__item:focus-visible {
+  outline: none;
+  border-color: var(--alpha-brand-dark-78);
+  box-shadow: 0 0 0 3px var(--alpha-brand-20);
+}
+
+/* An empty circle, filled with a check once ticked. */
+.recipe-ingredient-list__check {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.05rem;
+  border: 2px solid var(--color-brand);
+  border-radius: 999px;
+  color: var(--color-white);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.recipe-ingredient-list__body {
+  display: grid;
+  gap: 0.15rem;
+  line-height: 1.45;
+}
+
+.recipe-ingredient-list__amount {
+  color: var(--brand-dark);
+  font-weight: 800;
+}
+
+.recipe-ingredient-list__note,
+.recipe-ingredient-list__substitute {
+  font-size: 0.88rem;
   color: var(--muted);
-  font-size: 0.9rem;
+}
+
+.recipe-ingredient-list__substitute strong {
+  font-weight: 700;
+}
+
+.recipe-ingredient-list__item--ticked {
+  background: var(--alpha-bg-241-68);
+  opacity: 0.62;
+}
+
+.recipe-ingredient-list__item--ticked .recipe-ingredient-list__check {
+  background: var(--color-brand);
+}
+
+.recipe-ingredient-list__item--ticked .recipe-ingredient-list__line {
+  text-decoration: line-through;
+  text-decoration-color: var(--alpha-slate-62);
+}
+
+.recipe-ingredient-list__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recipe-ingredient-list__progress {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-ingredient-list__item {
+    transition: none;
+  }
 }
 
 /* Instructions as numbered steps (RecipeSteps). Each step is a large tap
@@ -1087,14 +1178,17 @@
   box-shadow: 0 0 0 3px var(--alpha-brand-20);
 }
 
+/* Like the ingredients' check circles: outlined with the step's number until
+   it's done, then filled with a check. */
 .recipe-steps__number {
   display: inline-grid;
   place-items: center;
   width: 2rem;
   height: 2rem;
+  border: 2px solid var(--color-brand);
   border-radius: 999px;
-  background: var(--color-brand);
-  color: var(--color-white);
+  background: transparent;
+  color: var(--brand-dark);
   font-weight: 800;
   font-size: 0.95rem;
 }
@@ -1119,8 +1213,8 @@
 }
 
 .recipe-steps__step--done .recipe-steps__number {
-  background: var(--alpha-brand-20);
-  color: var(--brand-dark);
+  background: var(--color-brand);
+  color: var(--color-white);
 }
 
 .recipe-steps__step--done .recipe-steps__text {

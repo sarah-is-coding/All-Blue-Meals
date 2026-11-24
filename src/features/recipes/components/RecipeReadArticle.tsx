@@ -1,6 +1,5 @@
-import type { RecipeFormIngredient, RecipeFormValues } from "../utils/recipeForm";
-import { groupSubstitutes } from "../utils/ingredientGroups";
-import { scaleQuantityText } from "../../../lib/utils/quantities";
+import type { RecipeFormValues } from "../utils/recipeForm";
+import RecipeIngredientList from "./RecipeIngredientList";
 import RecipeSteps from "./RecipeSteps";
 
 type RecipeReadArticleProps = {
@@ -23,18 +22,6 @@ const parseMinutes = (value: string): number | null => {
   }
 
   return Math.round(parsed);
-};
-
-const formatIngredientLine = (
-  quantity: string,
-  unit: string,
-  ingredientName: string
-): string => {
-  const chunks = [quantity.trim(), unit.trim(), ingredientName.trim()].filter(
-    (value) => value.length > 0
-  );
-
-  return chunks.length > 0 ? chunks.join(" ") : "Unnamed ingredient";
 };
 
 export default function RecipeReadArticle({
@@ -63,12 +50,6 @@ export default function RecipeReadArticle({
       ingredient.unit.trim() ||
       ingredient.notes.trim()
   );
-  const formatScaledLine = (ingredient: RecipeFormIngredient) =>
-    formatIngredientLine(
-      scaleQuantityText(ingredient.quantity, persistedBaseServings, displayedServings),
-      ingredient.unit,
-      ingredient.ingredientName
-    );
 
   return (
     <article className="workspace-card recipe-read">
@@ -188,26 +169,11 @@ export default function RecipeReadArticle({
 
       <section className="recipe-read__section">
         <h2>Ingredients</h2>
-        {ingredients.length === 0 ? (
-          <p>No ingredients added yet.</p>
-        ) : (
-          <ul className="recipe-read__ingredients">
-            {groupSubstitutes(ingredients).map(({ main, substitutes }) => (
-              <li key={main.id}>
-                <p>{formatScaledLine(main)}</p>
-                {main.notes.trim() ? (
-                  <p className="recipe-read__note">{main.notes.trim()}</p>
-                ) : null}
-                {substitutes.map((substitute) => (
-                  <p className="recipe-read__substitute" key={substitute.id}>
-                    {`or ${formatScaledLine(substitute)}`}
-                    {substitute.notes.trim() ? ` (${substitute.notes.trim()})` : ""}
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ul>
-        )}
+        <RecipeIngredientList
+          ingredients={ingredients}
+          baseServings={persistedBaseServings}
+          viewServings={displayedServings}
+        />
       </section>
 
       <section className="recipe-read__section">
