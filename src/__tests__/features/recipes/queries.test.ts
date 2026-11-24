@@ -68,7 +68,34 @@ describe("recipe lookups", () => {
     const { result } = renderHookWithProviders(() => useRecipeList(PARAMS));
     expect(result.current.loading).toBe(true);
     await waitFor(() => expect(result.current.totalCount).toBe(30));
-    expect(listRecipes).toHaveBeenCalledWith("", PARAMS.filters, { page: 1, pageSize: 12 });
+    // The query's abort signal is passed on, so a list request that's no
+    // longer needed (the search moved on) is cancelled.
+    expect(listRecipes).toHaveBeenCalledWith(
+      "",
+      PARAMS.filters,
+      { page: 1, pageSize: 12 },
+      { signal: expect.any(AbortSignal) }
+    );
+  });
+
+  it("useRecipeList keeps the previous page while the next one loads", async () => {
+    const page1 = { recipes: [{ id: "r1" }], totalCount: 30 } as never;
+    vi.mocked(listRecipes).mockResolvedValueOnce(page1);
+    const { result, rerender } = renderHookWithProviders((params: RecipeListParams) => useRecipeList(params), {
+      initialProps: PARAMS,
+    });
+    await waitFor(() => expect(result.current.recipes).toEqual([{ id: "r1" }]));
+
+    let resolvePage2: (value: never) => void = () => {};
+    vi.mocked(listRecipes).mockReturnValueOnce(new Promise((resolve) => (resolvePage2 = resolve)));
+    rerender({ ...PARAMS, page: 2 });
+
+    // Page 1 stays on screen, marked as updating, rather than a loading state.
+    expect(result.current).toMatchObject({ loading: false, updating: true, recipes: [{ id: "r1" }] });
+
+    resolvePage2({ recipes: [{ id: "r2" }], totalCount: 30 } as never);
+    await waitFor(() => expect(result.current.recipes).toEqual([{ id: "r2" }]));
+    expect(result.current.updating).toBe(false);
   });
 
   it("useRecipe returns null for a recipe that doesn't exist", async () => {

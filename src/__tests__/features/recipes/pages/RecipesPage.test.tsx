@@ -17,6 +17,10 @@ import { listRecipeTags, listRecipes } from "../../../../features/recipes/api";
 
 const mockListRecipes = vi.mocked(listRecipes);
 
+// listRecipes now also gets the query's abort signal (so a search that's
+// moved on is cancelled); the assertions below match it as a fourth argument.
+const WITH_SIGNAL = { signal: expect.any(AbortSignal) };
+
 const recipes = [
   {
     id: "recipe-1",
@@ -139,7 +143,7 @@ describe("RecipesPage", () => {
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     // Without waiting for the pause after typing.
-    expect(mockListRecipes).toHaveBeenLastCalledWith("tacos", expect.anything(), expect.objectContaining({ page: 1 }));
+    expect(mockListRecipes).toHaveBeenLastCalledWith("tacos", expect.anything(), expect.objectContaining({ page: 1 }), WITH_SIGNAL);
   });
 
   it("searches with Enter too", async () => {
@@ -150,8 +154,44 @@ describe("RecipesPage", () => {
     await user.type(screen.getByLabelText("Search recipes"), "salad{Enter}");
 
     await waitFor(() =>
-      expect(mockListRecipes).toHaveBeenLastCalledWith("salad", expect.anything(), expect.objectContaining({ page: 1 }))
+      expect(mockListRecipes).toHaveBeenLastCalledWith("salad", expect.anything(), expect.objectContaining({ page: 1 }), WITH_SIGNAL)
     );
+  });
+
+  // A new search keeps the current results on screen (dimmed, marked busy)
+  // until the new ones arrive, instead of replacing them with "Loading".
+  it("keeps the current results visible while a new search loads", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Chicken Caesar Taco Salad");
+
+    let resolveSearch: (value: Awaited<ReturnType<typeof listRecipes>>) => void = () => {};
+    mockListRecipes.mockReturnValueOnce(new Promise((resolve) => (resolveSearch = resolve)));
+    await user.type(screen.getByLabelText("Search recipes"), "soup{Enter}");
+
+    expect(screen.queryByText("Loading recipes...")).not.toBeInTheDocument();
+    expect(screen.getByText("Chicken Caesar Taco Salad")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Recipe results" })).toHaveAttribute("aria-busy", "true");
+
+    resolveSearch({ recipes: [recipes[1]], totalCount: 1 });
+    await waitFor(() => expect(screen.queryByText("Chicken Caesar Taco Salad")).not.toBeInTheDocument());
+    expect(screen.getByText("Unrated Soup")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Recipe results" })).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("clears the search straight away", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Chicken Caesar Taco Salad");
+    mockListRecipes.mockResolvedValueOnce({ recipes: [recipes[1]], totalCount: 1 });
+    await user.type(screen.getByLabelText("Search recipes"), "soup{Enter}");
+    await waitFor(() => expect(screen.queryByText("Chicken Caesar Taco Salad")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Clear recipe search" }));
+
+    // The full list is back without waiting for the pause after typing
+    // (it's still cached from before the search).
+    expect(screen.getByText("Chicken Caesar Taco Salad")).toBeInTheDocument();
   });
 
   it("re-queries with the selected minimum rating filter", async () => {
@@ -166,7 +206,8 @@ describe("RecipesPage", () => {
       expect(mockListRecipes).toHaveBeenLastCalledWith(
         "",
         expect.objectContaining({ minRating: 4 }),
-        expect.objectContaining({ page: 1 })
+        expect.objectContaining({ page: 1 }),
+        WITH_SIGNAL
       );
     });
   });
@@ -183,8 +224,8 @@ describe("RecipesPage", () => {
     renderPage();
 
     await screen.findByText("Chicken Caesar Taco Salad");
-    expect(mockListRecipes).toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ page: 2 }));
-    expect(mockListRecipes).not.toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }));
+    expect(mockListRecipes).toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ page: 2 }), WITH_SIGNAL);
+    expect(mockListRecipes).not.toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }), WITH_SIGNAL);
   });
 
   it("moves to the last page when there are fewer results than the remembered page", async () => {
@@ -199,7 +240,7 @@ describe("RecipesPage", () => {
     renderPage();
 
     await waitFor(() =>
-      expect(mockListRecipes).toHaveBeenLastCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }))
+      expect(mockListRecipes).toHaveBeenLastCalledWith("", expect.anything(), expect.objectContaining({ page: 1 }), WITH_SIGNAL)
     );
   });
 
@@ -282,7 +323,8 @@ describe("RecipesPage", () => {
         expect(mockListRecipes).toHaveBeenLastCalledWith(
           "",
           expect.objectContaining({ tag: "italian" }),
-          expect.objectContaining({ page: 1 })
+          expect.objectContaining({ page: 1 }),
+          WITH_SIGNAL
         )
       );
       expect(await screen.findByText("Chicken Caesar Taco Salad")).toBeInTheDocument();
@@ -319,7 +361,7 @@ describe("RecipesPage", () => {
 
       expect(await screen.findByRole("heading", { name: "Italian" })).toBeInTheDocument();
       await waitFor(() =>
-        expect(mockListRecipes).toHaveBeenCalledWith("", expect.objectContaining({ tag: "italian" }), expect.anything())
+        expect(mockListRecipes).toHaveBeenCalledWith("", expect.objectContaining({ tag: "italian" }), expect.anything(), WITH_SIGNAL)
       );
     });
   });

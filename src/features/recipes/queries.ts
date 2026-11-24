@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUserId } from "../../lib/auth/sessionContext";
 import { useInvalidateMealPlanWeeks } from "../meal-plans/queries";
 import {
@@ -52,17 +52,25 @@ export function useRecipeList(params: RecipeListParams, enabled = true) {
   const userId = useCurrentUserId();
   const query = useQuery({
     queryKey: recipeKeys.list(userId ?? "", params),
-    queryFn: () =>
-      listRecipes(params.searchTerm, params.filters, {
-        page: params.page,
-        pageSize: params.pageSize,
-      }),
+    queryFn: ({ signal }) =>
+      listRecipes(
+        params.searchTerm,
+        params.filters,
+        { page: params.page, pageSize: params.pageSize },
+        { signal }
+      ),
     enabled: userId !== null && enabled,
+    // A new search, filter, or page keeps showing the current page until the
+    // next one arrives, instead of blanking the list (tanstack-query.md §6).
+    placeholderData: keepPreviousData,
   });
   return {
     recipes: query.data?.recipes ?? NO_RECIPES,
     totalCount: query.data?.totalCount ?? 0,
+    /** Nothing to show yet (the very first load). */
     loading: enabled && query.isPending,
+    /** Showing the previous results while the next ones load. */
+    updating: enabled && query.isPlaceholderData,
     error: errorMessage(query.error, "Failed to load recipes."),
   };
 }

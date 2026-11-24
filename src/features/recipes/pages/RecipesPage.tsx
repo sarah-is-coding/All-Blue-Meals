@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import RecipeFiltersPanel from "../components/RecipeFiltersPanel";
 import RecipeResults from "../components/RecipeResults";
@@ -6,6 +6,7 @@ import RecipeTagFolders from "../components/RecipeTagFolders";
 import RecipeViewMenu from "../components/RecipeViewMenu";
 import { useRecipeList, useRecipeTagFolders } from "../queries";
 import { MEAL_TYPE_OPTIONS } from "../../meal-plans/constants";
+import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
 import { createDateFromIso } from "../../../lib/utils/dates";
 import type { MealType } from "../../meal-plans/types";
 import type { RecipeListFilters, RecipeListView } from "../types";
@@ -17,6 +18,8 @@ import {
 import { filterTagFolders } from "../utils/recipeTagFolders";
 
 const RECIPES_PER_PAGE = 12;
+/** How long typing pauses before the list searches. */
+const SEARCH_DEBOUNCE_MS = 220;
 
 type MealSlot = { date: string; mealType: MealType };
 type RecipesPageLocationState = { mealSlot?: MealSlot };
@@ -40,7 +43,12 @@ export default function RecipesPage() {
   const mealSlot = (location.state as RecipesPageLocationState | null)?.mealSlot;
   const [initialState] = useState(loadRecipeListViewState);
   const [searchInput, setSearchInput] = useState(initialState.searchInput);
-  const [searchTerm, setSearchTerm] = useState(initialState.searchInput.trim());
+  // Typing searches after a short pause. Search (or Enter) searches now, and
+  // so does clearing the box: the submitted or empty term is used as is.
+  const [submittedTerm, setSubmittedTerm] = useState<string | null>(null);
+  const typedTerm = searchInput.trim();
+  const debouncedTerm = useDebouncedValue(typedTerm, SEARCH_DEBOUNCE_MS);
+  const searchTerm = typedTerm === "" || typedTerm === submittedTerm ? typedTerm : debouncedTerm;
   const [filters, setFilters] = useState<RecipeListFilters>(initialState.filters);
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [showFilters, setShowFilters] = useState(false);
@@ -53,16 +61,8 @@ export default function RecipesPage() {
   const showingFolders = view === "tags" && openTag === null;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    const debounceId = window.setTimeout(() => {
-      setSearchTerm(searchInput.trim());
-    }, 220);
-
-    return () => window.clearTimeout(debounceId);
-  }, [searchInput]);
-
   // Inside a tag folder, the folder decides the tag; the other filters still apply.
-  const { recipes, totalCount, loading, error } = useRecipeList(
+  const { recipes, totalCount, loading, updating, error } = useRecipeList(
     {
       searchTerm,
       filters: view === "tags" ? { ...filters, tag: openTag ?? "" } : filters,
@@ -79,8 +79,9 @@ export default function RecipesPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / RECIPES_PER_PAGE));
 
   // If filters shrink the results below the current page, go to the last page.
-  // Only once the count has loaded: while a page loads it reads as 0.
-  if (!loading && currentPage > totalPages) {
+  // Only once the count has loaded: while a page loads it reads as 0, and
+  // while the previous results are shown it's the previous count.
+  if (!loading && !updating && currentPage > totalPages) {
     setCurrentPage(totalPages);
   }
 
@@ -103,7 +104,6 @@ export default function RecipesPage() {
   const openTagFolder = (tag: string | null) => {
     setOpenTag(tag);
     setSearchInput("");
-    setSearchTerm("");
     setCurrentPage(1);
   };
 
@@ -133,7 +133,7 @@ export default function RecipesPage() {
             role="search"
             onSubmit={(event) => {
               event.preventDefault();
-              setSearchTerm(searchInput.trim());
+              setSubmittedTerm(typedTerm);
               setCurrentPage(1);
             }}
           >
@@ -265,6 +265,7 @@ export default function RecipesPage() {
           <RecipeResults
             recipes={recipes}
             loading={loading}
+            updating={updating}
             totalCount={totalCount}
             currentPage={currentPage}
             pageSize={RECIPES_PER_PAGE}

@@ -132,7 +132,9 @@ export async function listRecipeTags(): Promise<string[][]> {
 export async function listRecipes(
   searchTerm: string,
   filters: RecipeListFilters,
-  pagination: RecipeListPageInput
+  pagination: RecipeListPageInput,
+  /** Cancels the request when the list moves on (e.g. the search changed). */
+  options: { signal?: AbortSignal } = {}
 ): Promise<RecipeListPageResult> {
   const safePage = Math.max(1, Math.floor(pagination.page));
   const safePageSize = Math.max(1, Math.floor(pagination.pageSize));
@@ -180,6 +182,10 @@ export async function listRecipes(
     default:
       query = query.order("created_at", { ascending: false });
       break;
+  }
+
+  if (options.signal) {
+    query = query.abortSignal(options.signal);
   }
 
   const { data, error, count } = await query.returns<RecipeSummaryRow[]>();

@@ -6,6 +6,8 @@ import StarRating from "./StarRating";
 type RecipeResultsProps = {
   recipes: RecipeSummary[];
   loading: boolean;
+  /** The recipes shown are the previous results; the next ones are loading. */
+  updating?: boolean;
   totalCount: number;
   currentPage: number;
   pageSize: number;
@@ -30,6 +32,7 @@ const formatTotalMinutes = (recipe: RecipeSummary): string => {
 export default function RecipeResults({
   recipes,
   loading,
+  updating = false,
   totalCount,
   currentPage,
   pageSize,
@@ -43,7 +46,7 @@ export default function RecipeResults({
   const pageEndIndex = Math.min(currentPage * pageSize, totalCount);
 
   return (
-    <section aria-live="polite" aria-busy={loading}>
+    <section aria-label="Recipe results" aria-live="polite" aria-busy={loading || updating}>
       {loading ? (
         <article className="workspace-card">
           <p>Loading recipes...</p>
@@ -55,7 +58,7 @@ export default function RecipeResults({
         </article>
       ) : (
         <>
-          <ul className="recipe-list">
+          <ul className={`recipe-list${updating ? " recipe-list--updating" : ""}`}>
             {recipes.map((recipe) => (
               <li key={recipe.id}>
                 <Link

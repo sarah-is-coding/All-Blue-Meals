@@ -20,6 +20,7 @@ vi.mock("../../../lib/supabaseClient", () => {
     "order",
     "gte",
     "contains",
+    "abortSignal",
   ];
 
   for (const method of chained) {
@@ -71,6 +72,7 @@ const CHAINED_METHODS = [
   "order",
   "gte",
   "contains",
+  "abortSignal",
 ];
 
 const defaultFilters = {
@@ -412,5 +414,19 @@ describe("recipe api", () => {
     await listRecipes("", { ...defaultFilters, minRating: 0 }, { page: 1, pageSize: 12 });
 
     expect(db.gte).not.toHaveBeenCalled();
+  });
+
+  // A list request can be cancelled when the search or page moves on.
+  it("passes an abort signal through to the request", async () => {
+    const controller = new AbortController();
+    await listRecipes("", defaultFilters, { page: 1, pageSize: 12 }, { signal: controller.signal });
+
+    expect(db.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it("sends the request without a signal when none is given", async () => {
+    await listRecipes("", defaultFilters, { page: 1, pageSize: 12 });
+
+    expect(db.abortSignal).not.toHaveBeenCalled();
   });
 });

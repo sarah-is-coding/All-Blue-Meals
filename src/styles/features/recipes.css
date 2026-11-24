@@ -303,6 +303,18 @@
   padding: 0;
   display: grid;
   gap: 0.72rem;
+  transition: opacity 160ms ease;
+}
+
+/* The previous results stay visible, dimmed, while the next ones load. */
+.recipe-list--updating {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-list {
+    transition: none;
+  }
 }
 
 .recipe-card {
