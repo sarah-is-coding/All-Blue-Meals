@@ -226,6 +226,12 @@ component → features/<feature>/queries.ts → features/<feature>/api.ts → Su
   `useCurrentUserId()`), the hooks components call (e.g.
   `useMealPlanWeek`), and actions that save a change through `api.ts` and
   then update every cached view it affects (e.g. `useMealPlanActions`)
+- Every Supabase call a component triggers goes through `queries.ts`, including
+  one-off actions that don't touch cached data. Server side effects (sign in/out,
+  importing or generating recipes) are `useMutation` hooks there. On-demand
+  reads (building a grocery list) are `useQuery` hooks keyed by what they're
+  built from and enabled once the user asks. Components never import `api.ts`
+  or hand-roll `loading`/`error` state for these calls
 - Components never import `@tanstack/react-query` or build cache keys;
   ESLint only allows the library in `src/lib/query`, `queries.ts` files,
   `src/app/App.tsx`, and `src/app/useSessionCache.ts`

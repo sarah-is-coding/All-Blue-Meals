@@ -89,7 +89,7 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 ### Table ownership patterns
 - Tables with `user_id`: `profiles`, `recipes`, `planned_meals`, `saved_plans`  
   - `profiles` also holds the user's preferences (week start, planning cadence); the row is created the first time they save  
-  - Policies must enforce: `user_id = auth.uid()`
+  - Policies must enforce: `user_id = (select auth.uid())` (the subselect is evaluated once per query instead of once per row)
 - Child tables without `user_id`: `recipe_ingredients`, `recipe_notes`, `saved_plan_meals`  
   - Policies must enforce ownership via parent:
     - `recipe_ingredients.recipe_id → recipes.user_id`
@@ -106,7 +106,8 @@ This codebase follows **modular programming** and **separation of concerns**. Av
 
 ### Agent checklist for DB changes
 - [ ] RLS enabled on any new user-scoped table  
-- [ ] SELECT/INSERT/UPDATE/DELETE policies defined and reviewed  
+- [ ] SELECT/INSERT/UPDATE/DELETE policies defined and reviewed: one policy per operation, `to authenticated`, never `for all` (see [principles/supabase-postgres.md](principles/supabase-postgres.md))  
+- [ ] Supabase security and performance advisors re-run after the change, with no new warnings  
 - [ ] Indexes added for foreign keys + common filters (`user_id`, `created_at`, `planned_for`)  
 - [ ] Avoid heavy text search / full-text unless explicitly planned  
 - [ ] No new shared/global tables or bloat tables beyond the `ingredients` / `ingredient_aliases` catalog and the `ingredient_categories` lookup  

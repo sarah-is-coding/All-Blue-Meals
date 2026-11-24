@@ -72,6 +72,21 @@ changes; keep the selector stable (module-level function or `useCallback`).
   project default.
 - Never mutate cached data in place. `setQueryData` takes a new object.
 
+## 5a. One-off actions are mutations too
+
+- `useMutation` is for creating, updating, or deleting data **or performing
+  server side effects**, so it isn't only for changes to cached data. Sign
+  in/out, an AI import, or "send me a reset link" are mutations. They get
+  `isPending`, `error`, and success state for free instead of hand-rolled
+  `useState` flags, and a double tap can't fire two requests if the control
+  is disabled while `isPending`.
+- A read the user triggers on demand (build a grocery list for these dates)
+  is a query, not a mutation. Key it by its inputs and set `enabled` once
+  the user asks, so asking again for the same inputs is served from cache.
+- Either way, the hook lives in the feature's `queries.ts` and calls
+  `api.ts`. Components never import `api.ts` directly (CLAUDE.md → Data
+  loading).
+
 ## 6. Loading and error states are part of the hook's contract
 
 - Distinguish `isPending` (no data yet) from `isFetching` (background
@@ -95,6 +110,8 @@ changes; keep the selector stable (module-level function or `useCallback`).
 
 - [TanStack Query v5 docs: Query Keys](https://tanstack.com/query/v5/docs/framework/react/guides/query-keys)
 - [TanStack Query v5 docs: Query Options](https://tanstack.com/query/v5/docs/framework/react/guides/query-options)
+- [TanStack Query v5 docs: Mutations](https://tanstack.com/query/v5/docs/framework/react/guides/mutations)
+- [TanStack Query v5 docs: Disabling/Pausing Queries (`enabled`)](https://tanstack.com/query/v5/docs/framework/react/guides/disabling-queries)
 - [TanStack Query v5 docs: Optimistic Updates](https://tanstack.com/query/v5/docs/framework/react/guides/optimistic-updates)
 - [TkDodo's blog index (maintainer guidance)](https://tanstack.com/query/v5/docs/react/community/tkdodos-blog)
 - [TkDodo: Effective React Query Keys](https://tkdodo.eu/blog/effective-react-query-keys)
